@@ -345,7 +345,15 @@ class FlutterForgeCLI {
     
     // Check for updates
     try {
+      final releaseVersion = await VersionChecker.getLatestCLIVersion();
+      final gitVersion = await VersionChecker.getLatestCLIVersionFromGit();
       final latestVersion = await VersionChecker.getLatestCLIVersionAny();
+      
+      // Debug: show what versions we got
+      if (releaseVersion != null || gitVersion != null) {
+        print('${dim}Debug: Release=$releaseVersion, Git=$gitVersion, Latest=$latestVersion${reset}');
+      }
+      
       if (latestVersion != null) {
         final comparison = VersionChecker.compareVersions(currentVersion, latestVersion);
         final isUpdateAvailable = comparison < 0;
@@ -353,8 +361,12 @@ class FlutterForgeCLI {
           print('${brightYellow}${bold}🔄 Latest version:${reset} ${brightYellow}$latestVersion${reset} ${brightYellow}${bold}(Update available!)${reset}');
           print('');
           print('${brightYellow}${bold}💡 Run:${reset} ${dim}flutterforge -u${reset} ${dim}or${reset} ${dim}flutterforge --update${reset}');
-        } else {
+        } else if (comparison == 0) {
           print('${brightGreen}${bold}✅ You have the latest version${reset}');
+        } else {
+          // Current version is newer than latest (dev version)
+          print('${brightYellow}${bold}ℹ️  You have a development version${reset}');
+          print('${brightGreen}${bold}📦 Latest stable:${reset} ${brightYellow}$latestVersion${reset}');
         }
       } else {
         // If we couldn't get latest version, don't show the "latest" message
