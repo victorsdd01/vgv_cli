@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.15] - 2026-01-24
+
+### Changes
+- feat: enhance state management and localization in auth and home features
+
 ## [1.10.14] - 2026-01-24
 
 ### Changes
