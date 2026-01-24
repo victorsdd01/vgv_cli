@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.16] - 2026-01-24
+
+### Changes
+- refactor: convert HomePage and LoginPage to TStateless, enhancing state management
+
 ## [1.10.15] - 2026-01-24
 
 ### Changes
