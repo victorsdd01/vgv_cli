@@ -84,7 +84,7 @@ if command -v flutterforge &> /dev/null; then
     echo "  flutterforge --help"
     echo ""
     echo "📚 For more information, visit:"
-    echo "  https://github.com/victorsdd01/flutter_forge"
+    echo "  https://github.com/victorsdd01/vgv_cli"
     echo ""
     echo "🚀 Happy coding with FlutterForge!"
     echo ""

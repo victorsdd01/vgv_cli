@@ -18,7 +18,7 @@ class VersionChecker {
     'equatable': '^2.0.7',
   };
 
-  static const String _githubApiUrl = 'https://api.github.com/repos/victorsdd01/flutter_forge/releases/latest';
+  static const String _githubApiUrl = 'https://api.github.com/repos/victorsdd01/vgv_cli/releases/latest';
   
   /// Get the path to the version file
   static String _getVersionFilePath() {
@@ -156,7 +156,7 @@ class VersionChecker {
                   final content = pubspecFile.readAsStringSync();
                   // Check if this is the vgv_cli package
                   if (content.contains('name: vgv_cli') || 
-                      entry.path.contains('flutter_forge') ||
+                      entry.path.contains('vgv_cli') ||
                       entry.path.contains('flutter-forge')) {
                     possiblePaths.add(pubspecFile.path);
                   }
@@ -214,7 +214,7 @@ class VersionChecker {
       // Try curl first (works on macOS/Linux)
       ProcessResult result = Process.runSync(
         'curl',
-        ['-s', '--max-time', '5', 'https://raw.githubusercontent.com/victorsdd01/flutter_forge/main/pubspec.yaml'],
+        ['-s', '--max-time', '5', 'https://raw.githubusercontent.com/victorsdd01/vgv_cli/main/pubspec.yaml'],
         runInShell: true,
       );
       
@@ -222,7 +222,7 @@ class VersionChecker {
         // Try wget as fallback (works on Linux)
         result = Process.runSync(
           'wget',
-          ['-q', '--timeout=5', '-O', '-', 'https://raw.githubusercontent.com/victorsdd01/flutter_forge/main/pubspec.yaml'],
+          ['-q', '--timeout=5', '-O', '-', 'https://raw.githubusercontent.com/victorsdd01/vgv_cli/main/pubspec.yaml'],
           runInShell: true,
         );
       }
@@ -304,7 +304,7 @@ class VersionChecker {
     try {
       // Get from main branch directly (more reliable than API)
       final response = await http.get(
-        Uri.parse('https://raw.githubusercontent.com/victorsdd01/flutter_forge/main/pubspec.yaml'),
+        Uri.parse('https://raw.githubusercontent.com/victorsdd01/vgv_cli/main/pubspec.yaml'),
       ).timeout(const Duration(seconds: 10));
       
       if (response.statusCode == 200) {

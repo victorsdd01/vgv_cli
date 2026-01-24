@@ -11,7 +11,7 @@ Write-Host ""
 Write-Host "📦 Updating to latest version..." -ForegroundColor Blue
 
 # Update to latest version
-dart pub global activate --source git https://github.com/victorsdd01/flutter_forge.git
+dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git
 
 Write-Host ""
 Write-Host "✅ FlutterForge CLI updated successfully!" -ForegroundColor Green

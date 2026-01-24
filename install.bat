@@ -40,7 +40,7 @@ echo 🎯 Usage:
 echo   flutterforge
 echo.
 echo 📚 For more information, visit:
-echo   https://github.com/victorsdd01/flutter_forge
+echo   https://github.com/victorsdd01/vgv_cli
 echo.
 echo 🚀 Happy coding with Flutter!
 pause 

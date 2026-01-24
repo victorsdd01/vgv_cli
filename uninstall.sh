@@ -47,7 +47,7 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     echo "✅ FlutterForge CLI uninstalled successfully!"
     echo ""
     echo "💡 To reinstall later, run:"
-    echo "   dart pub global activate --source git https://github.com/victorsdd01/flutter_forge.git"
+    echo "   dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git"
 else
     echo "❌ Uninstallation cancelled."
     exit 0

@@ -18,7 +18,7 @@ dart pub global list | grep flutterforge
 
 ### **Method 3: From Repository**
 ```bash
-cd flutter_forge
+cd vgv_cli
 git log --oneline -1
 ```
 
@@ -27,16 +27,16 @@ git log --oneline -1
 ### **Option 1: Update from Git (Recommended)**
 ```bash
 # Update to latest version from main branch
-dart pub global activate --source git https://github.com/victorsdd01/flutter_forge.git
+dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git
 
 # Update to specific version (when tags are available)
-dart pub global activate --source git https://github.com/victorsdd01/flutter_forge.git --git-ref v1.1.0
+dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git --git-ref v1.1.0
 ```
 
 ### **Option 2: Update from Local Repository**
 ```bash
 # If you have the repository cloned locally
-cd flutter_forge
+cd vgv_cli
 git pull origin main
 dart pub global activate --source path .
 ```
@@ -68,10 +68,10 @@ powershell -ExecutionPolicy Bypass -File update.ps1
 ### **Update to Specific Version**
 ```bash
 # Update to a specific commit
-dart pub global activate --source git https://github.com/victorsdd01/flutter_forge.git --git-ref abc1234
+dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git --git-ref abc1234
 
 # Update to a specific branch
-dart pub global activate --source git https://github.com/victorsdd01/flutter_forge.git --git-ref feature/new-feature
+dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git --git-ref feature/new-feature
 ```
 
 ## 🔧 Troubleshooting Updates
@@ -81,7 +81,7 @@ dart pub global activate --source git https://github.com/victorsdd01/flutter_for
 #### **"Command not found" after update**
 ```bash
 # Reinstall the CLI
-dart pub global activate --source git https://github.com/victorsdd01/flutter_forge.git
+dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git
 
 # Check PATH configuration
 echo $PATH | grep .pub-cache
@@ -91,7 +91,7 @@ echo $PATH | grep .pub-cache
 ```bash
 # Force reinstall
 dart pub global deactivate flutterforge
-dart pub global activate --source git https://github.com/victorsdd01/flutter_forge.git
+dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git
 
 # Clear cache (if needed)
 dart pub cache clean

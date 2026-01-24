@@ -41,7 +41,7 @@ Write-Host "🎯 Usage:" -ForegroundColor Cyan
 Write-Host "  flutterforge" -ForegroundColor White
 Write-Host ""
 Write-Host "📚 For more information, visit:" -ForegroundColor Cyan
-Write-Host "  https://github.com/victorsdd01/flutter_forge" -ForegroundColor White
+Write-Host "  https://github.com/victorsdd01/vgv_cli" -ForegroundColor White
 Write-Host ""
 Write-Host "🚀 Happy coding with Flutter!" -ForegroundColor Green
 Read-Host "Press Enter to continue" 

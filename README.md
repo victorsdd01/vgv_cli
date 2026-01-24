@@ -22,14 +22,14 @@ This initial release focuses on generating a solid foundation:
 ### From pub.dev (recommended)
 
 ```bash
-dart pub global activate flutter_forge_cli
+dart pub global activate vgv_cli_cli
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/victorsdd01/flutter_forge.git
-cd flutter_forge
+git clone https://github.com/victorsdd01/vgv_cli.git
+cd vgv_cli
 dart pub global activate --source path .
 ```
 

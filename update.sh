@@ -15,7 +15,7 @@ echo ""
 echo "📦 Updating to latest version..."
 
 # Update to latest version
-dart pub global activate --source git https://github.com/victorsdd01/flutter_forge.git
+dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git
 
 echo ""
 echo "✅ FlutterForge CLI updated successfully!"

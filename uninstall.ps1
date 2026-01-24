@@ -41,7 +41,7 @@ if ($response -eq "Y" -or $response -eq "y") {
     Write-Host "✅ FlutterForge CLI uninstalled successfully!" -ForegroundColor Green
     Write-Host ""
     Write-Host "💡 To reinstall later, run:" -ForegroundColor Cyan
-    Write-Host "   dart pub global activate --source git https://github.com/victorsdd01/flutter_forge.git" -ForegroundColor White
+    Write-Host "   dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git" -ForegroundColor White
 } else {
     Write-Host "❌ Uninstallation cancelled." -ForegroundColor Yellow
 }

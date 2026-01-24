@@ -183,7 +183,7 @@ echo $PATH | grep .pub-cache
 ### **Clean Reinstall:**
 ```bash
 # Install fresh copy
-dart pub global activate --source git https://github.com/victorsdd01/flutter_forge.git
+dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git
 
 # Verify installation
 flutterforge --version
@@ -192,8 +192,8 @@ flutterforge --version
 ### **From Local Source:**
 ```bash
 # Clone repository
-git clone https://github.com/victorsdd01/flutter_forge.git
-cd flutter_forge
+git clone https://github.com/victorsdd01/vgv_cli.git
+cd vgv_cli
 
 # Install from local source
 dart pub global activate --source path .

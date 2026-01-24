@@ -353,7 +353,7 @@ class VgvCli {
         'activate',
         '--source',
         'git',
-        'https://github.com/victorsdd01/flutter_forge.git'
+        'https://github.com/victorsdd01/vgv_cli.git'
       ]);
       
       if (result.exitCode == 0) {
@@ -435,7 +435,7 @@ class VgvCli {
     
     print('');
     print('${brightGreen}${bold}Description:${reset} ${dim}$_description${reset}');
-    print('${brightCyan}${bold}Repository:${reset}  ${dim}https://github.com/victorsdd01/flutter_forge${reset}');
+    print('${brightCyan}${bold}Repository:${reset}  ${dim}https://github.com/victorsdd01/vgv_cli${reset}');
     print('${brightCyan}${bold}Update:${reset}      ${dim}vgv -u | vgv --update${reset}');
     print('');
   }
@@ -487,7 +487,7 @@ class VgvCli {
     print('  ${dim}- GoRouter navigation${reset}');
     print('  ${dim}- VS Code debug configurations${reset}');
     print('');
-    print('${brightCyan}${bold}Repository:${reset} ${dim}https://github.com/victorsdd01/flutter_forge${reset}');
+    print('${brightCyan}${bold}Repository:${reset} ${dim}https://github.com/victorsdd01/vgv_cli${reset}');
     print('');
   }
 }
