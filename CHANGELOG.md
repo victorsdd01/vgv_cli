@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.18] - 2026-01-24
+
+### Changes
+- feat: update ARB content generation to include project name in app title
+
 ## [1.10.17] - 2026-01-24
 
 ### Changes
