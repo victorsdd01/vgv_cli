@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.38] - 2026-01-24
+
+### Changes
+- chore: update all URLs to new repo vgv_cli
+
 ## [1.10.37] - 2026-01-24
 
 ### Changes
