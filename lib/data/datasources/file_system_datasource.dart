@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter_forge_cli/core/templates/template_generator.dart';
+import 'package:vgv_cli/core/templates/template_generator.dart';
 import 'package:path/path.dart' as path;
 import '../../domain/entities/project_config.dart';
 
