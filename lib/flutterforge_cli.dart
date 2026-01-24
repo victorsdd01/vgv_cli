@@ -42,6 +42,36 @@ class FlutterForgeCLI {
         abbr: 'u',
         help: 'Update FlutterForge CLI to the latest version',
         negatable: false,
+      )
+      ..addFlag(
+        'quick',
+        abbr: 'q',
+        help: 'Quick mode: create project with sensible defaults',
+        negatable: false,
+      )
+      ..addOption(
+        'name',
+        abbr: 'n',
+        help: 'Project name (e.g., my_awesome_app)',
+      )
+      ..addOption(
+        'org',
+        help: 'Organization identifier (e.g., com.example)',
+      )
+      ..addOption(
+        'output',
+        abbr: 'o',
+        help: 'Output directory (defaults to current directory)',
+      )
+      ..addFlag(
+        'no-git',
+        help: 'Skip git initialization',
+        negatable: false,
+      )
+      ..addFlag(
+        'dry-run',
+        help: 'Show what would be created without creating files',
+        negatable: false,
       );
   }
 
@@ -90,7 +120,31 @@ class FlutterForgeCLI {
       // Check for updates when running normally
       await _checkForUpdates();
 
-      // Always run in interactive mode
+      // Handle quick mode or flags
+      final projectName = _argResults['name'] as String?;
+      final organization = _argResults['org'] as String?;
+      final outputDir = _argResults['output'] as String?;
+      final noGit = _argResults['no-git'] as bool;
+      final dryRun = _argResults['dry-run'] as bool;
+      final quickMode = _argResults['quick'] as bool;
+
+      if (dryRun) {
+        await _runDryRun(projectName, organization, outputDir);
+        return;
+      }
+
+      if (quickMode || projectName != null) {
+        await _runWithFlags(
+          projectName: projectName,
+          organization: organization,
+          outputDir: outputDir,
+          noGit: noGit,
+          quickMode: quickMode,
+        );
+        return;
+      }
+
+      // Run in interactive mode
       await _runInteractiveMode();
     } catch (e) {
       print('Error: $e');
@@ -105,69 +159,49 @@ class FlutterForgeCLI {
     const String brightGreen = '\x1B[92m';
     const String brightYellow = '\x1B[93m';
     const String brightCyan = '\x1B[96m';
-    const String brightBlue = '\x1B[94m';
     const String dim = '\x1B[2m';
     
-    print('${brightBlue}${bold}📊 Update Progress:${reset}');
+    print('${brightCyan}${bold}Update Progress${reset}');
     print('');
     
     final steps = [
-      {'icon': '🔍', 'text': 'Checking for latest version', 'duration': 600},
-      {'icon': '📦', 'text': 'Downloading new version', 'duration': 1200},
-      {'icon': '⚙️', 'text': 'Installing dependencies', 'duration': 1000},
-      {'icon': '🔧', 'text': 'Updating global package', 'duration': 800},
-      {'icon': '✨', 'text': 'Finalizing installation', 'duration': 600},
+      {'text': 'Checking for latest version', 'duration': 600},
+      {'text': 'Downloading new version', 'duration': 1200},
+      {'text': 'Installing dependencies', 'duration': 1000},
+      {'text': 'Updating global package', 'duration': 800},
+      {'text': 'Finalizing installation', 'duration': 600},
     ];
     
     for (int i = 0; i < steps.length; i++) {
       final step = steps[i];
       
-      // Show step header
-      print('${brightCyan}${bold}Step ${i + 1}/${steps.length}:${reset} ${brightYellow}${step['icon']} ${step['text']}${reset}');
+      print('${brightCyan}${bold}[${i + 1}/${steps.length}]${reset} ${brightYellow}${step['text']}${reset}');
       
-      // Show progress bar with spinner
-      stdout.write('${dim}   ${_getSpinner(0)} [${_getProgressBar(0)}] 0%${reset}');
+      stdout.write('${dim}    ${_getSpinner(0)} [${_getProgressBar(0)}] 0%${reset}');
       
-      // Animate progress bar with spinning
       for (int p = 0; p <= 100; p += 5) {
         await Future.delayed(Duration(milliseconds: (step['duration'] as int) ~/ 20));
-        stdout.write('\r${dim}   ${_getSpinner(p ~/ 5)} [${_getProgressBar(p)}] ${p.toString().padLeft(3)}%${reset}');
+        stdout.write('\r${dim}    ${_getSpinner(p ~/ 5)} [${_getProgressBar(p)}] ${p.toString().padLeft(3)}%${reset}');
       }
       
-      // Show completion
-      print(' ${brightGreen}✅${reset}');
-      print('');
+      print(' ${brightGreen}done${reset}');
     }
     
-    print('${brightGreen}${bold}🎉 All steps completed successfully!${reset}');
+    print('');
+    print('${brightGreen}${bold}All steps completed successfully${reset}');
     print('');
   }
   
   Future<void> _showCompletionCelebration() async {
     const String reset = '\x1B[0m';
     const String bold = '\x1B[1m';
-    const String brightYellow = '\x1B[93m';
-    const String brightCyan = '\x1B[96m';
+    const String brightGreen = '\x1B[92m';
     const String brightMagenta = '\x1B[95m';
-    
-    final celebrations = [
-      '🎉', '✨', '🚀', '🎊', '💫', '🌟', '🎈', '🎯', '🏆', '💎'
-    ];
     
     print('');
     print('${brightMagenta}${bold}╔══════════════════════════════════════════════════════════════╗${reset}');
-    print('${brightMagenta}${bold}║${reset}${brightYellow}${bold}                    🎊 UPDATE COMPLETE! 🎊                    ${reset}${brightMagenta}${bold}║${reset}');
+    print('${brightMagenta}${bold}║${reset}${brightGreen}${bold}                       UPDATE COMPLETE                        ${reset}${brightMagenta}${bold}║${reset}');
     print('${brightMagenta}${bold}╚══════════════════════════════════════════════════════════════╝${reset}');
-    print('');
-    
-    // Animated celebration
-    for (int i = 0; i < 3; i++) {
-      for (int j = 0; j < celebrations.length; j++) {
-        stdout.write('\r${brightCyan}${bold}${celebrations[j]}${reset} ');
-        await Future.delayed(Duration(milliseconds: 100));
-      }
-    }
-    print('');
     print('');
   }
   
@@ -196,22 +230,21 @@ class FlutterForgeCLI {
         final isUpdateAvailable = VersionChecker.compareVersions(currentVersion, latestVersion) < 0;
         
         if (isUpdateAvailable) {
-          // ANSI Color Codes
           const String reset = '\x1B[0m';
           const String bold = '\x1B[1m';
           const String brightYellow = '\x1B[93m';
           const String dim = '\x1B[2m';
           
           print('');
-          print('${brightYellow}${bold}🔄 Update Available!${reset}');
+          print('${brightYellow}${bold}Update Available${reset}');
           print('${dim}   Current: $currentVersion${reset}');
           print('${dim}   Latest:  $latestVersion${reset}');
-          print('${dim}   Run: flutterforge -u${reset} ${dim}or${reset} ${dim}flutterforge --update${reset}');
+          print('${dim}   Run: flutterforge -u to update${reset}');
           print('');
         }
       }
     } catch (e) {
-      // Silently fail - don't interrupt the user experience
+      // Silently fail
     }
   }
 
@@ -219,8 +252,54 @@ class FlutterForgeCLI {
     await _cliController.runInteractiveMode();
   }
 
+  Future<void> _runDryRun(String? projectName, String? organization, String? outputDir) async {
+    const String reset = '\x1B[0m';
+    const String bold = '\x1B[1m';
+    const String brightCyan = '\x1B[96m';
+    const String brightYellow = '\x1B[93m';
+    const String brightGreen = '\x1B[92m';
+    const String dim = '\x1B[2m';
+
+    final defaultOrg = projectName != null ? 'com.$projectName' : '<interactive>';
+    
+    print('');
+    print('${brightCyan}${bold}DRY RUN - No files will be created${reset}');
+    print('');
+    print('${brightGreen}${bold}Configuration:${reset}');
+    print('${dim}   Project Name:  ${reset}${brightYellow}${projectName ?? "<interactive>"}${reset}');
+    print('${dim}   Organization:  ${reset}${brightYellow}${organization ?? defaultOrg}${reset}');
+    print('${dim}   Output:        ${reset}${brightYellow}${outputDir ?? Directory.current.path}${reset}');
+    print('');
+    print('${brightGreen}${bold}Would create:${reset}');
+    print('${dim}   - Flutter project with Clean Architecture${reset}');
+    print('${dim}   - BLoC state management with Freezed${reset}');
+    print('${dim}   - GoRouter navigation${reset}');
+    print('${dim}   - Internationalization (en, es)${reset}');
+    print('${dim}   - Environment configs (dev, staging, production)${reset}');
+    print('${dim}   - VS Code launch configurations${reset}');
+    print('${dim}   - Auth feature (login, register)${reset}');
+    print('${dim}   - Home feature${reset}');
+    print('${dim}   - Settings feature (theme, language)${reset}');
+    print('');
+  }
+
+  Future<void> _runWithFlags({
+    String? projectName,
+    String? organization,
+    String? outputDir,
+    bool noGit = false,
+    bool quickMode = false,
+  }) async {
+    await _cliController.runWithFlags(
+      projectName: projectName,
+      organization: organization,
+      outputDir: outputDir,
+      noGit: noGit,
+      quickMode: quickMode,
+    );
+  }
+
   Future<void> _updateCLI() async {
-    // ANSI Color Codes
     const String reset = '\x1B[0m';
     const String bold = '\x1B[1m';
     const String brightCyan = '\x1B[96m';
@@ -232,47 +311,42 @@ class FlutterForgeCLI {
     
     print('');
     print('${brightCyan}${bold}╔══════════════════════════════════════════════════════════════╗${reset}');
-                  print('${brightCyan}${bold}║${reset}${bold}                    🔄 FLUTTERFORGE UPDATE 🔄                    ${reset}${brightCyan}${bold}║${reset}');
+    print('${brightCyan}${bold}║${reset}${bold}                      FLUTTERFORGE UPDATE                     ${reset}${brightCyan}${bold}║${reset}');
     print('${brightCyan}${bold}╚══════════════════════════════════════════════════════════════╝${reset}');
     print('');
     
-    // Get current version (try local first, then from Git if not found)
     String currentVersion = _version;
     if (currentVersion == '1.0.0') {
-      // If we got the default version, try to get it from Git
       final gitCurrentVersion = await VersionChecker.getLatestCLIVersionFromGit();
       if (gitCurrentVersion != null) {
         currentVersion = gitCurrentVersion;
       }
     }
-    print('${brightGreen}${bold}📦 Current version:${reset} ${brightYellow}$currentVersion${reset}');
+    print('${brightGreen}${bold}Current:${reset} ${brightYellow}$currentVersion${reset}');
     
-    // Check for latest version (tries releases first, then Git)
     final latestVersion = await VersionChecker.getLatestCLIVersionAny();
     if (latestVersion != null) {
-      print('${brightGreen}${bold}📦 Latest version:${reset} ${brightYellow}$latestVersion${reset}');
+      print('${brightGreen}${bold}Latest:${reset}  ${brightYellow}$latestVersion${reset}');
       
       if (latestVersion == currentVersion) {
         print('');
-        print('${brightGreen}${bold}✅ You already have the latest version!${reset}');
+        print('${brightGreen}${bold}You already have the latest version${reset}');
         print('');
         return;
       }
     } else {
-      print('${brightYellow}${bold}⚠️  Could not check for latest version${reset}');
-      print('${dim}   Proceeding with update from main branch...${reset}');
+      print('${brightYellow}Could not check for latest version${reset}');
+      print('${dim}Proceeding with update from main branch...${reset}');
     }
     
     print('');
     
     try {
-      print('${brightYellow}${bold}🔄 Updating FlutterForge CLI...${reset}');
+      print('${brightYellow}${bold}Updating FlutterForge CLI...${reset}');
       print('');
       
-      // Show progress steps
       await _showUpdateProgress();
       
-      // Execute the update command
       final result = Process.runSync('dart', [
         'pub',
         'global',
@@ -283,12 +357,10 @@ class FlutterForgeCLI {
       ]);
       
       if (result.exitCode == 0) {
-        // Get the new version and save it
         final newVersion = await VersionChecker.getLatestCLIVersionAny();
         if (newVersion != null) {
           VersionChecker.saveInstalledVersion(newVersion);
         } else {
-          // Fallback: get from current version after update
           final currentVersion = VersionChecker.getCurrentVersion();
           if (currentVersion != '1.0.0') {
             VersionChecker.saveInstalledVersion(currentVersion);
@@ -296,35 +368,31 @@ class FlutterForgeCLI {
         }
         
         await _showCompletionCelebration();
+        print('${brightGreen}${bold}FlutterForge CLI updated successfully${reset}');
         print('');
-        print('${brightGreen}${bold}✅ FlutterForge CLI updated successfully!${reset}');
+        print('${brightCyan}${bold}What\'s new:${reset}');
+        print('${dim}   - Latest features and improvements${reset}');
+        print('${dim}   - Bug fixes and performance enhancements${reset}');
+        print('${dim}   - Updated dependencies and templates${reset}');
         print('');
-        print('${brightCyan}${bold}🎉 What\'s new:${reset}');
-        print('${dim}   • Latest features and improvements${reset}');
-        print('${dim}   • Bug fixes and performance enhancements${reset}');
-        print('${dim}   • Updated dependencies and templates${reset}');
-        print('');
-        print('${brightGreen}${bold}🚀 Ready to create amazing Flutter projects!${reset}');
+        print('${brightGreen}Ready to create Flutter projects${reset}');
         print('');
       } else {
-        print('${brightRed}${bold}❌ Update failed:${reset}');
+        print('${brightRed}${bold}Update failed${reset}');
         print('${red}${result.stderr}${reset}');
         print('');
-        print('${brightYellow}${bold}💡 Manual update:${reset}');
-        print('${dim}   flutterforge -u${reset} ${dim}or${reset} ${dim}flutterforge --update${reset}');
+        print('${brightYellow}Try: flutterforge -u${reset}');
         print('');
       }
     } catch (e) {
-      print('${brightRed}${bold}❌ Update failed:${reset} ${red}$e${reset}');
+      print('${brightRed}${bold}Update failed:${reset} ${red}$e${reset}');
       print('');
-      print('${brightYellow}${bold}💡 Manual update:${reset}');
-      print('${dim}   flutterforge -u${reset} ${dim}or${reset} ${dim}flutterforge --update${reset}');
+      print('${brightYellow}Try: flutterforge -u${reset}');
       print('');
     }
   }
 
   Future<void> _printVersion() async {
-    // ANSI Color Codes
     const String reset = '\x1B[0m';
     const String bold = '\x1B[1m';
     const String brightCyan = '\x1B[96m';
@@ -335,89 +403,91 @@ class FlutterForgeCLI {
     
     print('');
     print('${brightCyan}${bold}╔══════════════════════════════════════════════════════════════╗${reset}');
-                  print('${brightCyan}${bold}║${reset}${brightMagenta}${bold}                    🚀 FLUTTERFORGE CLI 🚀                    ${reset}${brightCyan}${bold}║${reset}');
+    print('${brightCyan}${bold}║${reset}${brightMagenta}${bold}                      FLUTTERFORGE CLI                        ${reset}${brightCyan}${bold}║${reset}');
     print('${brightCyan}${bold}║${reset}${dim}           The Ultimate Flutter Project Generator           ${reset}${brightCyan}${bold}║${reset}');
     print('${brightCyan}${bold}╚══════════════════════════════════════════════════════════════╝${reset}');
     print('');
-    // Get current version dynamically
-    final currentVersion = VersionChecker.getCurrentVersion();
-    print('${brightGreen}${bold}📦 Version:${reset} ${brightYellow}$currentVersion${reset}');
     
-    // Check for updates
+    final currentVersion = VersionChecker.getCurrentVersion();
+    print('${brightGreen}${bold}Version:${reset}     ${brightYellow}$currentVersion${reset}');
+    
     try {
-      final releaseVersion = await VersionChecker.getLatestCLIVersion();
-      final gitVersion = await VersionChecker.getLatestCLIVersionFromGit();
       final latestVersion = await VersionChecker.getLatestCLIVersionAny();
-      
-      // Debug: show what versions we got
-      if (releaseVersion != null || gitVersion != null) {
-        print('${dim}Debug: Release=$releaseVersion, Git=$gitVersion, Latest=$latestVersion${reset}');
-      }
       
       if (latestVersion != null) {
         final comparison = VersionChecker.compareVersions(currentVersion, latestVersion);
-        final isUpdateAvailable = comparison < 0;
-        if (isUpdateAvailable) {
-          print('${brightYellow}${bold}🔄 Latest version:${reset} ${brightYellow}$latestVersion${reset} ${brightYellow}${bold}(Update available!)${reset}');
+        if (comparison < 0) {
+          print('${brightYellow}${bold}Latest:${reset}      ${brightYellow}$latestVersion${reset} ${brightYellow}(update available)${reset}');
           print('');
-          print('${brightYellow}${bold}💡 Run:${reset} ${dim}flutterforge -u${reset} ${dim}or${reset} ${dim}flutterforge --update${reset}');
+          print('${dim}Run: flutterforge -u to update${reset}');
         } else if (comparison == 0) {
-          print('${brightGreen}${bold}✅ You have the latest version${reset}');
+          print('${brightGreen}${bold}Status:${reset}      ${brightGreen}Up to date${reset}');
         } else {
-          // Current version is newer than latest (dev version)
-          print('${brightYellow}${bold}ℹ️  You have a development version${reset}');
-          print('${brightGreen}${bold}📦 Latest stable:${reset} ${brightYellow}$latestVersion${reset}');
+          print('${brightYellow}${bold}Status:${reset}      ${brightYellow}Development version${reset}');
+          print('${dim}Latest stable: $latestVersion${reset}');
         }
       } else {
-        // If we couldn't get latest version, don't show the "latest" message
-        print('${dim}⚠️  Could not check for updates${reset}');
+        print('${dim}Status:      Could not check for updates${reset}');
       }
     } catch (e) {
-      // Silently fail - don't interrupt the version display
+      // Silently fail
     }
     
-    print('${brightGreen}${bold}📝 Description:${reset} ${dim}$_description${reset}');
     print('');
-    print('${brightCyan}${bold}🔗 Repository:${reset} ${dim}https://github.com/victorsdd01/flutter_forge${reset}');
-    print('${brightCyan}${bold}🔄 To update:${reset} ${dim}flutterforge -u${reset} ${dim}or${reset} ${dim}flutterforge --update${reset}');
-    print('');
-                  print('${brightMagenta}${bold}✨ Happy coding with FlutterForge! ✨${reset}');
+    print('${brightGreen}${bold}Description:${reset} ${dim}$_description${reset}');
+    print('${brightCyan}${bold}Repository:${reset}  ${dim}https://github.com/victorsdd01/flutter_forge${reset}');
+    print('${brightCyan}${bold}Update:${reset}      ${dim}flutterforge -u | flutterforge --update${reset}');
     print('');
   }
 
   void _printUsage() {
-    // ANSI Color Codes
     const String reset = '\x1B[0m';
     const String bold = '\x1B[1m';
     const String brightCyan = '\x1B[96m';
     const String brightGreen = '\x1B[92m';
+    const String brightYellow = '\x1B[93m';
     const String dim = '\x1B[2m';
     
     print('');
     print('${brightCyan}${bold}╔══════════════════════════════════════════════════════════════╗${reset}');
-                  print('${brightCyan}${bold}║${reset}${bold}                    🚀 FLUTTERFORGE CLI 🚀                    ${reset}${brightCyan}${bold}║${reset}');
+    print('${brightCyan}${bold}║${reset}${bold}                        FLUTTERFORGE CLI                      ${reset}${brightCyan}${bold}║${reset}');
     print('${brightCyan}${bold}╚══════════════════════════════════════════════════════════════╝${reset}');
     print('');
-    print('${brightGreen}${bold}📝 Description:${reset} ${dim}$_description${reset}');
+    print('${brightGreen}${bold}Description:${reset} ${dim}$_description${reset}');
     print('');
-    print('${brightGreen}${bold}🚀 Usage:${reset}');
-    print('${dim}   $_appName${reset} ${brightCyan}${bold}# Start interactive project creation${reset}');
-    print('${dim}   $_appName --help${reset} ${brightCyan}${bold}# Show this help message${reset}');
-    print('${dim}   $_appName --version${reset} ${brightCyan}${bold}# Show version information${reset}');
-    print('${dim}   $_appName -u${reset} ${brightCyan}${bold}# Update to latest version${reset}');
-    print('${dim}   $_appName --update${reset} ${brightCyan}${bold}# Update to latest version${reset}');
+    print('${brightGreen}${bold}Usage:${reset}');
+    print('  ${brightYellow}$_appName${reset}                    ${dim}Start interactive mode${reset}');
+    print('  ${brightYellow}$_appName${reset} ${brightCyan}-q${reset}                 ${dim}Quick mode with defaults${reset}');
+    print('  ${brightYellow}$_appName${reset} ${brightCyan}-n${reset} <name>          ${dim}Create project with name${reset}');
+    print('  ${brightYellow}$_appName${reset} ${brightCyan}-n${reset} <name> ${brightCyan}--org${reset} <org> ${dim}With organization${reset}');
     print('');
-    print('${brightGreen}${bold}✨ Features:${reset}');
-    print('${dim}   • Interactive project configuration${reset}');
-    print('${dim}   • Multiple platform support (Mobile, Web, Desktop)${reset}');
-    print('${dim}   • State management options (BLoC, Cubit, Provider)${reset}');
-    print('${dim}   • Clean Architecture integration${reset}');
-    print('${dim}   • Go Router navigation${reset}');
-    print('${dim}   • Freezed code generation${reset}');
-    print('${dim}   • Custom linter rules${reset}');
-    print('${dim}   • Internationalization support${reset}');
+    print('${brightGreen}${bold}Flags:${reset}');
+    print('  ${brightCyan}-h, --help${reset}                   ${dim}Show this help message${reset}');
+    print('  ${brightCyan}-v, --version${reset}                ${dim}Show version information${reset}');
+    print('  ${brightCyan}-u, --update${reset}                 ${dim}Update to latest version${reset}');
+    print('  ${brightCyan}-q, --quick${reset}                  ${dim}Quick mode with defaults${reset}');
+    print('  ${brightCyan}-n, --name${reset} <name>            ${dim}Project name${reset}');
+    print('  ${brightCyan}    --org${reset} <org>              ${dim}Organization (com.example)${reset}');
+    print('  ${brightCyan}-o, --output${reset} <dir>           ${dim}Output directory${reset}');
+    print('  ${brightCyan}    --no-git${reset}                 ${dim}Skip git initialization${reset}');
+    print('  ${brightCyan}    --dry-run${reset}                ${dim}Preview without creating${reset}');
     print('');
-    print('${brightCyan}${bold}🔗 Repository:${reset} ${dim}https://github.com/victorsdd01/flutter_forge${reset}');
+    print('${brightGreen}${bold}Examples:${reset}');
+    print('  ${dim}$_appName${reset}');
+    print('  ${dim}$_appName -q -n my_app${reset}');
+    print('  ${dim}$_appName -n my_app --org com.mycompany${reset}');
+    print('  ${dim}$_appName -n my_app -o ~/projects --no-git${reset}');
+    print('  ${dim}$_appName --dry-run -n test_app${reset}');
+    print('');
+    print('${brightGreen}${bold}Features:${reset}');
+    print('  ${dim}- Clean Architecture with BLoC + Freezed${reset}');
+    print('  ${dim}- Multi-platform support (iOS, Android, Web, Desktop)${reset}');
+    print('  ${dim}- Environment configs (dev, staging, production)${reset}');
+    print('  ${dim}- Internationalization (en, es)${reset}');
+    print('  ${dim}- GoRouter navigation${reset}');
+    print('  ${dim}- VS Code debug configurations${reset}');
+    print('');
+    print('${brightCyan}${bold}Repository:${reset} ${dim}https://github.com/victorsdd01/flutter_forge${reset}');
     print('');
   }
 }

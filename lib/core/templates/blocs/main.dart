@@ -73,7 +73,23 @@ class MyApp extends StatelessWidget {
       locale: Locale(state.languageCode),
       localizationsDelegates: AppLocalizationsSetup.localizationsDelegates,
       supportedLocales: AppLocalizationsSetup.supportedLocales,
-      debugShowCheckedModeBanner: !AppConfiguration.isProduction,
+      debugShowCheckedModeBanner: false,
+      builder: (BuildContext context, Widget? child) {
+        if (kReleaseMode) return child ?? const SizedBox.shrink();
+        
+        return Banner(
+          message: AppConfiguration.environment.name.toUpperCase(),
+          location: BannerLocation.topEnd,
+          color: _getBannerColor(),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     ),
   );
+
+  static Color _getBannerColor() {
+    if (AppConfiguration.isDevelopment) return const Color(0xFF4CAF50);
+    if (AppConfiguration.isStaging) return const Color(0xFFFF9800);
+    return const Color(0xFFF44336);
+  }
 }

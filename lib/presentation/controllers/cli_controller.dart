@@ -24,7 +24,7 @@ class CliController {
     _printWelcomeMessage();
     
     final projectName = _getProjectName();
-    final organization = _getOrganization();
+    final organization = _getOrganization(projectName);
     final platforms = _getPlatforms();
     final includeLinterRules = _getLinterRulesChoice();
 
@@ -45,6 +45,79 @@ class CliController {
     _printConfigurationSummary(config);
     
     if (_confirmConfiguration()) {
+      await _createProject(config);
+    } else {
+      _printCancelledMessage();
+    }
+  }
+
+  Future<void> runWithFlags({
+    String? projectName,
+    String? organization,
+    String? outputDir,
+    bool noGit = false,
+    bool quickMode = false,
+  }) async {
+    _printWelcomeMessage();
+    
+    // Get or validate project name
+    String finalProjectName;
+    if (projectName != null && projectName.isNotEmpty) {
+      if (!RegExp(r'^[a-z][a-z0-9_]*$').hasMatch(projectName)) {
+        print('$_red  Invalid project name: $projectName$_reset');
+        print('$_dim  Must be lowercase with underscores only.$_reset');
+        return;
+      }
+      finalProjectName = projectName;
+    } else if (quickMode) {
+      // In quick mode without name, ask for it
+      finalProjectName = _getProjectName();
+    } else {
+      print('$_red  Project name is required.$_reset');
+      print('$_dim  Use: flutterforge -n <name>$_reset');
+      return;
+    }
+    
+    // Get or use default organization based on project name
+    String finalOrganization;
+    if (organization != null && organization.isNotEmpty) {
+      if (!RegExp(r'^[a-z][a-z0-9._]*[a-z0-9]$').hasMatch(organization)) {
+        print('$_red  Invalid organization: $organization$_reset');
+        print('$_dim  Must be lowercase with dots (e.g., com.example)$_reset');
+        return;
+      }
+      finalOrganization = organization;
+    } else {
+      finalOrganization = 'com.$finalProjectName';
+    }
+    
+    // Default platforms for quick/flag mode
+    final platforms = [PlatformType.mobile, PlatformType.web];
+    _selectedMobilePlatform = MobilePlatform.both;
+    _selectedDesktopPlatforms = null;
+    
+    final config = ProjectConfig(
+      projectName: finalProjectName,
+      organizationName: finalOrganization,
+      platforms: platforms,
+      stateManagement: StateManagementType.bloc,
+      architecture: ArchitectureType.cleanArchitecture,
+      includeGoRouter: true,
+      includeLinterRules: false,
+      includeFreezed: true,
+      mobilePlatform: _selectedMobilePlatform,
+      desktopPlatform: DesktopPlatform.all,
+      customDesktopPlatforms: null,
+      outputDirectory: outputDir,
+      skipGitInit: noGit,
+    );
+    
+    _printConfigurationSummary(config);
+    
+    if (quickMode) {
+      // In quick mode, proceed without confirmation
+      await _createProject(config);
+    } else if (_confirmConfiguration()) {
       await _createProject(config);
     } else {
       _printCancelledMessage();
@@ -92,19 +165,20 @@ class CliController {
     }
   }
 
-  String _getOrganization() {
+  String _getOrganization(String projectName) {
+    final defaultOrg = 'com.$projectName';
+    
     while (true) {
       final org = Input(
         prompt: 'Organization',
-        defaultValue: 'com.example',
+        defaultValue: defaultOrg,
       ).interact();
       
       if (org.isEmpty) {
-        print('$_red  Organization cannot be empty.$_reset');
-        continue;
+        return defaultOrg;
       }
       
-      if (!RegExp(r'^[a-z][a-z0-9.]*[a-z0-9]$').hasMatch(org)) {
+      if (!RegExp(r'^[a-z][a-z0-9._]*[a-z0-9]$').hasMatch(org)) {
         print('$_red  Organization must be lowercase with dots, min 2 chars.$_reset');
         print('$_dim  Example: com.example, dev.mycompany$_reset');
         continue;

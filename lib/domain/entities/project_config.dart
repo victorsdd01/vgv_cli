@@ -11,6 +11,8 @@ class ProjectConfig {
   final MobilePlatform mobilePlatform;
   final DesktopPlatform desktopPlatform;
   final CustomDesktopPlatforms? customDesktopPlatforms;
+  final String? outputDirectory;
+  final bool skipGitInit;
 
   const ProjectConfig({
     required this.projectName,
@@ -24,6 +26,8 @@ class ProjectConfig {
     this.mobilePlatform = MobilePlatform.both,
     this.desktopPlatform = DesktopPlatform.all,
     this.customDesktopPlatforms,
+    this.outputDirectory,
+    this.skipGitInit = false,
   });
 
   /// Validates the project configuration
@@ -37,14 +41,14 @@ class ProjectConfig {
     return RegExp(r'^[a-z][a-z0-9_]*$').hasMatch(name);
   }
 
-  /// Validates organization name format
+  /// Validates organization name format (allows underscores for project name compatibility)
   static bool isValidOrganizationName(String name) {
-    return RegExp(r'^[a-z][a-z0-9.]*[a-z0-9]$').hasMatch(name);
+    return RegExp(r'^[a-z][a-z0-9._]*[a-z0-9]$').hasMatch(name);
   }
 
   @override
   String toString() {
-    return 'ProjectConfig(projectName: $projectName, organizationName: $organizationName, stateManagement: $stateManagement, architecture: $architecture, includeGoRouter: $includeGoRouter, includeLinterRules: $includeLinterRules, includeFreezed: $includeFreezed, platforms: $platforms, mobilePlatform: $mobilePlatform, desktopPlatform: $desktopPlatform, customDesktopPlatforms: $customDesktopPlatforms)';
+    return 'ProjectConfig(projectName: $projectName, organizationName: $organizationName, stateManagement: $stateManagement, architecture: $architecture, includeGoRouter: $includeGoRouter, includeLinterRules: $includeLinterRules, includeFreezed: $includeFreezed, platforms: $platforms, mobilePlatform: $mobilePlatform, desktopPlatform: $desktopPlatform, customDesktopPlatforms: $customDesktopPlatforms, outputDirectory: $outputDirectory, skipGitInit: $skipGitInit)';
   }
 
   @override
@@ -61,7 +65,9 @@ class ProjectConfig {
         other.platforms == platforms &&
         other.mobilePlatform == mobilePlatform &&
         other.desktopPlatform == desktopPlatform &&
-        other.customDesktopPlatforms == customDesktopPlatforms;
+        other.customDesktopPlatforms == customDesktopPlatforms &&
+        other.outputDirectory == outputDirectory &&
+        other.skipGitInit == skipGitInit;
   }
 
   @override
@@ -76,7 +82,9 @@ class ProjectConfig {
         platforms.hashCode ^
         mobilePlatform.hashCode ^
         desktopPlatform.hashCode ^
-        customDesktopPlatforms.hashCode;
+        customDesktopPlatforms.hashCode ^
+        outputDirectory.hashCode ^
+        skipGitInit.hashCode;
   }
 }
 
