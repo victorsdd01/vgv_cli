@@ -17,6 +17,7 @@ abstract class FileSystemDataSource {
   Future<void> createBuildYaml(String projectName);
   Future<void> createInternationalization(String projectName);
   Future<void> ensureCleanArchitectureFiles(String projectName);
+  Future<void> createVSCodeLaunchConfig(String projectName);
 }
 
 /// Implementation of FileSystemDataSource
@@ -1841,6 +1842,111 @@ class AppLocalizationsSetup {
 ''';
     
     buildYamlFile.writeAsStringSync(content);
+  }
+
+  @override
+  Future<void> createVSCodeLaunchConfig(String projectName) async {
+    final vscodeDir = Directory(path.join(projectName, '.vscode'));
+    if (!vscodeDir.existsSync()) {
+      vscodeDir.createSync(recursive: true);
+    }
+
+    // Create settings.json
+    final settingsJsonPath = path.join(projectName, '.vscode', 'settings.json');
+    final settingsJsonFile = File(settingsJsonPath);
+    
+    final settingsContent = '''{
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "dart.lineLength": 120,
+  "dart.previewFlutterUiGuides": true,
+  "[dart]": {
+    "editor.defaultFormatter": "Dart-Code.dart-code",
+    "editor.rulers": [120]
+  }
+}
+''';
+    
+    settingsJsonFile.writeAsStringSync(settingsContent);
+
+    // Create launch.json
+    final launchJsonPath = path.join(projectName, '.vscode', 'launch.json');
+    final launchJsonFile = File(launchJsonPath);
+    
+    final content = '''{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "$projectName (Dev)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_dev.dart",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "$projectName (Dev) - Profile",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_dev.dart",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "$projectName (Dev) - Release",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_dev.dart",
+      "flutterMode": "release"
+    },
+    {
+      "name": "$projectName (Staging)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_staging.dart",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "$projectName (Staging) - Profile",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_staging.dart",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "$projectName (Staging) - Release",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_staging.dart",
+      "flutterMode": "release"
+    },
+    {
+      "name": "$projectName (Production)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_production.dart",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "$projectName (Production) - Profile",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_production.dart",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "$projectName (Production) - Release",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_production.dart",
+      "flutterMode": "release"
+    }
+  ]
+}
+''';
+    
+    launchJsonFile.writeAsStringSync(content);
   }
 
 

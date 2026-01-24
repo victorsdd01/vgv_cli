@@ -1,5 +1,3 @@
-// ignore_for_file: unused_field
-
 import 'package:interact/interact.dart';
 import '../../domain/entities/project_config.dart';
 import '../../domain/repositories/project_repository.dart';
@@ -19,11 +17,7 @@ class CliController {
   static const String _yellow = '\x1B[33m';
   static const String _cyan = '\x1B[36m';
   static const String _red = '\x1B[31m';
-  
-  // Bright colors
   static const String _brightGreen = '\x1B[92m';
-  static const String _brightYellow = '\x1B[93m';
-  static const String _brightCyan = '\x1B[96m';
   static const String _brightMagenta = '\x1B[95m';
 
   Future<void> runInteractiveMode() async {
@@ -246,15 +240,16 @@ class CliController {
     print('$_cyan$_bold  Configuration Summary$_reset');
     print('$_dim  ─────────────────────────────────────────$_reset');
     print('');
-    print('  $_dim Project:$_reset        $_brightGreen${config.projectName}$_reset');
-    print('  $_dim Organization:$_reset   $_brightGreen${config.organizationName}$_reset');
-    print('  $_dim Platforms:$_reset      $_brightGreen${_formatPlatforms(config.platforms)}$_reset');
-    print('  $_dim State:$_reset          $_brightGreen BLoC$_reset');
-    print('  $_dim Navigation:$_reset     $_brightGreen Go Router$_reset');
-    print('  $_dim Architecture:$_reset   $_brightGreen Clean Architecture$_reset');
-    print('  $_dim Code Gen:$_reset       $_brightGreen Freezed$_reset');
+    print('  $_dim Project:$_reset       $_brightGreen${config.projectName}$_reset');
+    print('  $_dim Organization:$_reset  $_brightGreen${config.organizationName}$_reset');
+    print('  $_dim Platforms:$_reset     $_brightGreen${_formatPlatforms(config.platforms)}$_reset');
+    print('  $_dim State:$_reset         ${_brightGreen}BLoC$_reset');
+    print('  $_dim Navigation:$_reset    ${_brightGreen}Go Router$_reset');
+    print('  $_dim Architecture:$_reset  ${_brightGreen}Clean Architecture$_reset');
+    print('  $_dim Code Gen:$_reset      ${_brightGreen}Freezed$_reset');
+    print('  $_dim Environments:$_reset  ${_brightGreen}Dev, Staging, Production$_reset');
     if (config.includeLinterRules) {
-      print('  $_dim Linter:$_reset         $_brightGreen Custom Rules$_reset');
+      print('  $_dim Linter:$_reset        ${_brightGreen}Custom Rules$_reset');
     }
     print('');
   }
@@ -317,7 +312,12 @@ class CliController {
       print('');
       print('$_dim  Next steps:$_reset');
       print('    cd ${config.projectName}');
-      print('    flutter run');
+      print('    flutter run -t lib/main_dev.dart');
+      print('');
+      print('$_dim  Run environments:$_reset');
+      print('    flutter run -t lib/main_dev.dart        $_dim# Development$_reset');
+      print('    flutter run -t lib/main_staging.dart    $_dim# Staging$_reset');
+      print('    flutter run -t lib/main_production.dart $_dim# Production$_reset');
       print('');
       
     } catch (e) {
