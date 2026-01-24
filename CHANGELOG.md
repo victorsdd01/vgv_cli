@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.19] - 2026-01-24
+
+### Changes
+- refactor: remove const from LoginPage instantiation for consistency
+
 ## [1.10.18] - 2026-01-24
 
 ### Changes
