@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.27] - 2026-01-24
+
+### Changes
+- feat: enhance CLI project creation with new flags and quick mode
+
 ## [1.10.26] - 2026-01-24
 
 ### Changes
