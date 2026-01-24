@@ -387,7 +387,7 @@ class VgvCli {
     } catch (e) {
       print('${brightRed}${bold}Update failed:${reset} ${red}$e${reset}');
       print('');
-      print('${brightYellow}Try: flutterforge -u${reset}');
+      print('${brightYellow}Try: vgv -u${reset}');
       print('');
     }
   }

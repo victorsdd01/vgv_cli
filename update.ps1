@@ -1,11 +1,11 @@
-# FlutterForge CLI Update Script for Windows PowerShell
-# This script updates the FlutterForge CLI tool to the latest version
+# VGV CLI Update Script for Windows PowerShell
+# This script updates the VGV CLI tool to the latest version
 
-Write-Host "🔄 Updating FlutterForge CLI..." -ForegroundColor Green
+Write-Host "🔄 Updating VGV CLI..." -ForegroundColor Green
 
 # Check current version
 Write-Host "📋 Current version:" -ForegroundColor Cyan
-flutterforge --version
+vgv --version
 
 Write-Host ""
 Write-Host "📦 Updating to latest version..." -ForegroundColor Blue
@@ -14,10 +14,10 @@ Write-Host "📦 Updating to latest version..." -ForegroundColor Blue
 dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git
 
 Write-Host ""
-Write-Host "✅ FlutterForge CLI updated successfully!" -ForegroundColor Green
+Write-Host "✅ VGV CLI updated successfully!" -ForegroundColor Green
 Write-Host ""
 Write-Host "📋 New version:" -ForegroundColor Cyan
-flutterforge --version
+vgv --version
 
 Write-Host ""
 Write-Host "🚀 Happy coding with Flutter!" -ForegroundColor Green

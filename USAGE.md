@@ -1,9 +1,9 @@
-# 🚀 FlutterForge CLI - Quick Usage Guide
+# 🚀 VGV CLI - Quick Usage Guide
 
 ## 📦 Installation
 
 ### **Cross-Platform Support** 🌍
-FlutterForge CLI works on **Windows**, **macOS**, and **Linux**!
+VGV CLI works on **Windows**, **macOS**, and **Linux**!
 
 ### Option 1: Install from Git (Recommended)
 ```bash
@@ -49,10 +49,10 @@ cd vgv_cli
 ### Create a New Project
 ```bash
 # Start the interactive CLI
-flutterforge
+vgv
 
 # Or with the full command
-dart pub global run flutterforge
+dart pub global run vgv
 ```
 
 ### Follow the Interactive Prompts
@@ -115,7 +115,7 @@ flutter run
 dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git
 
 # 2. Create a project
-flutterforge
+vgv
 
 # 3. Follow prompts:
 #    Project name: my_app

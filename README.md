@@ -1,8 +1,8 @@
-# FlutterForge CLI
+# VGV CLI
 
 A command-line tool for generating Flutter projects with a production-ready architecture out of the box.
 
-FlutterForge creates projects following Clean Architecture principles, with BLoC for state management, proper dependency injection, internationalization, and environment configuration — all the boilerplate you'd normally spend hours setting up.
+VGV CLI creates projects following Clean Architecture principles, with BLoC for state management, proper dependency injection, internationalization, and environment configuration — all the boilerplate you'd normally spend hours setting up.
 
 ## What's Included (Phase 1)
 
@@ -22,7 +22,7 @@ This initial release focuses on generating a solid foundation:
 ### From pub.dev (recommended)
 
 ```bash
-dart pub global activate vgv_cli_cli
+dart pub global activate vgv_cli
 ```
 
 ### From source
@@ -38,7 +38,7 @@ dart pub global activate --source path .
 Simply run the CLI and follow the interactive prompts:
 
 ```bash
-flutterforge
+vgv
 ```
 
 You'll be asked for:

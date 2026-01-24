@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# FlutterForge CLI Installation Script
-# This script installs the FlutterForge CLI tool globally
+# VGV CLI Installation Script
+# This script installs the VGV CLI tool globally
 
 set -e
 
-echo "🚀 Installing FlutterForge CLI..."
+echo "🚀 Installing VGV CLI..."
 
 # Check if Dart is installed
 if ! command -v dart &> /dev/null; then
@@ -32,7 +32,7 @@ if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$DART_VERSION" | sort -V | head -n1)"
 fi
 
 # Install the CLI globally
-echo "📦 Installing FlutterForge CLI..."
+echo "📦 Installing VGV CLI..."
 dart pub global activate --source path .
 
 # Ensure .pub-cache/bin exists
@@ -62,7 +62,7 @@ if [[ ":$PATH:" != *":$HOME/.pub-cache/bin:"* ]]; then
         # Check if the export line already exists
         if ! grep -q "$HOME/.pub-cache/bin" "$CONFIG_FILE" 2>/dev/null; then
             echo "" >> "$CONFIG_FILE"
-            echo "# FlutterForge CLI PATH" >> "$CONFIG_FILE"
+            echo "# VGV CLI PATH" >> "$CONFIG_FILE"
             echo "$EXPORT_LINE" >> "$CONFIG_FILE"
             echo "✅ Added to $CONFIG_FILE"
         else
@@ -75,18 +75,18 @@ fi
 
 # Verify installation
 echo "🔍 Verifying installation..."
-if command -v flutterforge &> /dev/null; then
-    echo "✅ FlutterForge CLI installed successfully!"
+if command -v vgv &> /dev/null; then
+    echo "✅ VGV CLI installed successfully!"
     echo ""
     echo "🎯 Usage:"
-    echo "  flutterforge"
-    echo "  flutterforge --version"
-    echo "  flutterforge --help"
+    echo "  vgv"
+    echo "  vgv --version"
+    echo "  vgv --help"
     echo ""
     echo "📚 For more information, visit:"
     echo "  https://github.com/victorsdd01/vgv_cli"
     echo ""
-    echo "🚀 Happy coding with FlutterForge!"
+    echo "🚀 Happy coding with VGV!"
     echo ""
     echo "💡 Note: If you just installed, you may need to restart your terminal"
     echo "   or run: source $CONFIG_FILE"

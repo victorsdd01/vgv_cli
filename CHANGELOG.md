@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to FlutterForge CLI will be documented in this file.
+All notable changes to VGV CLI will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.10.36] - 2026-01-24
 
 ### Changes
-- refactor: rename all FlutterForge references to VGV
+- refactor: rename all VGV references to VGV
 
 ## [1.10.35] - 2026-01-24
 
@@ -269,7 +269,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2024-12-27
 
 ### Added
-- 🚀 Initial FlutterForge CLI release
+- 🚀 Initial VGV CLI release
 - 📝 Interactive project configuration
 - 🌍 Multi-platform support (Mobile, Web, Desktop)
 - 🎯 State management options (BLoC, Cubit, Provider)

@@ -1,16 +1,16 @@
 #!/bin/bash
 
-# FlutterForge CLI Installation Check Script
+# VGV CLI Installation Check Script
 
-echo "🔍 Checking FlutterForge CLI installation..."
+echo "🔍 Checking VGV CLI installation..."
 
-# Check if flutterforge command is available
-if command -v flutterforge &> /dev/null; then
-    echo "✅ flutterforge command found at: $(which flutterforge)"
+# Check if vgv command is available
+if command -v vgv &> /dev/null; then
+    echo "✅ vgv command found at: $(which vgv)"
     
     # Check version
     echo "📦 Version information:"
-    flutterforge --version
+    vgv --version
     
     # Check if .pub-cache/bin is in PATH
     if [[ ":$PATH:" == *":$HOME/.pub-cache/bin:"* ]]; then
@@ -22,14 +22,14 @@ if command -v flutterforge &> /dev/null; then
     fi
     
     # Check if the executable file exists
-    if [ -f "$HOME/.pub-cache/bin/flutterforge" ]; then
+    if [ -f "$HOME/.pub-cache/bin/vgv" ]; then
         echo "✅ Executable file exists"
     else
         echo "❌ Executable file not found"
     fi
     
 else
-    echo "❌ flutterforge command not found"
+    echo "❌ vgv command not found"
     echo ""
     echo "🔧 Troubleshooting steps:"
     echo "1. Run the installation script: ./install.sh"
@@ -41,4 +41,4 @@ else
 fi
 
 echo ""
-echo "🎉 FlutterForge CLI is ready to use!" 
+echo "🎉 VGV CLI is ready to use!" 

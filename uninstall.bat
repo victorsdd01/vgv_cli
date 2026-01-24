@@ -1,30 +1,30 @@
 @echo off
-REM FlutterForge CLI Uninstall Script for Windows
-REM This script removes the FlutterForge CLI tool from your system
+REM VGV CLI Uninstall Script for Windows
+REM This script removes the VGV CLI tool from your system
 
-echo 🗑️  Uninstalling FlutterForge CLI...
+echo 🗑️  Uninstalling VGV CLI...
 
 REM Check if CLI is installed
-where flutterforge >nul 2>nul
+where vgv >nul 2>nul
 if %errorlevel% neq 0 (
-    echo ❌ FlutterForge CLI is not installed.
+    echo ❌ VGV CLI is not installed.
     pause
     exit /b 1
 )
 
 REM Show current version before uninstalling
 echo 📋 Current version:
-flutterforge --version 2>nul || echo Version check failed
+vgv --version 2>nul || echo Version check failed
 
 echo.
-echo ⚠️  Are you sure you want to uninstall FlutterForge CLI? (Y/N)
+echo ⚠️  Are you sure you want to uninstall VGV CLI? (Y/N)
 set /p response=
 
 if /i "%response%"=="Y" (
-    echo 🗑️  Removing FlutterForge CLI...
+    echo 🗑️  Removing VGV CLI...
     
     REM Deactivate the package
-    dart pub global deactivate flutterforge
+    dart pub global deactivate vgv
     
     REM Remove from PATH if it was added
     echo %PATH% | findstr /C:"%USERPROFILE%\.pub-cache\bin" >nul
@@ -34,7 +34,7 @@ if /i "%response%"=="Y" (
         echo Please manually remove %USERPROFILE%\.pub-cache\bin from your PATH if needed
     )
     
-    echo ✅ FlutterForge CLI uninstalled successfully!
+    echo ✅ VGV CLI uninstalled successfully!
     echo.
     echo 💡 To reinstall later, run:
     echo    dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git

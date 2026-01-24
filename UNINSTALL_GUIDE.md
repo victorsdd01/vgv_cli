@@ -1,8 +1,8 @@
-# 🗑️ FlutterForge CLI - Uninstall Guide
+# 🗑️ VGV CLI - Uninstall Guide
 
 ## 📋 Why Uninstall?
 
-There are several reasons why you might want to uninstall FlutterForge CLI:
+There are several reasons why you might want to uninstall VGV CLI:
 
 - **No longer needed** - You've finished your Flutter project
 - **Trying a different tool** - Switching to another CLI tool
@@ -15,13 +15,13 @@ There are several reasons why you might want to uninstall FlutterForge CLI:
 ### **Verify CLI is Installed:**
 ```bash
 # Check if CLI is available
-flutterforge --version
+vgv --version
 
 # Or check installed packages
-dart pub global list | grep flutterforge
+dart pub global list | grep vgv
 
 # Check installation location
-which flutterforge
+which vgv
 ```
 
 ## 🚀 Uninstall Methods
@@ -47,7 +47,7 @@ powershell -ExecutionPolicy Bypass -File uninstall.ps1
 
 #### **Step 1: Deactivate Package**
 ```bash
-dart pub global deactivate flutterforge
+dart pub global deactivate vgv
 ```
 
 #### **Step 2: Remove from PATH (if needed)**
@@ -94,16 +94,16 @@ rm -rf ~/.pub-cache
 #### **Command Prompt:**
 ```cmd
 # Deactivate package
-dart pub global deactivate flutterforge
+dart pub global deactivate vgv
 
 # Check if removed
-flutterforge --version
+vgv --version
 ```
 
 #### **PowerShell:**
 ```powershell
 # Deactivate package
-dart pub global deactivate flutterforge
+dart pub global deactivate vgv
 
 # Remove from PATH
 $pubCacheBin = "$env:USERPROFILE\.pub-cache\bin"
@@ -116,7 +116,7 @@ $newPath = ($env:PATH -split ';' | Where-Object { $_ -ne $pubCacheBin }) -join '
 #### **Terminal:**
 ```bash
 # Deactivate package
-dart pub global deactivate flutterforge
+dart pub global deactivate vgv
 
 # Remove from shell config
 if [[ "$SHELL" == *"zsh"* ]]; then
@@ -134,7 +134,7 @@ source ~/.zshrc  # or ~/.bashrc
 #### **Bash/Zsh:**
 ```bash
 # Deactivate package
-dart pub global deactivate flutterforge
+dart pub global deactivate vgv
 
 # Remove from shell config
 if [[ "$SHELL" == *"zsh"* ]]; then
@@ -150,7 +150,7 @@ source ~/.zshrc  # or ~/.bashrc
 #### **Fish Shell:**
 ```fish
 # Deactivate package
-dart pub global deactivate flutterforge
+dart pub global deactivate vgv
 
 # Remove from fish config
 sed -i '/set -gx PATH.*\.pub-cache\/bin/d' ~/.config/fish/config.fish
@@ -164,18 +164,18 @@ source ~/.config/fish/config.fish
 ### **Check CLI Availability:**
 ```bash
 # Should show "command not found"
-flutterforge --version
+vgv --version
 
 # Check if package is still listed
-dart pub global list | grep flutterforge
+dart pub global list | grep vgv
 
 # Check PATH
 echo $PATH | grep .pub-cache
 ```
 
 ### **Expected Results:**
-- ❌ `flutterforge: command not found`
-- ❌ No flutterforge in `dart pub global list`
+- ❌ `vgv: command not found`
+- ❌ No vgv in `dart pub global list`
 - ❌ No .pub-cache in PATH
 
 ## 🔄 Reinstall After Uninstall
@@ -186,7 +186,7 @@ echo $PATH | grep .pub-cache
 dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git
 
 # Verify installation
-flutterforge --version
+vgv --version
 ```
 
 ### **From Local Source:**
@@ -199,7 +199,7 @@ cd vgv_cli
 dart pub global activate --source path .
 
 # Verify installation
-flutterforge --version
+vgv --version
 ```
 
 ## 🛠️ Troubleshooting
@@ -209,7 +209,7 @@ flutterforge --version
 #### **"Command not found" but package still listed**
 ```bash
 # Force remove from global packages
-dart pub global deactivate flutterforge --force
+dart pub global deactivate vgv --force
 
 # Clear cache
 dart pub cache clean
@@ -226,7 +226,7 @@ grep -r "pub-cache" ~/.bashrc ~/.zshrc ~/.config/fish/config.fish
 #### **Permission denied errors**
 ```bash
 # Use sudo for system-wide removal
-sudo dart pub global deactivate flutterforge
+sudo dart pub global deactivate vgv
 
 # Or fix permissions
 chmod +x uninstall.sh
@@ -235,7 +235,7 @@ chmod +x uninstall.sh
 ### **Complete Cleanup**
 ```bash
 # Nuclear option - remove everything
-dart pub global deactivate flutterforge
+dart pub global deactivate vgv
 rm -rf ~/.pub-cache
 rm -rf ~/.dart
 rm -rf ~/.pub

@@ -74,7 +74,7 @@ class VersionChecker {
         );
         if (result.exitCode == 0) {
           final output = result.stdout.toString();
-          // Look for flutterforge in the output
+          // Look for vgv_cli in the output
           final lines = output.split('\n');
           for (final line in lines) {
             if (line.contains('vgv_cli')) {

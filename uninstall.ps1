@@ -1,13 +1,13 @@
-# FlutterForge CLI Uninstall Script for Windows PowerShell
-# This script removes the FlutterForge CLI tool from your system
+# VGV CLI Uninstall Script for Windows PowerShell
+# This script removes the VGV CLI tool from your system
 
-Write-Host "🗑️  Uninstalling FlutterForge CLI..." -ForegroundColor Red
+Write-Host "🗑️  Uninstalling VGV CLI..." -ForegroundColor Red
 
 # Check if CLI is installed
 try {
-    $null = Get-Command flutterforge -ErrorAction Stop
+    $null = Get-Command vgv -ErrorAction Stop
 } catch {
-    Write-Host "❌ FlutterForge CLI is not installed." -ForegroundColor Red
+    Write-Host "❌ VGV CLI is not installed." -ForegroundColor Red
     Read-Host "Press Enter to exit"
     exit 1
 }
@@ -15,19 +15,19 @@ try {
 # Show current version before uninstalling
 Write-Host "📋 Current version:" -ForegroundColor Cyan
 try {
-    flutterforge --version
+    vgv --version
 } catch {
     Write-Host "Version check failed" -ForegroundColor Yellow
 }
 
 Write-Host ""
-$response = Read-Host "⚠️  Are you sure you want to uninstall FlutterForge CLI? (Y/N)"
+$response = Read-Host "⚠️  Are you sure you want to uninstall VGV CLI? (Y/N)"
 
 if ($response -eq "Y" -or $response -eq "y") {
-    Write-Host "🗑️  Removing FlutterForge CLI..." -ForegroundColor Red
+    Write-Host "🗑️  Removing VGV CLI..." -ForegroundColor Red
     
     # Deactivate the package
-    dart pub global deactivate flutterforge
+    dart pub global deactivate vgv
     
     # Remove from PATH if it was added
     $pubCacheBin = "$env:USERPROFILE\.pub-cache\bin"
@@ -38,7 +38,7 @@ if ($response -eq "Y" -or $response -eq "y") {
         Write-Host "Removed from user PATH" -ForegroundColor Green
     }
     
-    Write-Host "✅ FlutterForge CLI uninstalled successfully!" -ForegroundColor Green
+    Write-Host "✅ VGV CLI uninstalled successfully!" -ForegroundColor Green
     Write-Host ""
     Write-Host "💡 To reinstall later, run:" -ForegroundColor Cyan
     Write-Host "   dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git" -ForegroundColor White

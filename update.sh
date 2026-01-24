@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# FlutterForge CLI Update Script
-# This script updates the FlutterForge CLI tool to the latest version
+# VGV CLI Update Script
+# This script updates the VGV CLI tool to the latest version
 
 set -e
 
-echo "🔄 Updating FlutterForge CLI..."
+echo "🔄 Updating VGV CLI..."
 
 # Check current version
 echo "📋 Current version:"
-flutterforge --version
+vgv --version
 
 echo ""
 echo "📦 Updating to latest version..."
@@ -18,10 +18,10 @@ echo "📦 Updating to latest version..."
 dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git
 
 echo ""
-echo "✅ FlutterForge CLI updated successfully!"
+echo "✅ VGV CLI updated successfully!"
 echo ""
 echo "📋 New version:"
-flutterforge --version
+vgv --version
 
 echo ""
 echo "🚀 Happy coding with Flutter!" 

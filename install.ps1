@@ -1,7 +1,7 @@
-# FlutterForge CLI Installation Script for Windows PowerShell
-# This script installs the FlutterForge CLI tool globally
+# VGV CLI Installation Script for Windows PowerShell
+# This script installs the VGV CLI tool globally
 
-Write-Host "🚀 Installing FlutterForge CLI..." -ForegroundColor Green
+Write-Host "🚀 Installing VGV CLI..." -ForegroundColor Green
 
 # Check if Dart is installed
 try {
@@ -24,7 +24,7 @@ try {
 }
 
 # Install the CLI globally
-Write-Host "📦 Installing FlutterForge CLI..." -ForegroundColor Blue
+Write-Host "📦 Installing VGV CLI..." -ForegroundColor Blue
 dart pub global activate --source path .
 
 # Add to PATH if not already there
@@ -35,10 +35,10 @@ if ($env:PATH -notlike "*$pubCacheBin*") {
     Write-Host "Please restart your terminal or run: refreshenv" -ForegroundColor Yellow
 }
 
-Write-Host "✅ FlutterForge CLI installed successfully!" -ForegroundColor Green
+Write-Host "✅ VGV CLI installed successfully!" -ForegroundColor Green
 Write-Host ""
 Write-Host "🎯 Usage:" -ForegroundColor Cyan
-Write-Host "  flutterforge" -ForegroundColor White
+Write-Host "  vgv" -ForegroundColor White
 Write-Host ""
 Write-Host "📚 For more information, visit:" -ForegroundColor Cyan
 Write-Host "  https://github.com/victorsdd01/vgv_cli" -ForegroundColor White

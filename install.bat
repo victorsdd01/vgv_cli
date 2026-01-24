@@ -1,8 +1,8 @@
 @echo off
-REM FlutterForge CLI Installation Script for Windows
-REM This script installs the FlutterForge CLI tool globally
+REM VGV CLI Installation Script for Windows
+REM This script installs the VGV CLI tool globally
 
-echo 🚀 Installing FlutterForge CLI...
+echo 🚀 Installing VGV CLI...
 
 REM Check if Dart is installed
 where dart >nul 2>nul
@@ -23,7 +23,7 @@ if %errorlevel% neq 0 (
 )
 
 REM Install the CLI globally
-echo 📦 Installing FlutterForge CLI...
+echo 📦 Installing VGV CLI...
 dart pub global activate --source path .
 
 REM Add to PATH if not already there
@@ -34,10 +34,10 @@ if %errorlevel% neq 0 (
     echo Please restart your terminal or command prompt
 )
 
-echo ✅ FlutterForge CLI installed successfully!
+echo ✅ VGV CLI installed successfully!
 echo.
 echo 🎯 Usage:
-echo   flutterforge
+echo   vgv
 echo.
 echo 📚 For more information, visit:
 echo   https://github.com/victorsdd01/vgv_cli

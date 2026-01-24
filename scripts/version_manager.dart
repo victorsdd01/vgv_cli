@@ -2,11 +2,11 @@
 
 import 'dart:io';
 
-/// Version Manager for FlutterForge CLI
+/// Version Manager for VGV CLI
 /// Automatically increments version numbers for releases
 class VersionManager {
   static const String _pubspecPath = 'pubspec.yaml';
-  static const String _cliPath = 'lib/flutterforge_cli.dart';
+  static const String _cliPath = 'lib/vgv_cli.dart';
   
   /// Get current version from pubspec.yaml
   static String getCurrentVersion() {
@@ -102,17 +102,17 @@ class VersionManager {
   /// Show current version info
   static void showVersion() {
     final version = getCurrentVersion();
-    print('📦 FlutterForge CLI Version: $version');
+    print('📦 VGV CLI Version: $version');
     print('');
     print('📋 Version locations:');
     print('   • pubspec.yaml: $version');
-    print('   • lib/flutterforge_cli.dart: $version');
+    print('   • lib/vgv_cli.dart: $version');
   }
 }
 
 void main(List<String> arguments) {
   if (arguments.isEmpty) {
-    print('📦 FlutterForge CLI Version Manager');
+    print('📦 VGV CLI Version Manager');
     print('');
     print('Usage:');
     print('  dart run scripts/version_manager.dart show          # Show current version');

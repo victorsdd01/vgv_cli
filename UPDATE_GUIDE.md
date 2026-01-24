@@ -1,19 +1,19 @@
-# 🔄 FlutterForge CLI - Update Guide
+# 🔄 VGV CLI - Update Guide
 
 ## 📋 How Version Updates Work
 
-When you install FlutterForge CLI, you get the latest version from the main branch. To get updates when new versions are released, you need to manually update your installation.
+When you install VGV CLI, you get the latest version from the main branch. To get updates when new versions are released, you need to manually update your installation.
 
 ## 🔍 Check Current Version
 
 ### **Method 1: Direct Command (Recommended)**
 ```bash
-dart run bin/flutterforge.dart --version
+dart run bin/vgv.dart --version
 ```
 
 ### **Method 2: Check Installed Package**
 ```bash
-dart pub global list | grep flutterforge
+dart pub global list | grep vgv
 ```
 
 ### **Method 3: From Repository**
@@ -90,7 +90,7 @@ echo $PATH | grep .pub-cache
 #### **Version not updating**
 ```bash
 # Force reinstall
-dart pub global deactivate flutterforge
+dart pub global deactivate vgv
 dart pub global activate --source git https://github.com/victorsdd01/vgv_cli.git
 
 # Clear cache (if needed)
@@ -110,10 +110,10 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ### **Verify Update Success**
 ```bash
 # Check version
-dart run bin/flutterforge.dart --version
+dart run bin/vgv.dart --version
 
 # Test functionality
-flutterforge --help
+vgv --help
 ```
 
 ## 📋 Update Checklist
@@ -175,4 +175,4 @@ In future versions, we plan to add:
 
 ---
 
-**Keep your FlutterForge CLI updated for the best experience! 🚀** 
+**Keep your VGV CLI updated for the best experience! 🚀** 
