@@ -19,21 +19,17 @@ This initial release focuses on generating a solid foundation:
 
 ## Installation
 
+### From pub.dev (recommended)
+
 ```bash
-# Clone the repository
-git clone https://github.com/victorsdd01/flutter_forge.git
-cd flutter_forge
-
-# Compile the CLI
-dart compile exe bin/flutterforge.dart -o build/flutterforge
-
-# Run from anywhere
-./build/flutterforge
+dart pub global activate flutter_forge_cli
 ```
 
-Or install globally:
+### From source
 
 ```bash
+git clone https://github.com/victorsdd01/flutter_forge.git
+cd flutter_forge
 dart pub global activate --source path .
 ```
 
