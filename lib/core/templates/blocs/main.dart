@@ -78,14 +78,26 @@ class MyApp extends StatelessWidget {
         if (kReleaseMode) return child ?? const SizedBox.shrink();
         
         return Banner(
-          message: AppConfiguration.environment.name.toUpperCase(),
+          message: _getBannerText(),
           location: BannerLocation.topEnd,
           color: _getBannerColor(),
+          textStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
           child: child ?? const SizedBox.shrink(),
         );
       },
     ),
   );
+
+  static String _getBannerText() {
+    if (AppConfiguration.isDevelopment) return 'DEV';
+    if (AppConfiguration.isStaging) return 'STAGE';
+    return 'PROD';
+  }
 
   static Color _getBannerColor() {
     if (AppConfiguration.isDevelopment) return const Color(0xFF4CAF50);
