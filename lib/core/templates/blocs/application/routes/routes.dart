@@ -31,7 +31,7 @@ class AppRoutes {
     routes: <RouteBase>[
       GoRoute(
         path: Routes.login,
-        builder: (BuildContext context, GoRouterState state) => const LoginPage(),
+        builder: (BuildContext context, GoRouterState state) => LoginPage(),
       ),
       GoRoute(
         path: Routes.home,

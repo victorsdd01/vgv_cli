@@ -10,7 +10,7 @@ import '../../../../application/generated/l10n.dart';
 import '../../../../core/states/tstateless.dart';
 
 class LoginPage extends TStateless<AuthBloc> {
-  const LoginPage({super.key});
+  LoginPage({super.key});
 
   @override
   AuthBloc get bloc => Injector.get<AuthBloc>();
@@ -112,7 +112,7 @@ class LoginPage extends TStateless<AuthBloc> {
                           )
                         : Text(translation.login),
                   ),
-                );
+                ),
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
