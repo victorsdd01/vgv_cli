@@ -2009,6 +2009,15 @@ app.*.map.json
 **/macos/Flutter/Flutter.framework
 **/macos/Flutter/Flutter.podspec
 
+# Swift Package Manager
+**/ios/.build/
+**/macos/.build/
+**/ios/Flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+.swiftpm/
+**/ios/Flutter/GeneratedPluginRegistrant.swift
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+
 # Generated files
 *.freezed.dart
 *.g.dart
