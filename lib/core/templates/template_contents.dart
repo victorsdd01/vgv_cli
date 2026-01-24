@@ -433,23 +433,113 @@ class ToastUtil {
 }
 
 ''';
-  static const String _core_states_tstateless_dart = r'''import 'package:flutter/material.dart';
+  static const String _core_states_tstateless_dart = r'''import 'package:bloc/bloc.dart';
+import 'package:flutter/material.dart';
+import '../../application/generated/l10n.dart';
 
-abstract class TStateless extends StatelessWidget {
+/// Base class for stateless widgets with common utilities
+/// 
+/// Usage:
+/// ```dart
+/// class MyPage extends TStateless<MyBloc> {
+///   const MyPage({super.key});
+///   
+///   @override
+///   MyBloc? get bloc => null; // or context.read<MyBloc>() if needed
+///   
+///   @override
+///   Widget bodyWidget(BuildContext context, ThemeData theme, S translation) {
+///     return Scaffold(
+///       body: Text(translation.hello),
+///     );
+///   }
+/// }
+/// ```
+abstract class TStateless<Bloc extends BlocBase<dynamic>?>
+    extends StatelessWidget {
   const TStateless({super.key});
+
+  /// Override to provide access to a BLoC instance
+  Bloc get bloc;
+
+  /// Build your widget here with access to common utilities
+  /// 
+  /// - [context] - BuildContext
+  /// - [theme] - Current ThemeData
+  /// - [translation] - Localization strings
+  Widget bodyWidget(
+    BuildContext context,
+    ThemeData theme,
+    S translation,
+  );
+
+  @override
+  Widget build(BuildContext context) => bodyWidget(
+    context,
+    Theme.of(context),
+    S.of(context),
+  );
 }
 
 ''';
-  static const String _core_states_tstatefull_dart = r'''import 'package:flutter/material.dart';
+  static const String _core_states_tstatefull_dart = r'''import 'package:bloc/bloc.dart';
+import 'package:flutter/material.dart';
+import '../../application/generated/l10n.dart';
 
-abstract class TStateful<T extends StatefulWidget> extends State<T> {
+/// Base class for stateful widgets with common utilities
+/// 
+/// Usage:
+/// ```dart
+/// class MyPage extends StatefulWidget {
+///   const MyPage({super.key});
+///   
+///   @override
+///   State<MyPage> createState() => _MyPageState();
+/// }
+/// 
+/// class _MyPageState extends TStateful<MyPage, MyBloc> {
+///   @override
+///   MyBloc? get bloc => context.read<MyBloc>();
+///   
+///   @override
+///   Widget bodyWidget(BuildContext context, ThemeData theme, S translation) {
+///     return Scaffold(
+///       body: Text(translation.hello),
+///     );
+///   }
+/// }
+/// ```
+abstract class TStateful<
+  T extends StatefulWidget,
+  Bloc extends BlocBase<dynamic>?
+> extends State<T> with AutomaticKeepAliveClientMixin {
+  
   @override
-  void initState() {
-    super.initState();
-    onInit();
-  }
+  bool get wantKeepAlive => false;
 
-  void onInit() {}
+  /// Override to provide access to a BLoC instance
+  Bloc get bloc;
+
+  /// Build your widget here with access to common utilities
+  /// 
+  /// - [context] - BuildContext
+  /// - [theme] - Current ThemeData
+  /// - [translation] - Localization strings
+  Widget bodyWidget(
+    BuildContext context,
+    ThemeData theme,
+    S translation,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return bodyWidget(
+      context,
+      Theme.of(context),
+      S.of(context),
+    );
+  }
 }
 
 ''';
@@ -632,11 +722,38 @@ abstract class HomeEntity with _$HomeEntity {
   static const String _features_home_presentation_blocs_home_bloc_home_state_dart = r'''part of 'home_bloc.dart';
 
 @freezed
+abstract class HomeStatus with _$HomeStatus {
+  const factory HomeStatus({
+    @Default(false) bool isGetItems,
+  }) = _HomeStatus;
+}
+
+@freezed
+abstract class HomeSuccessStatus with _$HomeSuccessStatus {
+  const factory HomeSuccessStatus({
+    @Default(false) bool getItems,
+  }) = _HomeSuccessStatus;
+}
+
+@freezed
+abstract class HomeErrorStatus with _$HomeErrorStatus {
+  const factory HomeErrorStatus({
+    @Default(false) bool getItems,
+  }) = _HomeErrorStatus;
+}
+
+@freezed
 abstract class HomeState with _$HomeState {
   const factory HomeState({
-    @Default(false) bool isLoading,
-    @Default(<HomeEntity>[]) List<HomeEntity> items,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(HomeStatus()) HomeStatus status,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(HomeSuccessStatus()) HomeSuccessStatus successStatus,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(HomeErrorStatus()) HomeErrorStatus errorStatus,
+    @JsonKey(includeFromJson: false, includeToJson: false)
     Failure? failure,
+    @Default(<HomeEntity>[]) List<HomeEntity> items,
   }) = _HomeState;
 }
 
@@ -659,22 +776,48 @@ class HomeBloc extends HydratedBloc<HomeEvent, HomeState> {
     required HomeUseCases homeUseCases,
   }) : _homeUseCases = homeUseCases,
        super(const HomeState()) {
-    on<HomeEvent>((HomeEvent event, Emitter<HomeState> emit) async {
-      event.map(
-        initialized: (_Initialized e) async {
-          emit(state.copyWith(isLoading: true, failure: null));
-          final Either<Failure, List<HomeEntity>> result = await _homeUseCases.fetchData();
-          result.fold(
-            (Failure failure) => emit(
-              state.copyWith(failure: failure, isLoading: false),
-            ),
-            (List<HomeEntity> entities) => emit(
-              state.copyWith(items: entities, isLoading: false, failure: null),
-            ),
-          );
-        },
-      );
-    });
+    on<_Initialized>(_onInitialized);
+    on<_ResetSuccessAndErrorStatus>(_onResetSuccessAndErrorStatus);
+  }
+
+  void _onResetSuccessAndErrorStatus(
+    _ResetSuccessAndErrorStatus event,
+    Emitter<HomeState> emit,
+  ) {
+    emit(state.copyWith(
+      successStatus: event.successStatus ?? state.successStatus,
+      errorStatus: event.errorStatus ?? state.errorStatus,
+      failure: null,
+    ));
+  }
+
+  Future<void> _onInitialized(_Initialized event, Emitter<HomeState> emit) async {
+    emit(state.copyWith(
+      status: state.status.copyWith(isGetItems: true),
+      successStatus: state.successStatus.copyWith(getItems: false),
+      errorStatus: state.errorStatus.copyWith(getItems: false),
+      failure: null,
+    ));
+    
+    final Either<Failure, List<HomeEntity>> result = await _homeUseCases.fetchData();
+    
+    result.fold(
+      (Failure failure) {
+        emit(state.copyWith(
+          status: state.status.copyWith(isGetItems: false),
+          errorStatus: state.errorStatus.copyWith(getItems: true),
+          failure: failure,
+        ));
+      },
+      (List<HomeEntity> entities) {
+        emit(state.copyWith(
+          items: entities,
+          status: state.status.copyWith(isGetItems: false),
+          successStatus: state.successStatus.copyWith(getItems: true),
+          failure: null,
+        ));
+      },
+    );
   }
 
   @override
@@ -690,6 +833,10 @@ class HomeBloc extends HydratedBloc<HomeEvent, HomeState> {
 @freezed
 class HomeEvent with _$HomeEvent {
   const factory HomeEvent.initialized() = _Initialized;
+  const factory HomeEvent.resetSuccessAndErrorStatus({
+    HomeSuccessStatus? successStatus,
+    HomeErrorStatus? errorStatus,
+  }) = _ResetSuccessAndErrorStatus;
 }
 
 ''';
@@ -697,6 +844,8 @@ class HomeEvent with _$HomeEvent {
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/home_bloc/home_bloc.dart';
 import '../../../../application/injector.dart';
+import '../../../../application/generated/l10n.dart';
+import '../../../../core/states/tstateless.dart';
 import '../../domain/entities/home_entity.dart';
 
 class HomePage extends StatelessWidget {
@@ -704,65 +853,155 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => BlocProvider<HomeBloc>(
-      create: (BuildContext context) => Injector.get<HomeBloc>()..add(const HomeEvent.initialized()),
-      child: const HomeView(),
-    );
+    create: (BuildContext context) => Injector.get<HomeBloc>()..add(const HomeEvent.initialized()),
+    child: const _HomeView(),
+  );
 }
 
-class HomeView extends StatelessWidget {
-  const HomeView({super.key});
+class _HomeView extends TStateless<HomeBloc> {
+  const _HomeView();
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(
-        title: const Text('Home'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-      ),
-      body: BlocBuilder<HomeBloc, HomeState>(
-        builder: (BuildContext context, HomeState state) {
-          if (state.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+  HomeBloc get bloc => Injector.get<HomeBloc>();
 
-          if (state.failure != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Text('Error: ${state.failure!.message}'),
-                  ElevatedButton(
-                    onPressed: () {
-                      context.read<HomeBloc>().add(const HomeEvent.initialized());
-                    },
-                    child: const Text('Retry'),
-                  ),
-                ],
+  @override
+  Widget bodyWidget(
+    BuildContext context,
+    ThemeData theme,
+    S translation,
+  ) => Scaffold(
+    appBar: AppBar(
+      title: Text(translation.home),
+      backgroundColor: theme.colorScheme.inversePrimary,
+      actions: <Widget>[
+        BlocBuilder<HomeBloc, HomeState>(
+          builder: (BuildContext context, HomeState state) => IconButton(
+            onPressed: state.status.isGetItems
+                ? null
+                : () => bloc.add(const HomeEvent.initialized()),
+            icon: state.status.isGetItems
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        theme.colorScheme.onPrimary,
+                      ),
+                    ),
+                  )
+                : const Icon(Icons.refresh),
+          ),
+        ),
+      ],
+    ),
+    body: BlocConsumer<HomeBloc, HomeState>(
+      listener: (BuildContext ctx, HomeState state) => _handleStateChanges(ctx, state, translation),
+      builder: (BuildContext context, HomeState state) => _buildBody(state, theme, translation),
+    ),
+  );
+
+  void _handleStateChanges(BuildContext context, HomeState state, S translation) {
+    if (state.errorStatus.getItems && state.failure != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(state.failure!.message),
+          backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: translation.retry,
+            textColor: Colors.white,
+            onPressed: () => bloc.add(const HomeEvent.initialized()),
+          ),
+        ),
+      );
+      bloc.add(
+        const HomeEvent.resetSuccessAndErrorStatus(
+          errorStatus: HomeErrorStatus(getItems: false),
+        ),
+      );
+    }
+  }
+
+  Widget _buildBody(HomeState state, ThemeData theme, S translation) {
+    if (state.status.isGetItems && state.items.isEmpty) {
+      return Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+        ),
+      );
+    }
+
+    if (state.items.isEmpty) {
+      return _buildEmptyState(state, theme, translation);
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async => bloc.add(const HomeEvent.initialized()),
+      child: ListView.builder(
+        itemCount: state.items.length,
+        itemBuilder: (BuildContext context, int index) {
+          final HomeEntity item = state.items[index];
+          return ListTile(
+            title: Text(item.title, style: theme.textTheme.titleMedium),
+            subtitle: Text(
+              item.description,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
-            );
-          }
-
-          if (state.items.isEmpty) {
-            return const Center(
-              child: Text('No items available'),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: state.items.length,
-            itemBuilder: (BuildContext context, int index) {
-              final HomeEntity item = state.items[index];
-              return ListTile(
-                title: Text(item.title),
-                subtitle: Text(item.description),
-                leading: CircleAvatar(
-                  child: Text(item.id),
-                ),
-              );
-            },
+            ),
+            leading: CircleAvatar(
+              backgroundColor: theme.colorScheme.primaryContainer,
+              foregroundColor: theme.colorScheme.onPrimaryContainer,
+              child: Text(item.id),
+            ),
           );
         },
       ),
     );
+  }
+
+  Widget _buildEmptyState(HomeState state, ThemeData theme, S translation) => Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        Icon(
+          Icons.inbox_outlined,
+          size: 64,
+          color: theme.colorScheme.outline,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          translation.noItemsAvailable,
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton.icon(
+          onPressed: state.status.isGetItems
+              ? null
+              : () => bloc.add(const HomeEvent.initialized()),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+          ),
+          icon: state.status.isGetItems
+              ? SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      theme.colorScheme.onPrimary,
+                    ),
+                  ),
+                )
+              : const Icon(Icons.refresh),
+          label: Text(translation.refresh),
+        ),
+      ],
+    ),
+  );
 }
 
 ''';
@@ -1129,6 +1368,10 @@ class AuthEvent with _$AuthEvent {
   const factory AuthEvent.register(String email, String password, String? name) = _Register;
   const factory AuthEvent.logout() = _Logout;
   const factory AuthEvent.checkAuth() = _CheckAuth;
+  const factory AuthEvent.resetSuccessAndErrorStatus({
+    AuthSuccessStatus? successStatus,
+    AuthErrorStatus? errorStatus,
+  }) = _ResetSuccessAndErrorStatus;
 }
 
 ''';
@@ -1150,90 +1393,169 @@ class AuthBloc extends HydratedBloc<AuthEvent, AuthState> {
     required AuthUseCases authUseCases,
   }) : _authUseCases = authUseCases,
        super(const AuthState()) {
-    on<AuthEvent>((AuthEvent event, Emitter<AuthState> emit) async {
-      event.map(
-        login: (_Login e) async {
-          emit(state.copyWith(isLoading: true, failure: null));
-          final Either<Failure, UserEntity> result = await _authUseCases.login(e.email, e.password);
-          result.fold(
-            (Failure failure) => emit(
-              state.copyWith(failure: failure, isLoading: false, isAuthenticated: false),
-            ),
-            (UserEntity user) => emit(
-              state.copyWith(
-                user: user,
-                isLoading: false,
-                failure: null,
-                isAuthenticated: true,
-              ),
-            ),
-          );
-        },
-        register: (_Register e) async {
-          emit(state.copyWith(isLoading: true, failure: null));
-          final Either<Failure, UserEntity> result = await _authUseCases.register(e.email, e.password, e.name);
-          result.fold(
-            (Failure failure) => emit(
-              state.copyWith(failure: failure, isLoading: false, isAuthenticated: false),
-            ),
-            (UserEntity user) => emit(
-              state.copyWith(
-                user: user,
-                isLoading: false,
-                failure: null,
-                isAuthenticated: true,
-              ),
-            ),
-          );
-        },
-        logout: (_Logout e) async {
-          emit(state.copyWith(isLoading: true, failure: null));
-          final Either<Failure, void> result = await _authUseCases.logout();
-          result.fold(
-            (Failure failure) => emit(
-              state.copyWith(failure: failure, isLoading: false),
-            ),
-            (void _) => emit(
-              state.copyWith(
-                user: null,
-                isLoading: false,
-                failure: null,
-                isAuthenticated: false,
-              ),
-            ),
-          );
-        },
-        checkAuth: (_CheckAuth e) async {
-          emit(state.copyWith(isLoading: true, failure: null));
-          final Either<Failure, bool> result = await _authUseCases.isAuthenticated();
-          result.fold(
-            (Failure failure) => emit(
-              state.copyWith(failure: failure, isLoading: false, isAuthenticated: false),
-            ),
-            (bool isAuth) async {
-              if (isAuth) {
-                final Either<Failure, UserEntity?> userResult = await _authUseCases.getCurrentUser();
-                userResult.fold(
-                  (Failure failure) => emit(
-                    state.copyWith(failure: failure, isLoading: false, isAuthenticated: false),
-                  ),
-                  (UserEntity? user) => emit(
-                    state.copyWith(
-                      user: user,
-                      isLoading: false,
-                      failure: null,
-                      isAuthenticated: user != null,
-                    ),
-                  ),
-                );
-              } else {
-                emit(state.copyWith(isLoading: false, isAuthenticated: false));
-              }
-            },
-          );
-        },
-      );
-    });
+    on<_Login>(_onLogin);
+    on<_Register>(_onRegister);
+    on<_Logout>(_onLogout);
+    on<_CheckAuth>(_onCheckAuth);
+    on<_ResetSuccessAndErrorStatus>(_onResetSuccessAndErrorStatus);
+  }
+
+  void _onResetSuccessAndErrorStatus(
+    _ResetSuccessAndErrorStatus event,
+    Emitter<AuthState> emit,
+  ) {
+    emit(state.copyWith(
+      successStatus: event.successStatus ?? state.successStatus,
+      errorStatus: event.errorStatus ?? state.errorStatus,
+      failure: null,
+    ));
+  }
+
+  Future<void> _onLogin(_Login event, Emitter<AuthState> emit) async {
+    emit(state.copyWith(
+      status: state.status.copyWith(isLogin: true),
+      successStatus: state.successStatus.copyWith(login: false),
+      errorStatus: state.errorStatus.copyWith(login: false),
+      failure: null,
+    ));
+    
+    final Either<Failure, UserEntity> result = await _authUseCases.login(event.email, event.password);
+    
+    result.fold(
+      (Failure failure) {
+        emit(state.copyWith(
+          status: state.status.copyWith(isLogin: false),
+          errorStatus: state.errorStatus.copyWith(login: true),
+          failure: failure,
+          isAuthenticated: false,
+        ));
+      },
+      (UserEntity user) {
+        emit(state.copyWith(
+          user: user,
+          status: state.status.copyWith(isLogin: false),
+          successStatus: state.successStatus.copyWith(login: true),
+          failure: null,
+          isAuthenticated: true,
+        ));
+      },
+    );
+  }
+
+  Future<void> _onRegister(_Register event, Emitter<AuthState> emit) async {
+    emit(state.copyWith(
+      status: state.status.copyWith(isRegister: true),
+      successStatus: state.successStatus.copyWith(register: false),
+      errorStatus: state.errorStatus.copyWith(register: false),
+      failure: null,
+    ));
+    
+    final Either<Failure, UserEntity> result = await _authUseCases.register(event.email, event.password, event.name);
+    
+    result.fold(
+      (Failure failure) {
+        emit(state.copyWith(
+          status: state.status.copyWith(isRegister: false),
+          errorStatus: state.errorStatus.copyWith(register: true),
+          failure: failure,
+          isAuthenticated: false,
+        ));
+      },
+      (UserEntity user) {
+        emit(state.copyWith(
+          user: user,
+          status: state.status.copyWith(isRegister: false),
+          successStatus: state.successStatus.copyWith(register: true),
+          failure: null,
+          isAuthenticated: true,
+        ));
+      },
+    );
+  }
+
+  Future<void> _onLogout(_Logout event, Emitter<AuthState> emit) async {
+    emit(state.copyWith(
+      status: state.status.copyWith(isLogout: true),
+      successStatus: state.successStatus.copyWith(logout: false),
+      errorStatus: state.errorStatus.copyWith(logout: false),
+      failure: null,
+    ));
+    
+    final Either<Failure, void> result = await _authUseCases.logout();
+    
+    result.fold(
+      (Failure failure) {
+        emit(state.copyWith(
+          status: state.status.copyWith(isLogout: false),
+          errorStatus: state.errorStatus.copyWith(logout: true),
+          failure: failure,
+        ));
+      },
+      (void _) {
+        emit(state.copyWith(
+          user: null,
+          status: state.status.copyWith(isLogout: false),
+          successStatus: state.successStatus.copyWith(logout: true),
+          failure: null,
+          isAuthenticated: false,
+        ));
+      },
+    );
+  }
+
+  Future<void> _onCheckAuth(_CheckAuth event, Emitter<AuthState> emit) async {
+    emit(state.copyWith(
+      status: state.status.copyWith(isCheckAuth: true),
+      successStatus: state.successStatus.copyWith(checkAuth: false),
+      errorStatus: state.errorStatus.copyWith(checkAuth: false),
+      failure: null,
+    ));
+    
+    final Either<Failure, bool> result = await _authUseCases.isAuthenticated();
+    
+    if (result.isLeft()) {
+      final Failure failure = result.fold((Failure l) => l, (bool r) => throw Exception());
+      emit(state.copyWith(
+        status: state.status.copyWith(isCheckAuth: false),
+        errorStatus: state.errorStatus.copyWith(checkAuth: true),
+        failure: failure,
+        isAuthenticated: false,
+      ));
+      return;
+    }
+    
+    final bool isAuth = result.fold((Failure l) => throw Exception(), (bool r) => r);
+    
+    if (!isAuth) {
+      emit(state.copyWith(
+        status: state.status.copyWith(isCheckAuth: false),
+        failure: null,
+        isAuthenticated: false,
+      ));
+      return;
+    }
+    
+    final Either<Failure, UserEntity?> userResult = await _authUseCases.getCurrentUser();
+    
+    userResult.fold(
+      (Failure failure) {
+        emit(state.copyWith(
+          status: state.status.copyWith(isCheckAuth: false),
+          errorStatus: state.errorStatus.copyWith(checkAuth: true),
+          failure: failure,
+          isAuthenticated: false,
+        ));
+      },
+      (UserEntity? user) {
+        emit(state.copyWith(
+          user: user,
+          status: state.status.copyWith(isCheckAuth: false),
+          successStatus: state.successStatus.copyWith(checkAuth: true),
+          failure: null,
+          isAuthenticated: user != null,
+        ));
+      },
+    );
   }
 
   @override
@@ -1247,12 +1569,48 @@ class AuthBloc extends HydratedBloc<AuthEvent, AuthState> {
   static const String _features_auth_presentation_blocs_auth_bloc_auth_state_dart = r'''part of 'auth_bloc.dart';
 
 @freezed
+abstract class AuthStatus with _$AuthStatus {
+  const factory AuthStatus({
+    @Default(false) bool isLogin,
+    @Default(false) bool isRegister,
+    @Default(false) bool isLogout,
+    @Default(false) bool isCheckAuth,
+  }) = _AuthStatus;
+}
+
+@freezed
+abstract class AuthSuccessStatus with _$AuthSuccessStatus {
+  const factory AuthSuccessStatus({
+    @Default(false) bool login,
+    @Default(false) bool register,
+    @Default(false) bool logout,
+    @Default(false) bool checkAuth,
+  }) = _AuthSuccessStatus;
+}
+
+@freezed
+abstract class AuthErrorStatus with _$AuthErrorStatus {
+  const factory AuthErrorStatus({
+    @Default(false) bool login,
+    @Default(false) bool register,
+    @Default(false) bool logout,
+    @Default(false) bool checkAuth,
+  }) = _AuthErrorStatus;
+}
+
+@freezed
 abstract class AuthState with _$AuthState {
   const factory AuthState({
-    @Default(false) bool isLoading,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(AuthStatus()) AuthStatus status,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(AuthSuccessStatus()) AuthSuccessStatus successStatus,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(AuthErrorStatus()) AuthErrorStatus errorStatus,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    Failure? failure,
     @Default(false) bool isAuthenticated,
     UserEntity? user,
-    Failure? failure,
   }) = _AuthState;
 }
 
@@ -1265,125 +1623,169 @@ import 'package:go_router/go_router.dart';
 import '../blocs/auth_bloc/auth_bloc.dart';
 import '../../../../application/injector.dart';
 import '../../../../application/routes/routes.dart';
+import '../../../../application/generated/l10n.dart';
+import '../../../../core/states/tstatefull.dart';
 
+/// Login page container - provides BlocProvider
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
-  
-  @override
-  Widget build(BuildContext context) {
-    final GlobalKey<FormBuilderState> formKey = GlobalKey<FormBuilderState>();
 
-    return BlocProvider<AuthBloc>(
-      create: (BuildContext context) => Injector.get<AuthBloc>()..add(const AuthEvent.checkAuth()),
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Login'),
-        ),
-        body: BlocConsumer<AuthBloc, AuthState>(
-          listener: (BuildContext context, AuthState state) {
-            if (state.isAuthenticated && state.user != null) {
-              context.go(Routes.home);
-            }
-            if (state.failure != null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(state.failure!.message),
-                  backgroundColor: Colors.red,
+  @override
+  Widget build(BuildContext context) => BlocProvider<AuthBloc>(
+    create: (BuildContext context) => Injector.get<AuthBloc>()..add(const AuthEvent.checkAuth()),
+    child: const _LoginView(),
+  );
+}
+
+/// Login view - StatefulWidget for form state management
+class _LoginView extends StatefulWidget {
+  const _LoginView();
+
+  @override
+  State<_LoginView> createState() => _LoginViewState();
+}
+
+class _LoginViewState extends TStateful<_LoginView, AuthBloc> {
+  final GlobalKey<FormBuilderState> _formKey = GlobalKey<FormBuilderState>();
+
+  @override
+  AuthBloc get bloc => Injector.get<AuthBloc>();
+
+  @override
+  Widget bodyWidget(
+    BuildContext context,
+    ThemeData theme,
+    S translation,
+  ) => Scaffold(
+    appBar: AppBar(
+      title: Text(translation.login),
+      backgroundColor: theme.colorScheme.inversePrimary,
+    ),
+    body: BlocConsumer<AuthBloc, AuthState>(
+      listener: _handleStateChanges,
+      builder: (BuildContext context, AuthState state) => SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: FormBuilder(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              const SizedBox(height: 32),
+              Text(
+                translation.welcomeBack,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-              );
-            }
-          },
-          builder: (BuildContext context, AuthState state) => SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: FormBuilder(
-                key: formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    const SizedBox(height: 32),
-                    const Text(
-                      'Welcome Back',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Please sign in to continue',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 48),
-                    FormBuilderTextField(
-                      name: 'email',
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.email),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                      validator: FormBuilderValidators.compose(<String? Function(String?)>[
-                        FormBuilderValidators.required(),
-                        FormBuilderValidators.email(),
-                      ]),
-                    ),
-                    const SizedBox(height: 16),
-                    FormBuilderTextField(
-                      name: 'password',
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.lock),
-                      ),
-                      obscureText: true,
-                      validator: FormBuilderValidators.compose(<String? Function(String?)>[
-                        FormBuilderValidators.required(),
-                        FormBuilderValidators.minLength(6),
-                      ]),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: state.isLoading
-                          ? null
-                          : () {
-                              if (formKey.currentState?.saveAndValidate() ?? false) {
-                                final String email = formKey.currentState?.value['email'] as String;
-                                final String password = formKey.currentState?.value['password'] as String;
-                                context.read<AuthBloc>().add(
-                                      AuthEvent.login(email, password),
-                                    );
-                              }
-                            },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: state.isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Login'),
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        // Navigate to register page if needed
-                      },
-                      child: const Text('Don\'t have an account? Register'),
-                    ),
-                  ],
-                ),
+                textAlign: TextAlign.center,
               ),
-            ),
+              const SizedBox(height: 8),
+              Text(
+                translation.pleaseSignInToContinue,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 48),
+              FormBuilderTextField(
+                name: 'email',
+                decoration: InputDecoration(
+                  labelText: translation.email,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.email),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                validator: FormBuilderValidators.compose(<String? Function(String?)>[
+                  FormBuilderValidators.required(),
+                  FormBuilderValidators.email(),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              FormBuilderTextField(
+                name: 'password',
+                decoration: InputDecoration(
+                  labelText: translation.password,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock),
+                ),
+                obscureText: true,
+                validator: FormBuilderValidators.compose(<String? Function(String?)>[
+                  FormBuilderValidators.required(),
+                  FormBuilderValidators.minLength(6),
+                ]),
+              ),
+              const SizedBox(height: 24),
+              _buildLoginButton(state, theme, translation),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  // Navigate to register page if needed
+                },
+                child: Text(translation.dontHaveAccount),
+              ),
+            ],
+          ),
         ),
       ),
-    );
+    ),
+  );
+
+  void _handleStateChanges(BuildContext context, AuthState state) {
+    if (state.isAuthenticated && state.user != null) {
+      context.go(Routes.home);
+    }
+    if (state.errorStatus.login && state.failure != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(state.failure!.message),
+          backgroundColor: Colors.red,
+        ),
+      );
+      Injector.get<AuthBloc>().add(
+        const AuthEvent.resetSuccessAndErrorStatus(
+          errorStatus: AuthErrorStatus(login: false),
+        ),
+      );
+    }
+    if (state.successStatus.login) {
+      Injector.get<AuthBloc>().add(
+        const AuthEvent.resetSuccessAndErrorStatus(
+          successStatus: AuthSuccessStatus(login: false),
+        ),
+      );
+    }
+  }
+
+  Widget _buildLoginButton(AuthState state, ThemeData theme, S translation) => SizedBox(
+    height: 50,
+    child: ElevatedButton(
+      onPressed: state.status.isLogin ? null : _onLoginPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
+        disabledBackgroundColor: theme.colorScheme.primary.withOpacity(0.6),
+      ),
+      child: state.status.isLogin
+          ? SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  theme.colorScheme.onPrimary,
+                ),
+              ),
+            )
+          : Text(translation.login),
+    ),
+  );
+
+  void _onLoginPressed() {
+    if (_formKey.currentState?.saveAndValidate() ?? false) {
+      final String email = _formKey.currentState?.value['email'] as String;
+      final String password = _formKey.currentState?.value['password'] as String;
+      bloc.add(AuthEvent.login(email, password));
+    }
   }
 }
 
@@ -1490,6 +1892,66 @@ export 'constants/assets.dart';
   "appTitle": "{{project_name}}",
   "@appTitle": {
     "description": "El título de la aplicación"
+  },
+  "login": "Iniciar Sesión",
+  "@login": {
+    "description": "Botón y título de inicio de sesión"
+  },
+  "welcomeBack": "Bienvenido de nuevo",
+  "@welcomeBack": {
+    "description": "Mensaje de bienvenida en la página de inicio de sesión"
+  },
+  "pleaseSignInToContinue": "Por favor inicia sesión para continuar",
+  "@pleaseSignInToContinue": {
+    "description": "Subtítulo en la página de inicio de sesión"
+  },
+  "email": "Correo electrónico",
+  "@email": {
+    "description": "Etiqueta del campo de correo"
+  },
+  "password": "Contraseña",
+  "@password": {
+    "description": "Etiqueta del campo de contraseña"
+  },
+  "dontHaveAccount": "¿No tienes cuenta? Regístrate",
+  "@dontHaveAccount": {
+    "description": "Texto del enlace de registro"
+  },
+  "home": "Inicio",
+  "@home": {
+    "description": "Título de la página de inicio"
+  },
+  "noItemsAvailable": "No hay elementos disponibles",
+  "@noItemsAvailable": {
+    "description": "Mensaje de estado vacío"
+  },
+  "refresh": "Actualizar",
+  "@refresh": {
+    "description": "Texto del botón actualizar"
+  },
+  "retry": "Reintentar",
+  "@retry": {
+    "description": "Texto del botón reintentar"
+  },
+  "logout": "Cerrar sesión",
+  "@logout": {
+    "description": "Texto del botón cerrar sesión"
+  },
+  "register": "Registrarse",
+  "@register": {
+    "description": "Texto del botón registrarse"
+  },
+  "loading": "Cargando...",
+  "@loading": {
+    "description": "Texto del indicador de carga"
+  },
+  "error": "Error",
+  "@error": {
+    "description": "Título de error"
+  },
+  "success": "Éxito",
+  "@success": {
+    "description": "Título de éxito"
   }
 }
 
@@ -1515,6 +1977,66 @@ class AppLocalizationsSetup {
   "appTitle": "{{project_name}}",
   "@appTitle": {
     "description": "The application title"
+  },
+  "login": "Login",
+  "@login": {
+    "description": "Login button and page title"
+  },
+  "welcomeBack": "Welcome Back",
+  "@welcomeBack": {
+    "description": "Welcome message on login page"
+  },
+  "pleaseSignInToContinue": "Please sign in to continue",
+  "@pleaseSignInToContinue": {
+    "description": "Subtitle on login page"
+  },
+  "email": "Email",
+  "@email": {
+    "description": "Email field label"
+  },
+  "password": "Password",
+  "@password": {
+    "description": "Password field label"
+  },
+  "dontHaveAccount": "Don't have an account? Register",
+  "@dontHaveAccount": {
+    "description": "Register link text"
+  },
+  "home": "Home",
+  "@home": {
+    "description": "Home page title"
+  },
+  "noItemsAvailable": "No items available",
+  "@noItemsAvailable": {
+    "description": "Empty state message"
+  },
+  "refresh": "Refresh",
+  "@refresh": {
+    "description": "Refresh button text"
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "Retry button text"
+  },
+  "logout": "Logout",
+  "@logout": {
+    "description": "Logout button text"
+  },
+  "register": "Register",
+  "@register": {
+    "description": "Register button text"
+  },
+  "loading": "Loading...",
+  "@loading": {
+    "description": "Loading indicator text"
+  },
+  "error": "Error",
+  "@error": {
+    "description": "Error title"
+  },
+  "success": "Success",
+  "@success": {
+    "description": "Success title"
   }
 }
 

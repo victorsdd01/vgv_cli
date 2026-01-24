@@ -3,6 +3,66 @@
   "appTitle": "{{project_name}}",
   "@appTitle": {
     "description": "El título de la aplicación"
+  },
+  "login": "Iniciar Sesión",
+  "@login": {
+    "description": "Botón y título de inicio de sesión"
+  },
+  "welcomeBack": "Bienvenido de nuevo",
+  "@welcomeBack": {
+    "description": "Mensaje de bienvenida en la página de inicio de sesión"
+  },
+  "pleaseSignInToContinue": "Por favor inicia sesión para continuar",
+  "@pleaseSignInToContinue": {
+    "description": "Subtítulo en la página de inicio de sesión"
+  },
+  "email": "Correo electrónico",
+  "@email": {
+    "description": "Etiqueta del campo de correo"
+  },
+  "password": "Contraseña",
+  "@password": {
+    "description": "Etiqueta del campo de contraseña"
+  },
+  "dontHaveAccount": "¿No tienes cuenta? Regístrate",
+  "@dontHaveAccount": {
+    "description": "Texto del enlace de registro"
+  },
+  "home": "Inicio",
+  "@home": {
+    "description": "Título de la página de inicio"
+  },
+  "noItemsAvailable": "No hay elementos disponibles",
+  "@noItemsAvailable": {
+    "description": "Mensaje de estado vacío"
+  },
+  "refresh": "Actualizar",
+  "@refresh": {
+    "description": "Texto del botón actualizar"
+  },
+  "retry": "Reintentar",
+  "@retry": {
+    "description": "Texto del botón reintentar"
+  },
+  "logout": "Cerrar sesión",
+  "@logout": {
+    "description": "Texto del botón cerrar sesión"
+  },
+  "register": "Registrarse",
+  "@register": {
+    "description": "Texto del botón registrarse"
+  },
+  "loading": "Cargando...",
+  "@loading": {
+    "description": "Texto del indicador de carga"
+  },
+  "error": "Error",
+  "@error": {
+    "description": "Título de error"
+  },
+  "success": "Éxito",
+  "@success": {
+    "description": "Título de éxito"
   }
 }
 
