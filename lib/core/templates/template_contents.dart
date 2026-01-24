@@ -1615,15 +1615,20 @@ import '../blocs/auth_bloc/auth_bloc.dart';
 import '../../../../application/injector.dart';
 import '../../../../application/routes/routes.dart';
 import '../../../../application/generated/l10n.dart';
-import '../../../../core/states/tstateless.dart';
+import '../../../../core/states/tstatefull.dart';
 
-class LoginPage extends TStateless<AuthBloc> {
+class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
-  AuthBloc get bloc => Injector.get<AuthBloc>();
+  State<LoginPage> createState() => _LoginPageState();
+}
 
-  final GlobalKey<FormBuilderState> formKey = GlobalKey<FormBuilderState>();
+class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
+  final GlobalKey<FormBuilderState> _formKey = GlobalKey<FormBuilderState>();
+
+  @override
+  AuthBloc get bloc => Injector.get<AuthBloc>();
 
   @override
   Widget bodyWidget(
@@ -1631,107 +1636,99 @@ class LoginPage extends TStateless<AuthBloc> {
     ThemeData theme,
     S translation,
   ) => Scaffold(
-      appBar: AppBar(
-        title: Text(translation.login),
-        backgroundColor: theme.colorScheme.inversePrimary,
-      ),
-      body: BlocConsumer<AuthBloc, AuthState>(
-        bloc: bloc,
-        listener: (BuildContext ctx, AuthState state) => _handleStateChanges(ctx, state),
-        builder: (BuildContext context, AuthState state) => SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: FormBuilder(
-            key: formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                const SizedBox(height: 32),
-                Text(
-                  translation.welcomeBack,
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
+    appBar: AppBar(
+      title: Text(translation.login),
+      backgroundColor: theme.colorScheme.inversePrimary,
+    ),
+    body: BlocConsumer<AuthBloc, AuthState>(
+      bloc: bloc,
+      listener: _handleStateChanges,
+      builder: (BuildContext context, AuthState state) => SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: FormBuilder(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              const SizedBox(height: 32),
+              Text(
+                translation.welcomeBack,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  translation.pleaseSignInToContinue,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  textAlign: TextAlign.center,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                translation.pleaseSignInToContinue,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(height: 48),
-                FormBuilderTextField(
-                  name: 'email',
-                  decoration: InputDecoration(
-                    labelText: translation.email,
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.email),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: FormBuilderValidators.compose(<String? Function(String?)>[
-                    FormBuilderValidators.required(),
-                    FormBuilderValidators.email(),
-                  ]),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 48),
+              FormBuilderTextField(
+                name: 'email',
+                decoration: InputDecoration(
+                  labelText: translation.email,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.email),
                 ),
-                const SizedBox(height: 16),
-                FormBuilderTextField(
-                  name: 'password',
-                  decoration: InputDecoration(
-                    labelText: translation.password,
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.lock),
-                  ),
-                  obscureText: true,
-                  validator: FormBuilderValidators.compose(<String? Function(String?)>[
-                    FormBuilderValidators.required(),
-                    FormBuilderValidators.minLength(6),
-                  ]),
+                keyboardType: TextInputType.emailAddress,
+                validator: FormBuilderValidators.compose(<String? Function(String?)>[
+                  FormBuilderValidators.required(),
+                  FormBuilderValidators.email(),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              FormBuilderTextField(
+                name: 'password',
+                decoration: InputDecoration(
+                  labelText: translation.password,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock),
                 ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: state.status.isLogin
-                        ? null
-                        : () {
-                            if (formKey.currentState?.saveAndValidate() ?? false) {
-                              final String email = formKey.currentState?.value['email'] as String;
-                              final String password = formKey.currentState?.value['password'] as String;
-                              bloc.add(AuthEvent.login(email, password));
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                      disabledBackgroundColor: theme.colorScheme.primary.withOpacity(0.6),
-                    ),
-                    child: state.status.isLogin
-                        ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                theme.colorScheme.onPrimary,
-                              ),
+                obscureText: true,
+                validator: FormBuilderValidators.compose(<String? Function(String?)>[
+                  FormBuilderValidators.required(),
+                  FormBuilderValidators.minLength(6),
+                ]),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: state.status.isLogin ? null : _onLoginPressed,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    disabledBackgroundColor: theme.colorScheme.primary.withOpacity(0.6),
+                  ),
+                  child: state.status.isLogin
+                      ? SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              theme.colorScheme.onPrimary,
                             ),
-                          )
-                        : Text(translation.login),
-                  ),
-                );
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () {
-                    // Navigate to register page if needed
-                  },
-                  child: Text(translation.dontHaveAccount),
+                          ),
+                        )
+                      : Text(translation.login),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  // Navigate to register page if needed
+                },
+                child: Text(translation.dontHaveAccount),
+              ),
+            ],
           ),
         ),
+      ),
     ),
   );
 
@@ -1761,6 +1758,13 @@ class LoginPage extends TStateless<AuthBloc> {
     }
   }
 
+  void _onLoginPressed() {
+    if (_formKey.currentState?.saveAndValidate() ?? false) {
+      final String email = _formKey.currentState?.value['email'] as String;
+      final String password = _formKey.currentState?.value['password'] as String;
+      bloc.add(AuthEvent.login(email, password));
+    }
+  }
 }
 ''';
   static const String _shared_shared_dart = r'''export 'widgets/widgets.dart';
@@ -2188,7 +2192,7 @@ class AppRoutes {
     routes: <RouteBase>[
       GoRoute(
         path: Routes.login,
-        builder: (BuildContext context, GoRouterState state) => const LoginPage(),
+        builder: (BuildContext context, GoRouterState state) => LoginPage(),
       ),
       GoRoute(
         path: Routes.home,
