@@ -588,6 +588,13 @@ class TalkerService {
 }
 
 ''';
+  static const String _main_production_dart = r'''import 'application/config/config.dart';
+import 'main.dart' as app;
+
+void main() {
+  app.main(environment: AppEnvironment.production);
+}
+''';
   static const String _features_settings_presentation_blocs_settings_bloc_settings_bloc_dart = r'''import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -2728,31 +2735,34 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'application/application.dart';
+import 'application/config/config.dart';
 import 'features/home/presentation/blocs/home_bloc/home_bloc.dart';
 import 'features/auth/presentation/blocs/auth_bloc/auth_bloc.dart';
 import 'features/settings/presentation/blocs/settings_bloc/settings_bloc.dart';
 import 'core/services/talker_service.dart';
 
-Future<void> main() async {
-  try {
-    WidgetsFlutterBinding.ensureInitialized();
-    if (kReleaseMode) {
-      debugPrintRebuildDirtyWidgets = false;
-      debugPrint = (String? message, {int? wrapWidth}) {};
-    }
-  } finally {
-    await runMainApp();
-  }
-}
+Future<void> main({AppEnvironment? environment}) async {
+  environment ??= AppEnvironment.production;
 
-Future<void> runMainApp() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  AppConfiguration.init(environment: environment);
+
+  if (kReleaseMode) {
+    debugPrintRebuildDirtyWidgets = false;
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
+
   HydratedBloc.storage = await HydratedStorage.build(
     storageDirectory: kIsWeb
         ? HydratedStorageDirectory.web
         : HydratedStorageDirectory((await getTemporaryDirectory()).path),
   );
 
-  TalkerService.init();
+  if (AppConfiguration.enableLogging) {
+    TalkerService.init();
+  }
+
   Injector.init();
 
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -2792,9 +2802,16 @@ class MyApp extends StatelessWidget {
       locale: Locale(state.languageCode),
       localizationsDelegates: AppLocalizationsSetup.localizationsDelegates,
       supportedLocales: AppLocalizationsSetup.supportedLocales,
-      debugShowCheckedModeBanner: kDebugMode,
+      debugShowCheckedModeBanner: !AppConfiguration.isProduction,
     ),
   );
+}
+''';
+  static const String _main_dev_dart = r'''import 'application/config/config.dart';
+import 'main.dart' as app;
+
+void main() {
+  app.main(environment: AppEnvironment.dev);
 }
 ''';
   static const String _application_application_dart = r'''export 'injector.dart';
@@ -3221,6 +3238,79 @@ class AppLocalizationsSetup {
     "description": "Login link text"
   }
 }''';
+  static const String _application_config_app_environment_dart = r'''import 'package:flutter/foundation.dart';
+
+enum Environment { dev, staging, production }
+
+class AppEnvironment {
+  const AppEnvironment({
+    required this.name,
+    required this.baseUrl,
+    this.enableLogging = true,
+  });
+
+  final String name;
+  final String baseUrl;
+  final bool enableLogging;
+
+  static const AppEnvironment dev = AppEnvironment(
+    name: 'Development',
+    baseUrl: 'https://dev-api.example.com/api/v1',
+    enableLogging: true,
+  );
+
+  static const AppEnvironment staging = AppEnvironment(
+    name: 'Staging',
+    baseUrl: 'https://staging-api.example.com/api/v1',
+    enableLogging: true,
+  );
+
+  static const AppEnvironment production = AppEnvironment(
+    name: 'Production',
+    baseUrl: 'https://api.example.com/api/v1',
+    enableLogging: false,
+  );
+
+  bool get isDev => this == dev;
+  bool get isStaging => this == staging;
+  bool get isProduction => this == production;
+  bool get isReleaseMode => kReleaseMode;
+}
+''';
+  static const String _application_config_config_dart = r'''export 'app_configuration.dart';
+export 'app_environment.dart';
+''';
+  static const String _application_config_app_configuration_dart = r'''import 'package:flutter/foundation.dart';
+import 'app_environment.dart';
+
+class AppConfiguration {
+  AppConfiguration._();
+
+  static AppEnvironment? _environment;
+
+  static AppEnvironment get environment {
+    assert(_environment != null, 'AppConfiguration.init() must be called first');
+    return _environment!;
+  }
+
+  static bool get isInitialized => _environment != null;
+
+  static String get baseUrl => environment.baseUrl;
+
+  static bool get enableLogging => environment.enableLogging && !kReleaseMode;
+
+  static bool get isProduction => _environment == AppEnvironment.production;
+
+  static bool get isDevelopment => _environment == AppEnvironment.dev;
+
+  static bool get isStaging => _environment == AppEnvironment.staging;
+
+  static void init({required AppEnvironment environment}) {
+    assert(_environment == null, 'AppConfiguration.init() should only be called once');
+    _environment = environment;
+  }
+}
+''';
   static const String _application_injector_dart = r'''import 'package:get_it/get_it.dart';
 import '../core/network/http_client.dart';
 import '../core/utils/secure_storage_utils.dart';
@@ -3420,6 +3510,13 @@ class AppRoutes {
   );
 }
 ''';
+  static const String _main_staging_dart = r'''import 'application/config/config.dart';
+import 'main.dart' as app;
+
+void main() {
+  app.main(environment: AppEnvironment.staging);
+}
+''';
 
   static Map<String, String> get templates => {
     'core/database/app_database.dart': _core_database_app_database_dart,
@@ -3434,6 +3531,7 @@ class AppRoutes {
     'core/states/tstatefull.dart': _core_states_tstatefull_dart,
     'core/errors/failures.dart': _core_errors_failures_dart,
     'core/services/talker_service.dart': _core_services_talker_service_dart,
+    'main_production.dart': _main_production_dart,
     'features/settings/presentation/blocs/settings_bloc/settings_bloc.dart': _features_settings_presentation_blocs_settings_bloc_settings_bloc_dart,
     'features/settings/presentation/blocs/settings_bloc/settings_state.dart': _features_settings_presentation_blocs_settings_bloc_settings_state_dart,
     'features/settings/presentation/blocs/settings_bloc/settings_event.dart': _features_settings_presentation_blocs_settings_bloc_settings_event_dart,
@@ -3465,15 +3563,20 @@ class AppRoutes {
     'shared/widgets/app_header.dart': _shared_widgets_app_header_dart,
     'shared/widgets/dialogs/app_dialogs.dart': _shared_widgets_dialogs_app_dialogs_dart,
     'main.dart': _main_dart,
+    'main_dev.dart': _main_dev_dart,
     'application/application.dart': _application_application_dart,
     'application/l10n/intl_es.arb': _application_l10n_intl_es_arb,
     'application/l10n/app_localization_setup.dart': _application_l10n_app_localization_setup_dart,
     'application/l10n/intl_en.arb': _application_l10n_intl_en_arb,
+    'application/config/app_environment.dart': _application_config_app_environment_dart,
+    'application/config/config.dart': _application_config_config_dart,
+    'application/config/app_configuration.dart': _application_config_app_configuration_dart,
     'application/injector.dart': _application_injector_dart,
     'application/constants/assets.dart': _application_constants_assets_dart,
     'application/theme/app_colors.dart': _application_theme_app_colors_dart,
     'application/theme/theme.dart': _application_theme_theme_dart,
     'application/routes/routes.dart': _application_routes_routes_dart,
+    'main_staging.dart': _main_staging_dart,
   };
 
   static String _processTemplate(String content, String projectName) {

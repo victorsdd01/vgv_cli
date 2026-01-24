@@ -6,31 +6,34 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'application/application.dart';
+import 'application/config/config.dart';
 import 'features/home/presentation/blocs/home_bloc/home_bloc.dart';
 import 'features/auth/presentation/blocs/auth_bloc/auth_bloc.dart';
 import 'features/settings/presentation/blocs/settings_bloc/settings_bloc.dart';
 import 'core/services/talker_service.dart';
 
-Future<void> main() async {
-  try {
-    WidgetsFlutterBinding.ensureInitialized();
-    if (kReleaseMode) {
-      debugPrintRebuildDirtyWidgets = false;
-      debugPrint = (String? message, {int? wrapWidth}) {};
-    }
-  } finally {
-    await runMainApp();
-  }
-}
+Future<void> main({AppEnvironment? environment}) async {
+  environment ??= AppEnvironment.production;
 
-Future<void> runMainApp() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  AppConfiguration.init(environment: environment);
+
+  if (kReleaseMode) {
+    debugPrintRebuildDirtyWidgets = false;
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
+
   HydratedBloc.storage = await HydratedStorage.build(
     storageDirectory: kIsWeb
         ? HydratedStorageDirectory.web
         : HydratedStorageDirectory((await getTemporaryDirectory()).path),
   );
 
-  TalkerService.init();
+  if (AppConfiguration.enableLogging) {
+    TalkerService.init();
+  }
+
   Injector.init();
 
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -70,7 +73,7 @@ class MyApp extends StatelessWidget {
       locale: Locale(state.languageCode),
       localizationsDelegates: AppLocalizationsSetup.localizationsDelegates,
       supportedLocales: AppLocalizationsSetup.supportedLocales,
-      debugShowCheckedModeBanner: kDebugMode,
+      debugShowCheckedModeBanner: !AppConfiguration.isProduction,
     ),
   );
 }

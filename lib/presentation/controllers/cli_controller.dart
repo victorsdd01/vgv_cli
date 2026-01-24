@@ -43,6 +43,9 @@ class CliController {
       includeGoRouter: true,
       includeLinterRules: includeLinterRules,
       includeFreezed: true,
+      mobilePlatform: _selectedMobilePlatform,
+      desktopPlatform: _selectedDesktopPlatforms != null ? DesktopPlatform.custom : DesktopPlatform.all,
+      customDesktopPlatforms: _selectedDesktopPlatforms,
     );
 
     _printConfigurationSummary(config);
@@ -107,8 +110,8 @@ class CliController {
         continue;
       }
       
-      if (!RegExp(r'^[a-z][a-z0-9.]*$').hasMatch(org)) {
-        print('$_red  Organization must be lowercase with dots only.$_reset');
+      if (!RegExp(r'^[a-z][a-z0-9.]*[a-z0-9]$').hasMatch(org)) {
+        print('$_red  Organization must be lowercase with dots, min 2 chars.$_reset');
         print('$_dim  Example: com.example, dev.mycompany$_reset');
         continue;
       }
@@ -116,6 +119,10 @@ class CliController {
       return org;
     }
   }
+
+  // Store custom selections for use in config
+  MobilePlatform _selectedMobilePlatform = MobilePlatform.both;
+  CustomDesktopPlatforms? _selectedDesktopPlatforms;
 
   List<PlatformType> _getPlatforms() {
     print('');
@@ -136,6 +143,10 @@ class CliController {
       options: platformOptions,
       initialIndex: 0,
     ).interact();
+
+    // Reset custom selections
+    _selectedMobilePlatform = MobilePlatform.both;
+    _selectedDesktopPlatforms = null;
 
     switch (selection) {
       case 0:
@@ -179,24 +190,44 @@ class CliController {
 
     final platforms = <PlatformType>[];
     
-    // Check if any mobile platform is selected (Android or iOS)
-    if (selections.contains(0) || selections.contains(1)) {
+    // Track specific mobile platforms
+    final hasAndroid = selections.contains(0);
+    final hasIOS = selections.contains(1);
+    
+    if (hasAndroid || hasIOS) {
       platforms.add(PlatformType.mobile);
+      if (hasAndroid && hasIOS) {
+        _selectedMobilePlatform = MobilePlatform.both;
+      } else if (hasAndroid) {
+        _selectedMobilePlatform = MobilePlatform.android;
+      } else {
+        _selectedMobilePlatform = MobilePlatform.ios;
+      }
     }
     
-    // Check if web is selected
+    // Track web
     if (selections.contains(2)) {
       platforms.add(PlatformType.web);
     }
     
-    // Check if any desktop platform is selected
-    if (selections.contains(3) || selections.contains(4) || selections.contains(5)) {
+    // Track specific desktop platforms
+    final hasWindows = selections.contains(3);
+    final hasMacOS = selections.contains(4);
+    final hasLinux = selections.contains(5);
+    
+    if (hasWindows || hasMacOS || hasLinux) {
       platforms.add(PlatformType.desktop);
+      _selectedDesktopPlatforms = CustomDesktopPlatforms(
+        windows: hasWindows,
+        macos: hasMacOS,
+        linux: hasLinux,
+      );
     }
     
     if (platforms.isEmpty) {
       print('$_yellow  No platforms selected. Defaulting to Mobile.$_reset');
       platforms.add(PlatformType.mobile);
+      _selectedMobilePlatform = MobilePlatform.both;
     }
     
     return platforms;
@@ -229,16 +260,33 @@ class CliController {
   }
 
   String _formatPlatforms(List<PlatformType> platforms) {
-    final names = platforms.map((p) {
+    final names = <String>[];
+    
+    for (final p in platforms) {
       switch (p) {
         case PlatformType.mobile:
-          return 'Mobile';
+          if (_selectedMobilePlatform == MobilePlatform.both) {
+            names.add('Android, iOS');
+          } else if (_selectedMobilePlatform == MobilePlatform.android) {
+            names.add('Android');
+          } else {
+            names.add('iOS');
+          }
         case PlatformType.web:
-          return 'Web';
+          names.add('Web');
         case PlatformType.desktop:
-          return 'Desktop';
+          if (_selectedDesktopPlatforms != null) {
+            final desktopNames = <String>[];
+            if (_selectedDesktopPlatforms!.windows) desktopNames.add('Windows');
+            if (_selectedDesktopPlatforms!.macos) desktopNames.add('macOS');
+            if (_selectedDesktopPlatforms!.linux) desktopNames.add('Linux');
+            names.add(desktopNames.join(', '));
+          } else {
+            names.add('Windows, macOS, Linux');
+          }
       }
-    }).toList();
+    }
+    
     return names.join(', ');
   }
 

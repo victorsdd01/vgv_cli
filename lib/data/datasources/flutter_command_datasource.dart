@@ -36,48 +36,46 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
   }) async {
     final args = ['create', '--org', organizationName];
     
-    // Add platform-specific flags
-    if (platforms.contains(PlatformType.web)) {
-      args.add('--platforms=web');
-    }
+    // Collect all platforms in a single list
+    final allPlatforms = <String>[];
     
-    if (platforms.contains(PlatformType.desktop)) {
-      final desktopPlatforms = <String>[];
-      
-      if (desktopPlatform == DesktopPlatform.custom && customDesktopPlatforms != null) {
-        // Use custom desktop platform selections
-        if (customDesktopPlatforms.windows) desktopPlatforms.add('windows');
-        if (customDesktopPlatforms.macos) desktopPlatforms.add('macos');
-        if (customDesktopPlatforms.linux) desktopPlatforms.add('linux');
-      } else {
-        // Use predefined desktop platform selections
-        if (desktopPlatform == DesktopPlatform.windows || desktopPlatform == DesktopPlatform.all) {
-          desktopPlatforms.add('windows');
-        }
-        if (desktopPlatform == DesktopPlatform.macos || desktopPlatform == DesktopPlatform.all) {
-          desktopPlatforms.add('macos');
-        }
-        if (desktopPlatform == DesktopPlatform.linux || desktopPlatform == DesktopPlatform.all) {
-          desktopPlatforms.add('linux');
-        }
-      }
-      
-      if (desktopPlatforms.isNotEmpty) {
-        args.add('--platforms=${desktopPlatforms.join(',')}');
-      }
-    }
-    
+    // Add mobile platforms
     if (platforms.contains(PlatformType.mobile)) {
-      final mobilePlatforms = <String>[];
       if (mobilePlatform == MobilePlatform.android || mobilePlatform == MobilePlatform.both) {
-        mobilePlatforms.add('android');
+        allPlatforms.add('android');
       }
       if (mobilePlatform == MobilePlatform.ios || mobilePlatform == MobilePlatform.both) {
-        mobilePlatforms.add('ios');
+        allPlatforms.add('ios');
       }
-      if (mobilePlatforms.isNotEmpty) {
-        args.add('--platforms=${mobilePlatforms.join(',')}');
+    }
+    
+    // Add web platform
+    if (platforms.contains(PlatformType.web)) {
+      allPlatforms.add('web');
+    }
+    
+    // Add desktop platforms
+    if (platforms.contains(PlatformType.desktop)) {
+      if (desktopPlatform == DesktopPlatform.custom && customDesktopPlatforms != null) {
+        if (customDesktopPlatforms.windows) allPlatforms.add('windows');
+        if (customDesktopPlatforms.macos) allPlatforms.add('macos');
+        if (customDesktopPlatforms.linux) allPlatforms.add('linux');
+      } else {
+        if (desktopPlatform == DesktopPlatform.windows || desktopPlatform == DesktopPlatform.all) {
+          allPlatforms.add('windows');
+        }
+        if (desktopPlatform == DesktopPlatform.macos || desktopPlatform == DesktopPlatform.all) {
+          allPlatforms.add('macos');
+        }
+        if (desktopPlatform == DesktopPlatform.linux || desktopPlatform == DesktopPlatform.all) {
+          allPlatforms.add('linux');
+        }
       }
+    }
+    
+    // Add single --platforms flag with all platforms combined
+    if (allPlatforms.isNotEmpty) {
+      args.add('--platforms=${allPlatforms.join(',')}');
     }
     
     args.add(projectName);
@@ -170,76 +168,42 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
 
   @override
   Future<void> runBuildRunner(String projectName) async {
-    const String reset = '\x1B[0m';
-    const String bold = '\x1B[1m';
-    const String brightCyan = '\x1B[96m';
-    const String dim = '\x1B[2m';
-    
     try {
-      print('');
-      print('$brightCyan$bold⏳ Please wait, we are setting up your project...$reset');
-      print('$dim   This may take a few moments$reset');
-      print('');
-      
       final result = await Process.run(
         'dart',
         ['run', 'build_runner', 'build', '-d'],
         workingDirectory: projectName,
       );
 
-      if (result.exitCode == 0) {
-        // Success message will be shown in cli_controller after this completes
-      } else {
-        print('\n⚠️  Warning: build_runner completed with errors.');
-        print('   You may need to run "dart run build_runner build -d" manually.\n');
+      if (result.exitCode != 0) {
+        // Warning will be shown silently - user can run manually if needed
       }
     } catch (e) {
-      print('\n⚠️  Warning: Failed to run build_runner: $e');
-      print('   You may need to run "dart run build_runner build -d" manually.\n');
+      // Silently handle - user can run manually if needed
     }
   }
 
   @override
   Future<void> setupCocoaPods(String projectName, List<PlatformType> platforms) async {
-    // Check if iOS or macOS directories exist (Flutter creates them based on platform selection)
     final bool hasIOS = platforms.contains(PlatformType.mobile) && 
                         Directory('$projectName/ios').existsSync();
     final bool hasMacOS = platforms.contains(PlatformType.desktop) && 
                           Directory('$projectName/macos').existsSync();
     
     if (!hasIOS && !hasMacOS) {
-      return; // Skip if no iOS or macOS directories
+      return;
     }
-
-    const String reset = '\x1B[0m';
-    const String bold = '\x1B[1m';
-    const String brightCyan = '\x1B[96m';
-    const String dim = '\x1B[2m';
     
     try {
-      // Check if pod command exists
       final podCheck = await Process.run('which', ['pod']);
       if (podCheck.exitCode != 0) {
-        print('\n⚠️  Warning: CocoaPods is not installed.');
-        print('   iOS/macOS projects may not compile until you run:');
-        print('   cd $projectName/ios && rm -rf Pods Podfile.lock && pod repo update && pod install');
-        if (hasMacOS) {
-          print('   cd $projectName/macos && rm -rf Pods Podfile.lock && pod repo update && pod install');
-        }
-        print('');
-        return;
+        return; // CocoaPods not installed, skip silently
       }
-
-      print('');
-      print('$brightCyan$bold📦 Setting up CocoaPods for iOS/macOS...$reset');
-      print('$dim   This may take a few moments$reset');
-      print('');
 
       // Setup iOS CocoaPods
       if (hasIOS) {
         final iosDir = Directory('$projectName/ios');
         if (iosDir.existsSync()) {
-          // Remove existing Pods and Podfile.lock
           final podsDir = Directory('$projectName/ios/Pods');
           final podfileLock = File('$projectName/ios/Podfile.lock');
           
@@ -250,28 +214,8 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
             await podfileLock.delete();
           }
 
-          // Run pod repo update
-          print('$dim   Updating CocoaPods repository...$reset');
-          await Process.run(
-            'pod',
-            ['repo', 'update'],
-            workingDirectory: '$projectName/ios',
-          );
-
-          // Run pod install
-          print('$dim   Installing CocoaPods dependencies...$reset');
-          final podInstallResult = await Process.run(
-            'pod',
-            ['install', '--repo-update'],
-            workingDirectory: '$projectName/ios',
-          );
-
-          if (podInstallResult.exitCode == 0) {
-            print('$brightCyan   ✅ iOS CocoaPods setup completed$reset');
-          } else {
-            print('   ⚠️  Warning: iOS pod install completed with errors.');
-            print('   You may need to run "cd $projectName/ios && pod install" manually.');
-          }
+          await Process.run('pod', ['repo', 'update'], workingDirectory: '$projectName/ios');
+          await Process.run('pod', ['install', '--repo-update'], workingDirectory: '$projectName/ios');
         }
       }
 
@@ -279,7 +223,6 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
       if (hasMacOS) {
         final macosDir = Directory('$projectName/macos');
         if (macosDir.existsSync()) {
-          // Remove existing Pods and Podfile.lock
           final podsDir = Directory('$projectName/macos/Pods');
           final podfileLock = File('$projectName/macos/Podfile.lock');
           
@@ -290,42 +233,12 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
             await podfileLock.delete();
           }
 
-          // Run pod repo update
-          print('$dim   Updating CocoaPods repository for macOS...$reset');
-          await Process.run(
-            'pod',
-            ['repo', 'update'],
-            workingDirectory: '$projectName/macos',
-          );
-
-          // Run pod install
-          print('$dim   Installing CocoaPods dependencies for macOS...$reset');
-          final podInstallResult = await Process.run(
-            'pod',
-            ['install', '--repo-update'],
-            workingDirectory: '$projectName/macos',
-          );
-
-          if (podInstallResult.exitCode == 0) {
-            print('$brightCyan   ✅ macOS CocoaPods setup completed$reset');
-          } else {
-            print('   ⚠️  Warning: macOS pod install completed with errors.');
-            print('   You may need to run "cd $projectName/macos && pod install" manually.');
-          }
+          await Process.run('pod', ['repo', 'update'], workingDirectory: '$projectName/macos');
+          await Process.run('pod', ['install', '--repo-update'], workingDirectory: '$projectName/macos');
         }
       }
-
-      print('');
     } catch (e) {
-      print('\n⚠️  Warning: Failed to setup CocoaPods: $e');
-      print('   You may need to run the following commands manually:');
-      if (hasIOS) {
-        print('   cd $projectName/ios && rm -rf Pods Podfile.lock && pod repo update && pod install');
-      }
-      if (hasMacOS) {
-        print('   cd $projectName/macos && rm -rf Pods Podfile.lock && pod repo update && pod install');
-      }
-      print('');
+      // Silently handle - user can run pod install manually if needed
     }
   }
 }
