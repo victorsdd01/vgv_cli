@@ -1832,7 +1832,6 @@ class AppLocalizationsSetup {
   }
 
   String _generateIntlEnArbContent(String projectName) {
-    // Convert project_name to Title Case for display
     final String appTitle = projectName.split('_').map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '').join(' ');
     return '''{
   "@@locale": "en",
@@ -1899,12 +1898,144 @@ class AppLocalizationsSetup {
   "success": "Success",
   "@success": {
     "description": "Success title"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button text"
+  },
+  "confirm": "Confirm",
+  "@confirm": {
+    "description": "Confirm button text"
+  },
+  "delete": "Delete",
+  "@delete": {
+    "description": "Delete button text"
+  },
+  "accept": "Accept",
+  "@accept": {
+    "description": "Accept button text"
+  },
+  "logoutConfirmationMessage": "Are you sure you want to log out?",
+  "@logoutConfirmationMessage": {
+    "description": "Logout confirmation dialog message"
+  },
+  "deleteConfirmationMessage": "Are you sure you want to delete \\"{itemName}\\"?",
+  "@deleteConfirmationMessage": {
+    "description": "Delete confirmation dialog message",
+    "placeholders": {
+      "itemName": {
+        "type": "String"
+      }
+    }
+  },
+  "settings": "Settings",
+  "@settings": {
+    "description": "Settings page title"
+  },
+  "appearance": "Appearance",
+  "@appearance": {
+    "description": "Appearance section header"
+  },
+  "theme": "Theme",
+  "@theme": {
+    "description": "Theme option label"
+  },
+  "lightMode": "Light",
+  "@lightMode": {
+    "description": "Light theme option"
+  },
+  "darkMode": "Dark",
+  "@darkMode": {
+    "description": "Dark theme option"
+  },
+  "systemDefault": "System default",
+  "@systemDefault": {
+    "description": "System default theme option"
+  },
+  "selectTheme": "Select theme",
+  "@selectTheme": {
+    "description": "Theme selector title"
+  },
+  "account": "Account",
+  "@account": {
+    "description": "Account section header"
+  },
+  "guest": "Guest",
+  "@guest": {
+    "description": "Guest user label"
+  },
+  "about": "About",
+  "@about": {
+    "description": "About section header"
+  },
+  "appInfo": "App info",
+  "@appInfo": {
+    "description": "App info option label"
+  },
+  "version": "Version",
+  "@version": {
+    "description": "Version label"
+  },
+  "buildNumber": "Build number",
+  "@buildNumber": {
+    "description": "Build number label"
+  },
+  "packageName": "Package name",
+  "@packageName": {
+    "description": "Package name label"
+  },
+  "appName": "App name",
+  "@appName": {
+    "description": "App name label"
+  },
+  "licenses": "Licenses",
+  "@licenses": {
+    "description": "Licenses option label"
+  },
+  "language": "Language",
+  "@language": {
+    "description": "Language option label"
+  },
+  "selectLanguage": "Select language",
+  "@selectLanguage": {
+    "description": "Language selector title"
+  },
+  "english": "English",
+  "@english": {
+    "description": "English language option"
+  },
+  "spanish": "Spanish",
+  "@spanish": {
+    "description": "Spanish language option"
+  },
+  "createAccount": "Create Account",
+  "@createAccount": {
+    "description": "Register page title"
+  },
+  "fillInYourDetails": "Fill in your details to get started",
+  "@fillInYourDetails": {
+    "description": "Register page subtitle"
+  },
+  "name": "Name",
+  "@name": {
+    "description": "Name field label"
+  },
+  "confirmPassword": "Confirm Password",
+  "@confirmPassword": {
+    "description": "Confirm password field label"
+  },
+  "passwordsDoNotMatch": "Passwords do not match",
+  "@passwordsDoNotMatch": {
+    "description": "Password mismatch error"
+  },
+  "alreadyHaveAccount": "Already have an account? Login",
+  "@alreadyHaveAccount": {
+    "description": "Login link text"
   }
 }''';
   }
 
   String _generateIntlEsArbContent(String projectName) {
-    // Convert project_name to Title Case for display
     final String appTitle = projectName.split('_').map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '').join(' ');
     return '''{
   "@@locale": "es",
@@ -1971,6 +2102,139 @@ class AppLocalizationsSetup {
   "success": "Éxito",
   "@success": {
     "description": "Título de éxito"
+  },
+  "cancel": "Cancelar",
+  "@cancel": {
+    "description": "Texto del botón cancelar"
+  },
+  "confirm": "Confirmar",
+  "@confirm": {
+    "description": "Texto del botón confirmar"
+  },
+  "delete": "Eliminar",
+  "@delete": {
+    "description": "Texto del botón eliminar"
+  },
+  "accept": "Aceptar",
+  "@accept": {
+    "description": "Texto del botón aceptar"
+  },
+  "logoutConfirmationMessage": "¿Estás seguro que deseas cerrar sesión?",
+  "@logoutConfirmationMessage": {
+    "description": "Mensaje del diálogo de confirmación de cierre de sesión"
+  },
+  "deleteConfirmationMessage": "¿Estás seguro que deseas eliminar \\"{itemName}\\"?",
+  "@deleteConfirmationMessage": {
+    "description": "Mensaje del diálogo de confirmación de eliminación",
+    "placeholders": {
+      "itemName": {
+        "type": "String"
+      }
+    }
+  },
+  "settings": "Configuración",
+  "@settings": {
+    "description": "Título de la página de configuración"
+  },
+  "appearance": "Apariencia",
+  "@appearance": {
+    "description": "Encabezado de sección de apariencia"
+  },
+  "theme": "Tema",
+  "@theme": {
+    "description": "Etiqueta de opción de tema"
+  },
+  "lightMode": "Claro",
+  "@lightMode": {
+    "description": "Opción de tema claro"
+  },
+  "darkMode": "Oscuro",
+  "@darkMode": {
+    "description": "Opción de tema oscuro"
+  },
+  "systemDefault": "Predeterminado del sistema",
+  "@systemDefault": {
+    "description": "Opción de tema del sistema"
+  },
+  "selectTheme": "Seleccionar tema",
+  "@selectTheme": {
+    "description": "Título del selector de tema"
+  },
+  "account": "Cuenta",
+  "@account": {
+    "description": "Encabezado de sección de cuenta"
+  },
+  "guest": "Invitado",
+  "@guest": {
+    "description": "Etiqueta de usuario invitado"
+  },
+  "about": "Acerca de",
+  "@about": {
+    "description": "Encabezado de sección acerca de"
+  },
+  "appInfo": "Información de la app",
+  "@appInfo": {
+    "description": "Etiqueta de información de la app"
+  },
+  "version": "Versión",
+  "@version": {
+    "description": "Etiqueta de versión"
+  },
+  "buildNumber": "Número de compilación",
+  "@buildNumber": {
+    "description": "Etiqueta de número de compilación"
+  },
+  "packageName": "Nombre del paquete",
+  "@packageName": {
+    "description": "Etiqueta del nombre del paquete"
+  },
+  "appName": "Nombre de la app",
+  "@appName": {
+    "description": "Etiqueta del nombre de la app"
+  },
+  "licenses": "Licencias",
+  "@licenses": {
+    "description": "Etiqueta de opción de licencias"
+  },
+  "language": "Idioma",
+  "@language": {
+    "description": "Etiqueta de opción de idioma"
+  },
+  "selectLanguage": "Seleccionar idioma",
+  "@selectLanguage": {
+    "description": "Título del selector de idioma"
+  },
+  "english": "Inglés",
+  "@english": {
+    "description": "Opción de idioma inglés"
+  },
+  "spanish": "Español",
+  "@spanish": {
+    "description": "Opción de idioma español"
+  },
+  "createAccount": "Crear Cuenta",
+  "@createAccount": {
+    "description": "Título de la página de registro"
+  },
+  "fillInYourDetails": "Completa tus datos para comenzar",
+  "@fillInYourDetails": {
+    "description": "Subtítulo de la página de registro"
+  },
+  "name": "Nombre",
+  "@name": {
+    "description": "Etiqueta del campo de nombre"
+  },
+  "confirmPassword": "Confirmar Contraseña",
+  "@confirmPassword": {
+    "description": "Etiqueta del campo de confirmar contraseña"
+  },
+  "passwordsDoNotMatch": "Las contraseñas no coinciden",
+  "@passwordsDoNotMatch": {
+    "description": "Error de contraseñas que no coinciden"
+  },
+  "alreadyHaveAccount": "¿Ya tienes cuenta? Inicia sesión",
+  "@alreadyHaveAccount": {
+    "description": "Texto del enlace de inicio de sesión"
   }
 }''';
   }
