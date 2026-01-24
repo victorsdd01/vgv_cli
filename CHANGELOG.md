@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.25] - 2026-01-24
+
+### Changes
+- feat: add VSCode launch configuration generation for projects
+
 ## [1.10.24] - 2026-01-24
 
 ### Changes
