@@ -1805,10 +1805,10 @@ export 'enums/server_status.dart';
 
     // Create ARB files
     final intlEnFile = File(path.join(projectName, 'lib/application/l10n/intl_en.arb'));
-    intlEnFile.writeAsStringSync(_generateIntlEnArbContent());
+    intlEnFile.writeAsStringSync(_generateIntlEnArbContent(projectName));
 
     final intlEsFile = File(path.join(projectName, 'lib/application/l10n/intl_es.arb'));
-    intlEsFile.writeAsStringSync(_generateIntlEsArbContent());
+    intlEsFile.writeAsStringSync(_generateIntlEsArbContent(projectName));
   }
 
   String _generateAppLocalizationsContent() {
@@ -1830,10 +1830,12 @@ class AppLocalizationsSetup {
 ''';
   }
 
-  String _generateIntlEnArbContent() {
+  String _generateIntlEnArbContent(String projectName) {
+    // Convert project_name to Title Case for display
+    final String appTitle = projectName.split('_').map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '').join(' ');
     return '''{
   "@@locale": "en",
-  "appTitle": "Flutter App",
+  "appTitle": "$appTitle",
   "@appTitle": {
     "description": "The application title"
   },
@@ -1900,10 +1902,12 @@ class AppLocalizationsSetup {
 }''';
   }
 
-  String _generateIntlEsArbContent() {
+  String _generateIntlEsArbContent(String projectName) {
+    // Convert project_name to Title Case for display
+    final String appTitle = projectName.split('_').map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '').join(' ');
     return '''{
   "@@locale": "es",
-  "appTitle": "Aplicación Flutter",
+  "appTitle": "$appTitle",
   "@appTitle": {
     "description": "El título de la aplicación"
   },
