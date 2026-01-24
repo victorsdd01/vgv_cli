@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.32] - 2026-01-24
+
+### Changes
+- chore: rename package to flutter_forge_cli for pub.dev
+
 ## [1.10.31] - 2026-01-24
 
 ### Changes
