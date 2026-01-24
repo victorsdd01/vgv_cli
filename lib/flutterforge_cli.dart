@@ -6,9 +6,9 @@ import 'core/di/dependency_injection.dart';
 import 'core/utils/version_checker.dart';
 import 'presentation/controllers/cli_controller.dart';
 
-/// Main CLI class for FlutterForge
-class FlutterForgeCLI {
-  static const String _appName = 'flutterforge';
+/// Main CLI class for VGV
+class VgvCli {
+  static const String _appName = 'vgv';
   static const String _description = 'A Flutter CLI tool for creating projects with interactive prompts.';
   
   /// Get current version from pubspec.yaml
@@ -18,7 +18,7 @@ class FlutterForgeCLI {
   late ArgResults _argResults;
   late CliController _cliController;
 
-  FlutterForgeCLI() {
+  VgvCli() {
     _setupArgParser();
     _setupDependencies();
   }
@@ -40,7 +40,7 @@ class FlutterForgeCLI {
       ..addFlag(
         'update',
         abbr: 'u',
-        help: 'Update FlutterForge CLI to the latest version',
+        help: 'Update VGV CLI to the latest version',
         negatable: false,
       )
       ..addFlag(
@@ -239,7 +239,7 @@ class FlutterForgeCLI {
           print('${brightYellow}${bold}Update Available${reset}');
           print('${dim}   Current: $currentVersion${reset}');
           print('${dim}   Latest:  $latestVersion${reset}');
-          print('${dim}   Run: flutterforge -u to update${reset}');
+          print('${dim}   Run: vgv -u to update${reset}');
           print('');
         }
       }
@@ -311,7 +311,7 @@ class FlutterForgeCLI {
     
     print('');
     print('${brightCyan}${bold}╔══════════════════════════════════════════════════════════════╗${reset}');
-    print('${brightCyan}${bold}║${reset}${bold}                      FLUTTERFORGE UPDATE                     ${reset}${brightCyan}${bold}║${reset}');
+    print('${brightCyan}${bold}║${reset}${bold}                          VGV UPDATE                          ${reset}${brightCyan}${bold}║${reset}');
     print('${brightCyan}${bold}╚══════════════════════════════════════════════════════════════╝${reset}');
     print('');
     
@@ -342,7 +342,7 @@ class FlutterForgeCLI {
     print('');
     
     try {
-      print('${brightYellow}${bold}Updating FlutterForge CLI...${reset}');
+      print('${brightYellow}${bold}Updating VGV CLI...${reset}');
       print('');
       
       await _showUpdateProgress();
@@ -368,7 +368,7 @@ class FlutterForgeCLI {
         }
         
         await _showCompletionCelebration();
-        print('${brightGreen}${bold}FlutterForge CLI updated successfully${reset}');
+        print('${brightGreen}${bold}VGV CLI updated successfully${reset}');
         print('');
         print('${brightCyan}${bold}What\'s new:${reset}');
         print('${dim}   - Latest features and improvements${reset}');
@@ -381,7 +381,7 @@ class FlutterForgeCLI {
         print('${brightRed}${bold}Update failed${reset}');
         print('${red}${result.stderr}${reset}');
         print('');
-        print('${brightYellow}Try: flutterforge -u${reset}');
+        print('${brightYellow}Try: vgv -u${reset}');
         print('');
       }
     } catch (e) {
@@ -403,7 +403,7 @@ class FlutterForgeCLI {
     
     print('');
     print('${brightCyan}${bold}╔══════════════════════════════════════════════════════════════╗${reset}');
-    print('${brightCyan}${bold}║${reset}${brightMagenta}${bold}                      FLUTTERFORGE CLI                        ${reset}${brightCyan}${bold}║${reset}');
+    print('${brightCyan}${bold}║${reset}${brightMagenta}${bold}                           VGV CLI                            ${reset}${brightCyan}${bold}║${reset}');
     print('${brightCyan}${bold}║${reset}${dim}           The Ultimate Flutter Project Generator           ${reset}${brightCyan}${bold}║${reset}');
     print('${brightCyan}${bold}╚══════════════════════════════════════════════════════════════╝${reset}');
     print('');
@@ -419,7 +419,7 @@ class FlutterForgeCLI {
         if (comparison < 0) {
           print('${brightYellow}${bold}Latest:${reset}      ${brightYellow}$latestVersion${reset} ${brightYellow}(update available)${reset}');
           print('');
-          print('${dim}Run: flutterforge -u to update${reset}');
+          print('${dim}Run: vgv -u to update${reset}');
         } else if (comparison == 0) {
           print('${brightGreen}${bold}Status:${reset}      ${brightGreen}Up to date${reset}');
         } else {
@@ -436,7 +436,7 @@ class FlutterForgeCLI {
     print('');
     print('${brightGreen}${bold}Description:${reset} ${dim}$_description${reset}');
     print('${brightCyan}${bold}Repository:${reset}  ${dim}https://github.com/victorsdd01/flutter_forge${reset}');
-    print('${brightCyan}${bold}Update:${reset}      ${dim}flutterforge -u | flutterforge --update${reset}');
+    print('${brightCyan}${bold}Update:${reset}      ${dim}vgv -u | vgv --update${reset}');
     print('');
   }
 
@@ -450,7 +450,7 @@ class FlutterForgeCLI {
     
     print('');
     print('${brightCyan}${bold}╔══════════════════════════════════════════════════════════════╗${reset}');
-    print('${brightCyan}${bold}║${reset}${bold}                        FLUTTERFORGE CLI                      ${reset}${brightCyan}${bold}║${reset}');
+    print('${brightCyan}${bold}║${reset}${bold}                            VGV CLI                           ${reset}${brightCyan}${bold}║${reset}');
     print('${brightCyan}${bold}╚══════════════════════════════════════════════════════════════╝${reset}');
     print('');
     print('${brightGreen}${bold}Description:${reset} ${dim}$_description${reset}');

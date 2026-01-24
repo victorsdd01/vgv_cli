@@ -24,10 +24,10 @@ class VersionChecker {
   static String _getVersionFilePath() {
     final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
     if (homeDir.isNotEmpty) {
-      return path.join(homeDir, '.flutterforge_version');
+      return path.join(homeDir, '.vgv_version');
     }
     // Fallback to current directory
-    return path.join(Directory.current.path, '.flutterforge_version');
+    return path.join(Directory.current.path, '.vgv_version');
   }
   
   /// Save the installed version to a file
@@ -77,9 +77,9 @@ class VersionChecker {
           // Look for flutterforge in the output
           final lines = output.split('\n');
           for (final line in lines) {
-            if (line.contains('flutterforge')) {
-              // Format is usually: "flutterforge 1.10.6 from git ..."
-              final versionMatch = RegExp(r'flutterforge\s+(\d+\.\d+\.\d+)').firstMatch(line);
+            if (line.contains('vgv_cli')) {
+              // Format is usually: "vgv_cli 1.10.6 from git ..."
+              final versionMatch = RegExp(r'vgv_cli\s+(\d+\.\d+\.\d+)').firstMatch(line);
               if (versionMatch != null) {
                 final version = versionMatch.group(1)!;
                 // Only save if version file doesn't exist (don't overwrite existing)
@@ -142,7 +142,7 @@ class VersionChecker {
         final pubCacheBase = path.join(homeDir, '.pub-cache');
         
         // Try global_packages location
-        possiblePaths.add(path.join(pubCacheBase, 'global_packages', 'flutterforge', 'pubspec.yaml'));
+        possiblePaths.add(path.join(pubCacheBase, 'global_packages', 'vgv_cli', 'pubspec.yaml'));
         
         // Try git cache location (for packages installed from Git)
         try {
@@ -154,8 +154,8 @@ class VersionChecker {
                 final pubspecFile = File(path.join(entry.path, 'pubspec.yaml'));
                 if (pubspecFile.existsSync()) {
                   final content = pubspecFile.readAsStringSync();
-                  // Check if this is the flutterforge package
-                  if (content.contains('name: flutterforge') || 
+                  // Check if this is the vgv_cli package
+                  if (content.contains('name: vgv_cli') || 
                       entry.path.contains('flutter_forge') ||
                       entry.path.contains('flutter-forge')) {
                     possiblePaths.add(pubspecFile.path);

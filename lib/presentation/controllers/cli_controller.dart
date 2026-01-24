@@ -74,7 +74,7 @@ class CliController {
       finalProjectName = _getProjectName();
     } else {
       print('$_red  Project name is required.$_reset');
-      print('$_dim  Use: flutterforge -n <name>$_reset');
+      print('$_dim  Use: vgv -n <name>$_reset');
       return;
     }
     
@@ -411,7 +411,7 @@ class CliController {
   void _printCancelledMessage() {
     print('');
     print('$_yellow  Project creation cancelled.$_reset');
-    print('$_dim  Run flutterforge again when ready.$_reset');
+    print('$_dim  Run vgv again when ready.$_reset');
     print('');
   }
 }
