@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.23] - 2026-01-24
+
+### Changes
+- feat: enhance CLI project creation with improved user interaction and platform selection
+
 ## [1.10.22] - 2026-01-24
 
 ### Changes
