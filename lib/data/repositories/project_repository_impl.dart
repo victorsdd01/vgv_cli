@@ -57,10 +57,6 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
     await _fileSystemDataSource.createInternationalization(config.projectName);
 
-    await _flutterCommandDataSource.generateLocalizationFiles(config.projectName);
-
-    await _flutterCommandDataSource.cleanBuildCache(config.projectName);
-
     await _fileSystemDataSource.createBarrelFiles(
       config.projectName, 
       StateManagementType.bloc, 
@@ -68,6 +64,13 @@ class ProjectRepositoryImpl implements ProjectRepository {
       true
     );
 
+    // IMPORTANTE: Primero instalar dependencias antes de generar código
+    await _flutterCommandDataSource.cleanBuildCache(config.projectName);
+
+    // Generar archivos de localización (requiere intl_utils instalado)
+    await _flutterCommandDataSource.generateLocalizationFiles(config.projectName);
+
+    // Generar archivos de Freezed y Drift (requiere build_runner instalado)
     await _flutterCommandDataSource.runBuildRunner(config.projectName);
 
     // Setup CocoaPods for iOS/macOS platforms

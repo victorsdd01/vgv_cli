@@ -46,18 +46,18 @@ class FileSystemDataSourceImpl implements FileSystemDataSource {
           'replay_bloc: ^0.3.0',
           'bloc_concurrency: ^0.3.0',
           'dartz: ^0.10.1',
-        'path_provider: ^2.1.5',
-        'path: ^1.9.0',
-        'equatable: ^2.0.7',
-          'get_it: ^8.2.0',
-          'dio: ^5.9.0',
+          'path_provider: ^2.1.5',
+          'path: ^1.9.0',
+          'equatable: ^2.0.7',
+          'get_it: ^8.0.3',
+          'dio: ^5.7.0',
           'flutter_secure_storage: ^9.2.2',
           'nested: ^1.0.0',
           'pretty_dio_logger: ^1.4.0',
-          'talker_dio_logger: ^5.0.2',
-          'talker_flutter: ^5.0.2',
-          'flutter_form_builder: ^10.2.0',
-          'form_builder_validators: ^11.2.0',
+          'talker_dio_logger: ^4.4.1',
+          'talker_flutter: ^4.4.1',
+          'flutter_form_builder: ^9.4.1',
+          'form_builder_validators: ^10.0.1',
           'drift: ^2.18.0',
           'sqlite3_flutter_libs: ^0.5.0',
         ]);
@@ -65,7 +65,7 @@ class FileSystemDataSourceImpl implements FileSystemDataSource {
         if (includeFreezed) {
           dependencies.addAll([
             'json_annotation: ^4.9.0',
-            'freezed: ^3.2.0',
+            'freezed_annotation: ^2.4.4',
           ]);
         }
         break;
@@ -122,8 +122,9 @@ class FileSystemDataSourceImpl implements FileSystemDataSource {
     // Always add Freezed dev dependencies for Provider/None or when Freezed is selected
     if (includeFreezed || stateManagement == StateManagementType.provider || stateManagement == StateManagementType.none) {
       devDependencies.addAll([
-        'json_serializable: ^6.9.5',
-        'build_runner: ^2.5.1',
+        'freezed: ^2.5.7',
+        'json_serializable: ^6.9.0',
+        'build_runner: ^2.4.13',
       ]);
     }
 
@@ -136,7 +137,7 @@ class FileSystemDataSourceImpl implements FileSystemDataSource {
 
     // Add internationalization dev dependencies
     devDependencies.addAll([
-      'intl_utils: ^2.8.10',
+      'intl_utils: ^2.8.7',
     ]);
 
     final lines = pubspecContent.split('\n');
