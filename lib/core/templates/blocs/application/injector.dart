@@ -13,6 +13,7 @@ import '../features/auth/presentation/blocs/auth_bloc/auth_bloc.dart';
 import '../features/auth/data/repositories/auth_repository_impl.dart';
 import '../features/auth/data/datasources/remote/auth_remote_datasource.dart';
 import '../features/auth/data/datasources/local/auth_local_datasource.dart';
+import '../features/settings/presentation/blocs/settings_bloc/settings_bloc.dart';
 
 class Injector {
   Injector._();
@@ -98,6 +99,8 @@ class Injector {
     registerLazySingleton<AuthBloc>(
       () => AuthBloc(authUseCases: get<AuthUseCases>()),
     );
+    registerLazySingleton<SettingsBloc>(
+      () => SettingsBloc(),
+    );
   }
 }
-

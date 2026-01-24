@@ -187,4 +187,3 @@ class AuthBloc extends HydratedBloc<AuthEvent, AuthState> {
   @override
   Map<String, dynamic>? toJson(AuthState state) => null;
 }
-

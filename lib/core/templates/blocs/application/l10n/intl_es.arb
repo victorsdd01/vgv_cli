@@ -1,6 +1,6 @@
 {
   "@@locale": "es",
-  "appTitle": "{{project_name}}",
+  "appTitle": "{{PROJECT_NAME}}",
   "@appTitle": {
     "description": "El título de la aplicación"
   },
@@ -63,6 +63,138 @@
   "success": "Éxito",
   "@success": {
     "description": "Título de éxito"
+  },
+  "cancel": "Cancelar",
+  "@cancel": {
+    "description": "Texto del botón cancelar"
+  },
+  "confirm": "Confirmar",
+  "@confirm": {
+    "description": "Texto del botón confirmar"
+  },
+  "delete": "Eliminar",
+  "@delete": {
+    "description": "Texto del botón eliminar"
+  },
+  "accept": "Aceptar",
+  "@accept": {
+    "description": "Texto del botón aceptar"
+  },
+  "logoutConfirmationMessage": "¿Estás seguro que deseas cerrar sesión?",
+  "@logoutConfirmationMessage": {
+    "description": "Mensaje del diálogo de confirmación de cierre de sesión"
+  },
+  "deleteConfirmationMessage": "¿Estás seguro que deseas eliminar \"{itemName}\"?",
+  "@deleteConfirmationMessage": {
+    "description": "Mensaje del diálogo de confirmación de eliminación",
+    "placeholders": {
+      "itemName": {
+        "type": "String"
+      }
+    }
+  },
+  "settings": "Configuración",
+  "@settings": {
+    "description": "Título de la página de configuración"
+  },
+  "appearance": "Apariencia",
+  "@appearance": {
+    "description": "Encabezado de sección de apariencia"
+  },
+  "theme": "Tema",
+  "@theme": {
+    "description": "Etiqueta de opción de tema"
+  },
+  "lightMode": "Claro",
+  "@lightMode": {
+    "description": "Opción de tema claro"
+  },
+  "darkMode": "Oscuro",
+  "@darkMode": {
+    "description": "Opción de tema oscuro"
+  },
+  "systemDefault": "Predeterminado del sistema",
+  "@systemDefault": {
+    "description": "Opción de tema del sistema"
+  },
+  "selectTheme": "Seleccionar tema",
+  "@selectTheme": {
+    "description": "Título del selector de tema"
+  },
+  "account": "Cuenta",
+  "@account": {
+    "description": "Encabezado de sección de cuenta"
+  },
+  "guest": "Invitado",
+  "@guest": {
+    "description": "Etiqueta de usuario invitado"
+  },
+  "about": "Acerca de",
+  "@about": {
+    "description": "Encabezado de sección acerca de"
+  },
+  "appInfo": "Información de la app",
+  "@appInfo": {
+    "description": "Etiqueta de información de la app"
+  },
+  "version": "Versión",
+  "@version": {
+    "description": "Etiqueta de versión"
+  },
+  "buildNumber": "Número de compilación",
+  "@buildNumber": {
+    "description": "Etiqueta de número de compilación"
+  },
+  "packageName": "Nombre del paquete",
+  "@packageName": {
+    "description": "Etiqueta del nombre del paquete"
+  },
+  "appName": "Nombre de la app",
+  "@appName": {
+    "description": "Etiqueta del nombre de la app"
+  },
+  "licenses": "Licencias",
+  "@licenses": {
+    "description": "Etiqueta de opción de licencias"
+  },
+  "language": "Idioma",
+  "@language": {
+    "description": "Etiqueta de opción de idioma"
+  },
+  "selectLanguage": "Seleccionar idioma",
+  "@selectLanguage": {
+    "description": "Título del selector de idioma"
+  },
+  "english": "Inglés",
+  "@english": {
+    "description": "Opción de idioma inglés"
+  },
+  "spanish": "Español",
+  "@spanish": {
+    "description": "Opción de idioma español"
+  },
+  "createAccount": "Crear Cuenta",
+  "@createAccount": {
+    "description": "Título de la página de registro"
+  },
+  "fillInYourDetails": "Completa tus datos para comenzar",
+  "@fillInYourDetails": {
+    "description": "Subtítulo de la página de registro"
+  },
+  "name": "Nombre",
+  "@name": {
+    "description": "Etiqueta del campo de nombre"
+  },
+  "confirmPassword": "Confirmar Contraseña",
+  "@confirmPassword": {
+    "description": "Etiqueta del campo de confirmar contraseña"
+  },
+  "passwordsDoNotMatch": "Las contraseñas no coinciden",
+  "@passwordsDoNotMatch": {
+    "description": "Error de contraseñas que no coinciden"
+  },
+  "alreadyHaveAccount": "¿Ya tienes cuenta? Inicia sesión",
+  "@alreadyHaveAccount": {
+    "description": "Texto del enlace de inicio de sesión"
   }
 }
-

@@ -53,16 +53,13 @@ LazyDatabase _openConnection() => LazyDatabase(() async {
 });
 
 ''';
-  static const String _core_core_dart = r'''export 'errors/failures.dart';
-export 'utils/helpers/number_helper.dart';
-export 'utils/secure_storage_utils.dart';
-export 'utils/toast_util.dart';
+  static const String _core_core_dart = r'''// Core layer exports
+export 'errors/failures.dart';
+export 'extensions/string_extensions.dart';
 export 'network/http_client.dart';
-export 'states/tstatefull.dart';
-export 'states/tstateless.dart';
-export 'enums/server_status.dart';
 export 'services/talker_service.dart';
-
+export 'utils/secure_storage_utils.dart';
+export 'enums/server_status.dart';
 ''';
   static const String _core_network_http_client_dart = r'''import 'dart:async';
 import 'package:dio/dio.dart';
@@ -433,40 +430,59 @@ class ToastUtil {
 }
 
 ''';
+  static const String _core_extensions_string_extensions_dart = r'''extension StringExtensions on String {
+  String get initials {
+    if (isEmpty) return '?';
+    final String localPart = split('@').first;
+    if (localPart.length >= 2) {
+      return localPart.substring(0, 2).toUpperCase();
+    }
+    return localPart.toUpperCase();
+  }
+
+  String get nameInitials {
+    if (isEmpty) return '?';
+    final List<String> words = trim().split(RegExp(r'\s+'));
+    if (words.length >= 2) {
+      return '${words.first[0]}${words.last[0]}'.toUpperCase();
+    }
+    if (words.first.length >= 2) {
+      return words.first.substring(0, 2).toUpperCase();
+    }
+    return words.first.toUpperCase();
+  }
+
+  String get toTitleCase {
+    if (isEmpty) return this;
+    return split(' ')
+        .map((String word) => word.isNotEmpty
+            ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+            : '')
+        .join(' ');
+  }
+
+  String get capitalize {
+    if (isEmpty) return this;
+    return '${this[0].toUpperCase()}${substring(1)}';
+  }
+
+  bool get isValidEmail =>
+      RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(this);
+
+  String truncate(int maxLength, {String suffix = '...'}) =>
+      length <= maxLength ? this : '${substring(0, maxLength)}$suffix';
+}
+''';
   static const String _core_states_tstateless_dart = r'''import 'package:bloc/bloc.dart';
 import 'package:flutter/material.dart';
 import '../../application/generated/l10n.dart';
 
-/// Base class for stateless widgets with common utilities
-/// 
-/// Usage:
-/// ```dart
-/// class MyPage extends TStateless<MyBloc> {
-///   const MyPage({super.key});
-///   
-///   @override
-///   MyBloc? get bloc => null; // or context.read<MyBloc>() if needed
-///   
-///   @override
-///   Widget bodyWidget(BuildContext context, ThemeData theme, S translation) {
-///     return Scaffold(
-///       body: Text(translation.hello),
-///     );
-///   }
-/// }
-/// ```
 abstract class TStateless<Bloc extends BlocBase<dynamic>?>
     extends StatelessWidget {
   const TStateless({super.key});
 
-  /// Override to provide access to a BLoC instance
   Bloc get bloc;
 
-  /// Build your widget here with access to common utilities
-  /// 
-  /// - [context] - BuildContext
-  /// - [theme] - Current ThemeData
-  /// - [translation] - Localization strings
   Widget bodyWidget(
     BuildContext context,
     ThemeData theme,
@@ -480,35 +496,11 @@ abstract class TStateless<Bloc extends BlocBase<dynamic>?>
     S.of(context),
   );
 }
-
 ''';
   static const String _core_states_tstatefull_dart = r'''import 'package:bloc/bloc.dart';
 import 'package:flutter/material.dart';
 import '../../application/generated/l10n.dart';
 
-/// Base class for stateful widgets with common utilities
-/// 
-/// Usage:
-/// ```dart
-/// class MyPage extends StatefulWidget {
-///   const MyPage({super.key});
-///   
-///   @override
-///   State<MyPage> createState() => _MyPageState();
-/// }
-/// 
-/// class _MyPageState extends TStateful<MyPage, MyBloc> {
-///   @override
-///   MyBloc? get bloc => context.read<MyBloc>();
-///   
-///   @override
-///   Widget bodyWidget(BuildContext context, ThemeData theme, S translation) {
-///     return Scaffold(
-///       body: Text(translation.hello),
-///     );
-///   }
-/// }
-/// ```
 abstract class TStateful<
   T extends StatefulWidget,
   Bloc extends BlocBase<dynamic>?
@@ -517,14 +509,8 @@ abstract class TStateful<
   @override
   bool get wantKeepAlive => false;
 
-  /// Override to provide access to a BLoC instance
   Bloc get bloc;
 
-  /// Build your widget here with access to common utilities
-  /// 
-  /// - [context] - BuildContext
-  /// - [theme] - Current ThemeData
-  /// - [translation] - Localization strings
   Widget bodyWidget(
     BuildContext context,
     ThemeData theme,
@@ -541,7 +527,6 @@ abstract class TStateful<
     );
   }
 }
-
 ''';
   static const String _core_errors_failures_dart = r'''import 'package:equatable/equatable.dart';
 
@@ -602,6 +587,490 @@ class TalkerService {
   }
 }
 
+''';
+  static const String _features_settings_presentation_blocs_settings_bloc_settings_bloc_dart = r'''import 'package:flutter/material.dart';
+import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+import '../../../../../core/errors/failures.dart';
+
+part 'settings_event.dart';
+part 'settings_state.dart';
+part 'settings_bloc.freezed.dart';
+part 'settings_bloc.g.dart';
+
+class SettingsBloc extends HydratedBloc<SettingsEvent, SettingsState> {
+  SettingsBloc() : super(const SettingsState()) {
+    on<_UpdateTheme>(_onUpdateTheme);
+    on<_UpdateLanguage>(_onUpdateLanguage);
+    on<_ResetSuccessAndErrorStatus>(_onResetSuccessAndErrorStatus);
+  }
+
+  void _onResetSuccessAndErrorStatus(
+    _ResetSuccessAndErrorStatus event,
+    Emitter<SettingsState> emit,
+  ) {
+    emit(state.copyWith(
+      successStatus: event.successStatus ?? state.successStatus,
+      errorStatus: event.errorStatus ?? state.errorStatus,
+      failure: null,
+    ));
+  }
+
+  void _onUpdateTheme(_UpdateTheme event, Emitter<SettingsState> emit) {
+    emit(state.copyWith(
+      status: state.status.copyWith(isUpdateTheme: true),
+      successStatus: state.successStatus.copyWith(updateTheme: false),
+      errorStatus: state.errorStatus.copyWith(updateTheme: false),
+    ));
+
+    emit(state.copyWith(
+      themeMode: event.themeMode,
+      status: state.status.copyWith(isUpdateTheme: false),
+      successStatus: state.successStatus.copyWith(updateTheme: true),
+    ));
+  }
+
+  void _onUpdateLanguage(_UpdateLanguage event, Emitter<SettingsState> emit) {
+    emit(state.copyWith(
+      status: state.status.copyWith(isUpdateLanguage: true),
+      successStatus: state.successStatus.copyWith(updateLanguage: false),
+      errorStatus: state.errorStatus.copyWith(updateLanguage: false),
+    ));
+
+    emit(state.copyWith(
+      languageCode: event.languageCode,
+      status: state.status.copyWith(isUpdateLanguage: false),
+      successStatus: state.successStatus.copyWith(updateLanguage: true),
+    ));
+  }
+
+  @override
+  SettingsState? fromJson(Map<String, dynamic> json) => SettingsState.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(SettingsState state) => state.toJson();
+}
+''';
+  static const String _features_settings_presentation_blocs_settings_bloc_settings_state_dart = r'''part of 'settings_bloc.dart';
+
+@freezed
+abstract class SettingsStatus with _$SettingsStatus {
+  const factory SettingsStatus({
+    @Default(false) bool isUpdateTheme,
+    @Default(false) bool isUpdateLanguage,
+  }) = _SettingsStatus;
+}
+
+@freezed
+abstract class SettingsSuccessStatus with _$SettingsSuccessStatus {
+  const factory SettingsSuccessStatus({
+    @Default(false) bool updateTheme,
+    @Default(false) bool updateLanguage,
+  }) = _SettingsSuccessStatus;
+}
+
+@freezed
+abstract class SettingsErrorStatus with _$SettingsErrorStatus {
+  const factory SettingsErrorStatus({
+    @Default(false) bool updateTheme,
+    @Default(false) bool updateLanguage,
+  }) = _SettingsErrorStatus;
+}
+
+@freezed
+abstract class SettingsState with _$SettingsState {
+  const factory SettingsState({
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(SettingsStatus()) SettingsStatus status,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(SettingsSuccessStatus()) SettingsSuccessStatus successStatus,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(SettingsErrorStatus()) SettingsErrorStatus errorStatus,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    Failure? failure,
+    @Default(ThemeMode.system) ThemeMode themeMode,
+    @Default('en') String languageCode,
+  }) = _SettingsState;
+
+  factory SettingsState.fromJson(Map<String, dynamic> json) => _$SettingsStateFromJson(json);
+}
+''';
+  static const String _features_settings_presentation_blocs_settings_bloc_settings_event_dart = r'''part of 'settings_bloc.dart';
+
+@freezed
+class SettingsEvent with _$SettingsEvent {
+  const factory SettingsEvent.updateTheme(ThemeMode themeMode) = _UpdateTheme;
+  const factory SettingsEvent.updateLanguage(String languageCode) = _UpdateLanguage;
+  const factory SettingsEvent.resetSuccessAndErrorStatus({
+    SettingsSuccessStatus? successStatus,
+    SettingsErrorStatus? errorStatus,
+  }) = _ResetSuccessAndErrorStatus;
+}
+''';
+  static const String _features_settings_presentation_pages_settings_page_dart = r'''import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import '../../../../application/generated/l10n.dart';
+import '../../../../application/injector.dart';
+import '../../../../application/routes/routes.dart';
+import '../../../../core/states/tstateless.dart';
+import '../../../../shared/widgets/dialogs/app_dialogs.dart';
+import '../../../auth/presentation/blocs/auth_bloc/auth_bloc.dart';
+import '../blocs/settings_bloc/settings_bloc.dart';
+
+class SettingsPage extends TStateless<SettingsBloc> {
+  const SettingsPage({super.key});
+
+  @override
+  SettingsBloc get bloc => Injector.get<SettingsBloc>();
+
+  @override
+  Widget bodyWidget(
+    BuildContext context,
+    ThemeData theme,
+    S translation,
+  ) => Scaffold(
+    appBar: AppBar(
+      title: Text(translation.settings),
+      backgroundColor: theme.colorScheme.inversePrimary,
+    ),
+    body: BlocBuilder<SettingsBloc, SettingsState>(
+      bloc: bloc,
+      builder: (BuildContext context, SettingsState state) => ListView(
+        children: <Widget>[
+          _SectionHeader(title: translation.appearance),
+          _ThemeTile(
+            themeMode: state.themeMode,
+            onThemeSelected: (ThemeMode mode) {
+              bloc.add(SettingsEvent.updateTheme(mode));
+            },
+          ),
+          _LanguageTile(
+            languageCode: state.languageCode,
+            onLanguageSelected: (String code) {
+              bloc.add(SettingsEvent.updateLanguage(code));
+            },
+          ),
+          const Divider(),
+          _SectionHeader(title: translation.account),
+          const _AccountTile(),
+          _LogoutTile(onLogout: () => _handleLogout(context)),
+          const Divider(),
+          _SectionHeader(title: translation.about),
+          const _AppInfoTile(),
+          _LicensesTile(appName: translation.appTitle),
+        ],
+      ),
+    ),
+  );
+
+  Future<void> _handleLogout(BuildContext context) async {
+    final bool confirmed = await AppDialogs.showLogoutConfirmation(context: context);
+    if (confirmed && context.mounted) {
+      Injector.get<AuthBloc>().add(const AuthEvent.logout());
+      context.go(Routes.login);
+    }
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+
+  const _SectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Text(
+        title,
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeTile extends StatelessWidget {
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeSelected;
+
+  const _ThemeTile({
+    required this.themeMode,
+    required this.onThemeSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final S translation = S.of(context);
+
+    return ListTile(
+      leading: Icon(
+        _getIcon(themeMode),
+        color: theme.colorScheme.primary,
+      ),
+      title: Text(translation.theme),
+      subtitle: Text(_getThemeModeName(translation, themeMode)),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _showThemeSelector(context, translation),
+    );
+  }
+
+  IconData _getIcon(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.dark:
+        return Icons.dark_mode;
+      case ThemeMode.light:
+        return Icons.light_mode;
+      case ThemeMode.system:
+        return Icons.brightness_auto;
+    }
+  }
+
+  String _getThemeModeName(S translation, ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.dark:
+        return translation.darkMode;
+      case ThemeMode.light:
+        return translation.lightMode;
+      case ThemeMode.system:
+        return translation.systemDefault;
+    }
+  }
+
+  Future<void> _showThemeSelector(BuildContext context, S translation) async {
+    final ThemeMode? selected = await AppDialogs.showOptionsBottomSheet<ThemeMode>(
+      context: context,
+      title: translation.selectTheme,
+      options: <OptionItem<ThemeMode>>[
+        OptionItem<ThemeMode>(
+          value: ThemeMode.light,
+          title: translation.lightMode,
+          icon: Icons.light_mode,
+        ),
+        OptionItem<ThemeMode>(
+          value: ThemeMode.dark,
+          title: translation.darkMode,
+          icon: Icons.dark_mode,
+        ),
+        OptionItem<ThemeMode>(
+          value: ThemeMode.system,
+          title: translation.systemDefault,
+          icon: Icons.brightness_auto,
+        ),
+      ],
+    );
+
+    if (selected != null) {
+      onThemeSelected(selected);
+    }
+  }
+}
+
+class _LanguageTile extends StatelessWidget {
+  final String languageCode;
+  final ValueChanged<String> onLanguageSelected;
+
+  const _LanguageTile({
+    required this.languageCode,
+    required this.onLanguageSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final S translation = S.of(context);
+
+    return ListTile(
+      leading: Icon(Icons.language, color: theme.colorScheme.primary),
+      title: Text(translation.language),
+      subtitle: Text(_getLanguageName(translation, languageCode)),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _showLanguageSelector(context, translation),
+    );
+  }
+
+  String _getLanguageName(S translation, String code) {
+    switch (code) {
+      case 'es':
+        return translation.spanish;
+      case 'en':
+      default:
+        return translation.english;
+    }
+  }
+
+  Future<void> _showLanguageSelector(BuildContext context, S translation) async {
+    final String? selected = await AppDialogs.showOptionsBottomSheet<String>(
+      context: context,
+      title: translation.selectLanguage,
+      options: <OptionItem<String>>[
+        OptionItem<String>(
+          value: 'en',
+          title: translation.english,
+          icon: Icons.language,
+        ),
+        OptionItem<String>(
+          value: 'es',
+          title: translation.spanish,
+          icon: Icons.language,
+        ),
+      ],
+    );
+
+    if (selected != null) {
+      onLanguageSelected(selected);
+    }
+  }
+}
+
+class _AccountTile extends StatelessWidget {
+  const _AccountTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final S translation = S.of(context);
+
+    return BlocBuilder<AuthBloc, AuthState>(
+      bloc: Injector.get<AuthBloc>(),
+      builder: (BuildContext context, AuthState state) => ListTile(
+        leading: Icon(Icons.person_outline, color: theme.colorScheme.primary),
+        title: Text(state.user?.name ?? translation.guest),
+        subtitle: Text(state.user?.email ?? ''),
+      ),
+    );
+  }
+}
+
+class _LogoutTile extends StatelessWidget {
+  final VoidCallback onLogout;
+
+  const _LogoutTile({required this.onLogout});
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final S translation = S.of(context);
+
+    return ListTile(
+      leading: Icon(Icons.logout, color: theme.colorScheme.error),
+      title: Text(
+        translation.logout,
+        style: TextStyle(color: theme.colorScheme.error),
+      ),
+      onTap: onLogout,
+    );
+  }
+}
+
+class _AppInfoTile extends StatelessWidget {
+  const _AppInfoTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final S translation = S.of(context);
+
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (BuildContext context, AsyncSnapshot<PackageInfo> snapshot) {
+        final PackageInfo? info = snapshot.data;
+        return ListTile(
+          leading: Icon(Icons.info_outline, color: theme.colorScheme.primary),
+          title: Text(translation.appInfo),
+          subtitle: info != null
+              ? Text('${translation.version}: ${info.version} (${info.buildNumber})')
+              : null,
+          onTap: () => _showAppInfo(context, translation, info),
+        );
+      },
+    );
+  }
+
+  Future<void> _showAppInfo(
+    BuildContext context,
+    S translation,
+    PackageInfo? info,
+  ) async {
+    if (info == null) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(translation.appInfo),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            _InfoRow(label: translation.appName, value: info.appName),
+            _InfoRow(label: translation.version, value: info.version),
+            _InfoRow(label: translation.buildNumber, value: info.buildNumber),
+            _InfoRow(label: translation.packageName, value: info.packageName),
+          ],
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(translation.accept),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SizedBox(
+          width: 120,
+          child: Text(
+            '$label:',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        Expanded(child: Text(value)),
+      ],
+    ),
+  );
+}
+
+class _LicensesTile extends StatelessWidget {
+  final String appName;
+
+  const _LicensesTile({required this.appName});
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final S translation = S.of(context);
+
+    return ListTile(
+      leading: Icon(Icons.description_outlined, color: theme.colorScheme.primary),
+      title: Text(translation.licenses),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => showLicensePage(
+        context: context,
+        applicationName: appName,
+      ),
+    );
+  }
+}
 ''';
   static const String _features_home_data_datasources_remote_home_remote_datasource_dart = r'''import 'package:dartz/dartz.dart';
 import '../../../../../core/errors/failures.dart';
@@ -842,158 +1311,172 @@ class HomeEvent with _$HomeEvent {
 ''';
   static const String _features_home_presentation_pages_home_page_dart = r'''import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../blocs/home_bloc/home_bloc.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../application/injector.dart';
 import '../../../../application/generated/l10n.dart';
+import '../../../../application/routes/routes.dart';
+import '../../../../core/extensions/string_extensions.dart';
 import '../../../../core/states/tstateless.dart';
-import '../../domain/entities/home_entity.dart';
+import '../../../../shared/widgets/dialogs/app_dialogs.dart';
+import '../../../auth/presentation/blocs/auth_bloc/auth_bloc.dart';
 
-class HomePage extends TStateless<HomeBloc> {
+class HomePage extends TStateless<AuthBloc> {
   const HomePage({super.key});
 
   @override
-  HomeBloc get bloc => Injector.get<HomeBloc>();
+  AuthBloc get bloc => Injector.get<AuthBloc>();
 
   @override
   Widget bodyWidget(
     BuildContext context,
     ThemeData theme,
     S translation,
-  ) => Scaffold(
-    appBar: AppBar(
-      title: Text(translation.home),
-      backgroundColor: theme.colorScheme.inversePrimary,
-      actions: <Widget>[
-        BlocBuilder<HomeBloc, HomeState>(
-          bloc: bloc,
-          builder: (BuildContext context, HomeState state) => IconButton(
-            onPressed: state.status.isGetItems
-                ? null
-                : () => bloc.add(const HomeEvent.initialized()),
-            icon: state.status.isGetItems
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        theme.colorScheme.onPrimary,
+  ) => BlocConsumer<AuthBloc, AuthState>(
+    bloc: bloc,
+    listener: (BuildContext ctx, AuthState state) {
+      if (state.successStatus.logout && !state.isAuthenticated) {
+        context.go(Routes.login);
+      }
+    },
+    builder: (BuildContext context, AuthState state) {
+      final String userEmail = state.user?.email ?? '';
+      final String userName = state.user?.name ?? userEmail;
+      final String initials = userEmail.initials;
+
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(translation.home),
+          backgroundColor: theme.colorScheme.inversePrimary,
+          actions: <Widget>[
+            PopupMenuButton<String>(
+              offset: const Offset(0, 50),
+              onSelected: (String value) {
+                switch (value) {
+                  case 'settings':
+                    context.push(Routes.settings);
+                  case 'logout':
+                    _showLogoutConfirmation(context);
+                }
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  enabled: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        userName,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  )
-                : const Icon(Icons.refresh),
-          ),
-        ),
-      ],
-    ),
-    body: BlocConsumer<HomeBloc, HomeState>(
-      bloc: bloc,
-      listener: (BuildContext ctx, HomeState state) => _handleStateChanges(ctx, state, translation),
-      builder: (BuildContext context, HomeState state) => _buildBody(state, theme, translation),
-    ),
-  );
-
-  void _handleStateChanges(BuildContext context, HomeState state, S translation) {
-    if (state.errorStatus.getItems && state.failure != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(state.failure!.message),
-          backgroundColor: Colors.red,
-          action: SnackBarAction(
-            label: translation.retry,
-            textColor: Colors.white,
-            onPressed: () => bloc.add(const HomeEvent.initialized()),
-          ),
-        ),
-      );
-      bloc.add(
-        const HomeEvent.resetSuccessAndErrorStatus(
-          errorStatus: HomeErrorStatus(getItems: false),
-        ),
-      );
-    }
-  }
-
-  Widget _buildBody(HomeState state, ThemeData theme, S translation) {
-    if (state.status.isGetItems && state.items.isEmpty) {
-      return Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
-        ),
-      );
-    }
-
-    if (state.items.isEmpty) {
-      return _buildEmptyState(state, theme, translation);
-    }
-
-    return RefreshIndicator(
-      onRefresh: () async => bloc.add(const HomeEvent.initialized()),
-      child: ListView.builder(
-        itemCount: state.items.length,
-        itemBuilder: (BuildContext context, int index) {
-          final HomeEntity item = state.items[index];
-          return ListTile(
-            title: Text(item.title, style: theme.textTheme.titleMedium),
-            subtitle: Text(
-              item.description,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            leading: CircleAvatar(
-              backgroundColor: theme.colorScheme.primaryContainer,
-              foregroundColor: theme.colorScheme.onPrimaryContainer,
-              child: Text(item.id),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(HomeState state, ThemeData theme, S translation) => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        Icon(
-          Icons.inbox_outlined,
-          size: 64,
-          color: theme.colorScheme.outline,
-        ),
-        const SizedBox(height: 16),
-        Text(
-          translation.noItemsAvailable,
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 16),
-        ElevatedButton.icon(
-          onPressed: state.status.isGetItems
-              ? null
-              : () => bloc.add(const HomeEvent.initialized()),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: theme.colorScheme.primary,
-            foregroundColor: theme.colorScheme.onPrimary,
-          ),
-          icon: state.status.isGetItems
-              ? SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      theme.colorScheme.onPrimary,
+                      Text(
+                        userEmail,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                PopupMenuItem<String>(
+                  value: 'settings',
+                  child: Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.settings,
+                        color: theme.colorScheme.onSurface,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(translation.settings),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'logout',
+                  child: Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.logout,
+                        color: theme.colorScheme.error,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        translation.logout,
+                        style: TextStyle(color: theme.colorScheme.error),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: CircleAvatar(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  radius: 18,
+                  child: Text(
+                    initials,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                )
-              : const Icon(Icons.refresh),
-          label: Text(translation.refresh),
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
-    ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              CircleAvatar(
+                backgroundColor: theme.colorScheme.primaryContainer,
+                foregroundColor: theme.colorScheme.onPrimaryContainer,
+                radius: 50,
+                child: Text(
+                  initials,
+                  style: theme.textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                userName,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                userEmail,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 48),
+              Text(
+                '${translation.welcomeBack}!',
+                style: theme.textTheme.titleLarge,
+              ),
+            ],
+          ),
+        ),
+      );
+    },
   );
+
+  Future<void> _showLogoutConfirmation(BuildContext context) async {
+    final bool confirmed = await AppDialogs.showLogoutConfirmation(context: context);
+    if (confirmed) {
+      bloc.add(const AuthEvent.logout());
+    }
+  }
 }
 ''';
   static const String _features_auth_data_datasources_local_auth_local_datasource_dart = r'''import 'package:dartz/dartz.dart';
@@ -1184,8 +1667,9 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, UserEntity>> login(String email, String password) async {
     final Either<Failure, UserModel> result = await authRemoteDataSource.login(email, password);
+
     return result.fold(
-      (Failure failure) => Left<Failure, UserEntity>(failure),
+      Left.new,
       (UserModel model) async {
         await authLocalDataSource.saveUser(model);
         if (model.token != null) {
@@ -1199,8 +1683,9 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, UserEntity>> register(String email, String password, String? name) async {
     final Either<Failure, UserModel> result = await authRemoteDataSource.register(email, password, name);
+
     return result.fold(
-      (Failure failure) => Left<Failure, UserEntity>(failure),
+      Left.new,
       (UserModel model) async {
         await authLocalDataSource.saveUser(model);
         if (model.token != null) {
@@ -1232,22 +1717,22 @@ class AuthRepositoryImpl implements AuthRepository {
       if (token == null) {
         return const Right<Failure, UserEntity?>(null);
       }
-      
+
       final Either<Failure, List<UserModel>> allUsers = await authLocalDataSource.getAllUsers();
+
       return allUsers.fold(
-        (Failure failure) => Left<Failure, UserEntity?>(failure),
+        Left.new,
         (List<UserModel> users) {
           if (users.isEmpty) {
             return const Right<Failure, UserEntity?>(null);
           }
-          try {
-            final UserModel user = users.firstWhere(
-              (UserModel u) => u.token == token,
-            );
-            return Right<Failure, UserEntity?>(UserEntity.fromModel(user));
-          } catch (e) {
+
+          final int index = users.indexWhere((UserModel u) => u.token == token);
+          if (index == -1) {
             return const Right<Failure, UserEntity?>(null);
           }
+
+          return Right<Failure, UserEntity?>(UserEntity.fromModel(users[index]));
         },
       );
     } catch (e) {
@@ -1265,7 +1750,6 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 }
-
 ''';
   static const String _features_auth_data_models_user_model_dart = r'''import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -1364,7 +1848,6 @@ class AuthEvent with _$AuthEvent {
     AuthErrorStatus? errorStatus,
   }) = _ResetSuccessAndErrorStatus;
 }
-
 ''';
   static const String _features_auth_presentation_blocs_auth_bloc_auth_bloc_dart = r'''import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -1555,7 +2038,6 @@ class AuthBloc extends HydratedBloc<AuthEvent, AuthState> {
   @override
   Map<String, dynamic>? toJson(AuthState state) => null;
 }
-
 ''';
   static const String _features_auth_presentation_blocs_auth_bloc_auth_state_dart = r'''part of 'auth_bloc.dart';
 
@@ -1604,7 +2086,199 @@ abstract class AuthState with _$AuthState {
     UserEntity? user,
   }) = _AuthState;
 }
+''';
+  static const String _features_auth_presentation_pages_register_page_dart = r'''import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_form_builder/flutter_form_builder.dart';
+import 'package:form_builder_validators/form_builder_validators.dart';
+import 'package:go_router/go_router.dart';
+import '../blocs/auth_bloc/auth_bloc.dart';
+import '../../../../application/injector.dart';
+import '../../../../application/routes/routes.dart';
+import '../../../../application/generated/l10n.dart';
+import '../../../../core/states/tstatefull.dart';
 
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
+
+  @override
+  State<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends TStateful<RegisterPage, AuthBloc> {
+  final GlobalKey<FormBuilderState> _formKey = GlobalKey<FormBuilderState>();
+
+  @override
+  AuthBloc get bloc => Injector.get<AuthBloc>();
+
+  @override
+  Widget bodyWidget(
+    BuildContext context,
+    ThemeData theme,
+    S translation,
+  ) => Scaffold(
+    appBar: AppBar(
+      title: Text(translation.register),
+      backgroundColor: theme.colorScheme.inversePrimary,
+    ),
+    body: BlocConsumer<AuthBloc, AuthState>(
+      bloc: bloc,
+      listener: _handleStateChanges,
+      builder: (BuildContext context, AuthState state) => SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: FormBuilder(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              const SizedBox(height: 32),
+              Text(
+                translation.createAccount,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                translation.fillInYourDetails,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 48),
+              FormBuilderTextField(
+                name: 'name',
+                decoration: InputDecoration(
+                  labelText: translation.name,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.person),
+                ),
+                textCapitalization: TextCapitalization.words,
+                validator: FormBuilderValidators.compose(<String? Function(String?)>[
+                  FormBuilderValidators.required(),
+                  FormBuilderValidators.minLength(2),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              FormBuilderTextField(
+                name: 'email',
+                decoration: InputDecoration(
+                  labelText: translation.email,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.email),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                validator: FormBuilderValidators.compose(<String? Function(String?)>[
+                  FormBuilderValidators.required(),
+                  FormBuilderValidators.email(),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              FormBuilderTextField(
+                name: 'password',
+                decoration: InputDecoration(
+                  labelText: translation.password,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock),
+                ),
+                obscureText: true,
+                validator: FormBuilderValidators.compose(<String? Function(String?)>[
+                  FormBuilderValidators.required(),
+                  FormBuilderValidators.minLength(6),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              FormBuilderTextField(
+                name: 'confirmPassword',
+                decoration: InputDecoration(
+                  labelText: translation.confirmPassword,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock_outline),
+                ),
+                obscureText: true,
+                validator: FormBuilderValidators.compose(<String? Function(String?)>[
+                  FormBuilderValidators.required(),
+                  (String? value) {
+                    if (value != _formKey.currentState?.fields['password']?.value) {
+                      return translation.passwordsDoNotMatch;
+                    }
+                    return null;
+                  },
+                ]),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: state.status.isRegister ? null : _onRegisterPressed,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    disabledBackgroundColor: theme.colorScheme.primary.withValues(alpha: 0.6),
+                  ),
+                  child: state.status.isRegister
+                      ? SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              theme.colorScheme.onPrimary,
+                            ),
+                          ),
+                        )
+                      : Text(translation.register),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => context.pop(),
+                child: Text(translation.alreadyHaveAccount),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  void _handleStateChanges(BuildContext context, AuthState state) {
+    if (state.isAuthenticated && state.user != null) {
+      context.go(Routes.home);
+    }
+    if (state.errorStatus.register && state.failure != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(state.failure!.message),
+          backgroundColor: Colors.red,
+        ),
+      );
+      bloc.add(
+        const AuthEvent.resetSuccessAndErrorStatus(
+          errorStatus: AuthErrorStatus(register: false),
+        ),
+      );
+    }
+    if (state.successStatus.register) {
+      bloc.add(
+        const AuthEvent.resetSuccessAndErrorStatus(
+          successStatus: AuthSuccessStatus(register: false),
+        ),
+      );
+    }
+  }
+
+  void _onRegisterPressed() {
+    if (_formKey.currentState?.saveAndValidate() != false) {
+      final String name = _formKey.currentState?.value['name'] as String;
+      final String email = _formKey.currentState?.value['email'] as String;
+      final String password = _formKey.currentState?.value['password'] as String;
+      bloc.add(AuthEvent.register(email, password, name));
+    }
+  }
+}
 ''';
   static const String _features_auth_presentation_pages_login_page_dart = r'''import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -1631,6 +2305,12 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
   AuthBloc get bloc => Injector.get<AuthBloc>();
 
   @override
+  void initState() {
+    super.initState();
+    bloc.add(const AuthEvent.checkAuth());
+  }
+
+  @override
   Widget bodyWidget(
     BuildContext context,
     ThemeData theme,
@@ -1643,7 +2323,26 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
     body: BlocConsumer<AuthBloc, AuthState>(
       bloc: bloc,
       listener: _handleStateChanges,
-      builder: (BuildContext context, AuthState state) => SingleChildScrollView(
+      builder: (BuildContext context, AuthState state) {
+        if (state.status.isCheckAuth) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  translation.loading,
+                  style: theme.textTheme.bodyLarge,
+                ),
+              ],
+            ),
+          );
+        }
+        
+        return SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: FormBuilder(
           key: _formKey,
@@ -1702,7 +2401,7 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: theme.colorScheme.onPrimary,
-                    disabledBackgroundColor: theme.colorScheme.primary.withOpacity(0.6),
+                    disabledBackgroundColor: theme.colorScheme.primary.withValues(alpha: 0.6),
                   ),
                   child: state.status.isLogin
                       ? SizedBox(
@@ -1720,15 +2419,14 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () {
-                  // Navigate to register page if needed
-                },
+                onPressed: () => context.push(Routes.register),
                 child: Text(translation.dontHaveAccount),
               ),
             ],
           ),
         ),
-      ),
+      );
+      },
     ),
   );
 
@@ -1771,7 +2469,7 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
 
 ''';
   static const String _shared_widgets_widgets_dart = r'''export 'app_header.dart';
-
+export 'dialogs/app_dialogs.dart';
 ''';
   static const String _shared_widgets_app_header_dart = r'''import 'package:flutter/material.dart';
 
@@ -1786,16 +2484,253 @@ class AppHeader extends StatelessWidget {
 }
 
 ''';
+  static const String _shared_widgets_dialogs_app_dialogs_dart = r'''import 'package:flutter/material.dart';
+import '../../../application/generated/l10n.dart';
+
+class AppDialogs {
+  AppDialogs._();
+
+  static Future<bool> showConfirmation({
+    required BuildContext context,
+    required String title,
+    required String message,
+    String? confirmText,
+    String? cancelText,
+    Color? confirmColor,
+    IconData? icon,
+  }) async {
+    final ThemeData theme = Theme.of(context);
+    final S translation = S.of(context);
+    
+    final bool? result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        icon: icon != null
+            ? Icon(icon, color: confirmColor ?? theme.colorScheme.primary, size: 48)
+            : null,
+        title: Text(title),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(cancelText ?? translation.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: confirmColor ?? theme.colorScheme.primary,
+              foregroundColor: confirmColor != null 
+                  ? theme.colorScheme.onError 
+                  : theme.colorScheme.onPrimary,
+            ),
+            child: Text(confirmText ?? translation.confirm),
+          ),
+        ],
+      ),
+    );
+    
+    return result ?? false;
+  }
+
+  static Future<bool> showLogoutConfirmation({
+    required BuildContext context,
+    String? title,
+    String? message,
+  }) {
+    final S translation = S.of(context);
+    
+    return showConfirmation(
+      context: context,
+      title: title ?? translation.logout,
+      message: message ?? translation.logoutConfirmationMessage,
+      confirmText: translation.logout,
+      confirmColor: Theme.of(context).colorScheme.error,
+      icon: Icons.logout,
+    );
+  }
+
+  static Future<bool> showDeleteConfirmation({
+    required BuildContext context,
+    required String itemName,
+    String? title,
+    String? message,
+  }) {
+    final S translation = S.of(context);
+    
+    return showConfirmation(
+      context: context,
+      title: title ?? translation.delete,
+      message: message ?? translation.deleteConfirmationMessage(itemName),
+      confirmText: translation.delete,
+      confirmColor: Theme.of(context).colorScheme.error,
+      icon: Icons.delete_outline,
+    );
+  }
+
+  static Future<void> showInfo({
+    required BuildContext context,
+    required String title,
+    required String message,
+    String? buttonText,
+    IconData? icon,
+  }) async {
+    final ThemeData theme = Theme.of(context);
+    final S translation = S.of(context);
+    
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        icon: icon != null
+            ? Icon(icon, color: theme.colorScheme.primary, size: 48)
+            : null,
+        title: Text(title),
+        content: Text(message),
+        actions: <Widget>[
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(buttonText ?? translation.accept),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Future<void> showError({
+    required BuildContext context,
+    required String message,
+    String? title,
+    String? buttonText,
+  }) {
+    final S translation = S.of(context);
+    
+    return showInfo(
+      context: context,
+      title: title ?? translation.error,
+      message: message,
+      buttonText: buttonText ?? translation.accept,
+      icon: Icons.error_outline,
+    );
+  }
+
+  static Future<void> showSuccess({
+    required BuildContext context,
+    required String message,
+    String? title,
+    String? buttonText,
+  }) {
+    final S translation = S.of(context);
+    
+    return showInfo(
+      context: context,
+      title: title ?? translation.success,
+      message: message,
+      buttonText: buttonText ?? translation.accept,
+      icon: Icons.check_circle_outline,
+    );
+  }
+
+  static void showLoading({
+    required BuildContext context,
+    String? message,
+  }) {
+    final S translation = S.of(context);
+    
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: <Widget>[
+              const CircularProgressIndicator(),
+              const SizedBox(width: 24),
+              Text(message ?? translation.loading),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static void hideLoading(BuildContext context) {
+    Navigator.of(context, rootNavigator: true).pop();
+  }
+
+  static Future<T?> showOptionsBottomSheet<T>({
+    required BuildContext context,
+    required String title,
+    required List<OptionItem<T>> options,
+  }) async {
+    final ThemeData theme = Theme.of(context);
+    
+    return showModalBottomSheet<T>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (BuildContext bottomSheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.outline,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(title, style: theme.textTheme.titleLarge),
+            ),
+            const SizedBox(height: 8),
+            ...options.map((OptionItem<T> option) => ListTile(
+              leading: option.icon != null
+                  ? Icon(option.icon, color: option.color)
+                  : null,
+              title: Text(option.title, style: TextStyle(color: option.color)),
+              subtitle: option.subtitle != null ? Text(option.subtitle!) : null,
+              onTap: () => Navigator.of(bottomSheetContext).pop(option.value),
+            )),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class OptionItem<T> {
+  final T value;
+  final String title;
+  final String? subtitle;
+  final IconData? icon;
+  final Color? color;
+
+  const OptionItem({
+    required this.value,
+    required this.title,
+    this.subtitle,
+    this.icon,
+    this.color,
+  });
+}
+''';
   static const String _main_dart = r'''import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:nested/nested.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'application/application.dart';
 import 'features/home/presentation/blocs/home_bloc/home_bloc.dart';
 import 'features/auth/presentation/blocs/auth_bloc/auth_bloc.dart';
+import 'features/settings/presentation/blocs/settings_bloc/settings_bloc.dart';
 import 'core/services/talker_service.dart';
 
 Future<void> main() async {
@@ -1812,13 +2747,12 @@ Future<void> main() async {
 
 Future<void> runMainApp() async {
   HydratedBloc.storage = await HydratedStorage.build(
-    storageDirectory: !kIsWeb
-        ? HydratedStorageDirectory((await getTemporaryDirectory()).path)
-        : HydratedStorageDirectory.web,
+    storageDirectory: kIsWeb
+        ? HydratedStorageDirectory.web
+        : HydratedStorageDirectory((await getTemporaryDirectory()).path),
   );
 
   TalkerService.init();
-
   Injector.init();
 
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -1836,6 +2770,9 @@ Future<void> runMainApp() async {
         BlocProvider<HomeBloc>(
           create: (BuildContext _) => Injector.get<HomeBloc>(),
         ),
+        BlocProvider<SettingsBloc>(
+          create: (BuildContext _) => Injector.get<SettingsBloc>(),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -1846,16 +2783,20 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp.router(
-    theme: AppTheme.light,
-    themeMode: ThemeMode.light,
-    routerConfig: AppRoutes.router,
-    locale: AppLocalizationsSetup.supportedLocales.last,
-    localizationsDelegates: AppLocalizationsSetup.localizationsDelegates,
-    supportedLocales: AppLocalizationsSetup.supportedLocales,
-    debugShowCheckedModeBanner: kDebugMode,
+  Widget build(BuildContext context) => BlocBuilder<SettingsBloc, SettingsState>(
+    builder: (BuildContext context, SettingsState state) => MaterialApp.router(
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: state.themeMode,
+      routerConfig: AppRoutes.router,
+      locale: Locale(state.languageCode),
+      localizationsDelegates: AppLocalizationsSetup.localizationsDelegates,
+      supportedLocales: AppLocalizationsSetup.supportedLocales,
+      debugShowCheckedModeBanner: kDebugMode,
+    ),
   );
-} ''';
+}
+''';
   static const String _application_application_dart = r'''export 'injector.dart';
 export 'routes/routes.dart';
 export 'theme/theme.dart';
@@ -1866,7 +2807,7 @@ export 'constants/assets.dart';
 ''';
   static const String _application_l10n_intl_es_arb = r'''{
   "@@locale": "es",
-  "appTitle": "{{project_name}}",
+  "appTitle": "{{PROJECT_NAME}}",
   "@appTitle": {
     "description": "El título de la aplicación"
   },
@@ -1929,10 +2870,141 @@ export 'constants/assets.dart';
   "success": "Éxito",
   "@success": {
     "description": "Título de éxito"
+  },
+  "cancel": "Cancelar",
+  "@cancel": {
+    "description": "Texto del botón cancelar"
+  },
+  "confirm": "Confirmar",
+  "@confirm": {
+    "description": "Texto del botón confirmar"
+  },
+  "delete": "Eliminar",
+  "@delete": {
+    "description": "Texto del botón eliminar"
+  },
+  "accept": "Aceptar",
+  "@accept": {
+    "description": "Texto del botón aceptar"
+  },
+  "logoutConfirmationMessage": "¿Estás seguro que deseas cerrar sesión?",
+  "@logoutConfirmationMessage": {
+    "description": "Mensaje del diálogo de confirmación de cierre de sesión"
+  },
+  "deleteConfirmationMessage": "¿Estás seguro que deseas eliminar \"{itemName}\"?",
+  "@deleteConfirmationMessage": {
+    "description": "Mensaje del diálogo de confirmación de eliminación",
+    "placeholders": {
+      "itemName": {
+        "type": "String"
+      }
+    }
+  },
+  "settings": "Configuración",
+  "@settings": {
+    "description": "Título de la página de configuración"
+  },
+  "appearance": "Apariencia",
+  "@appearance": {
+    "description": "Encabezado de sección de apariencia"
+  },
+  "theme": "Tema",
+  "@theme": {
+    "description": "Etiqueta de opción de tema"
+  },
+  "lightMode": "Claro",
+  "@lightMode": {
+    "description": "Opción de tema claro"
+  },
+  "darkMode": "Oscuro",
+  "@darkMode": {
+    "description": "Opción de tema oscuro"
+  },
+  "systemDefault": "Predeterminado del sistema",
+  "@systemDefault": {
+    "description": "Opción de tema del sistema"
+  },
+  "selectTheme": "Seleccionar tema",
+  "@selectTheme": {
+    "description": "Título del selector de tema"
+  },
+  "account": "Cuenta",
+  "@account": {
+    "description": "Encabezado de sección de cuenta"
+  },
+  "guest": "Invitado",
+  "@guest": {
+    "description": "Etiqueta de usuario invitado"
+  },
+  "about": "Acerca de",
+  "@about": {
+    "description": "Encabezado de sección acerca de"
+  },
+  "appInfo": "Información de la app",
+  "@appInfo": {
+    "description": "Etiqueta de información de la app"
+  },
+  "version": "Versión",
+  "@version": {
+    "description": "Etiqueta de versión"
+  },
+  "buildNumber": "Número de compilación",
+  "@buildNumber": {
+    "description": "Etiqueta de número de compilación"
+  },
+  "packageName": "Nombre del paquete",
+  "@packageName": {
+    "description": "Etiqueta del nombre del paquete"
+  },
+  "appName": "Nombre de la app",
+  "@appName": {
+    "description": "Etiqueta del nombre de la app"
+  },
+  "licenses": "Licencias",
+  "@licenses": {
+    "description": "Etiqueta de opción de licencias"
+  },
+  "language": "Idioma",
+  "@language": {
+    "description": "Etiqueta de opción de idioma"
+  },
+  "selectLanguage": "Seleccionar idioma",
+  "@selectLanguage": {
+    "description": "Título del selector de idioma"
+  },
+  "english": "Inglés",
+  "@english": {
+    "description": "Opción de idioma inglés"
+  },
+  "spanish": "Español",
+  "@spanish": {
+    "description": "Opción de idioma español"
+  },
+  "createAccount": "Crear Cuenta",
+  "@createAccount": {
+    "description": "Título de la página de registro"
+  },
+  "fillInYourDetails": "Completa tus datos para comenzar",
+  "@fillInYourDetails": {
+    "description": "Subtítulo de la página de registro"
+  },
+  "name": "Nombre",
+  "@name": {
+    "description": "Etiqueta del campo de nombre"
+  },
+  "confirmPassword": "Confirmar Contraseña",
+  "@confirmPassword": {
+    "description": "Etiqueta del campo de confirmar contraseña"
+  },
+  "passwordsDoNotMatch": "Las contraseñas no coinciden",
+  "@passwordsDoNotMatch": {
+    "description": "Error de contraseñas que no coinciden"
+  },
+  "alreadyHaveAccount": "¿Ya tienes cuenta? Inicia sesión",
+  "@alreadyHaveAccount": {
+    "description": "Texto del enlace de inicio de sesión"
   }
-}
-
-''';
+}''';
   static const String _application_l10n_app_localization_setup_dart = r'''import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import '../generated/l10n.dart';
@@ -1951,7 +3023,7 @@ class AppLocalizationsSetup {
 ''';
   static const String _application_l10n_intl_en_arb = r'''{
   "@@locale": "en",
-  "appTitle": "{{project_name}}",
+  "appTitle": "{{PROJECT_NAME}}",
   "@appTitle": {
     "description": "The application title"
   },
@@ -2014,10 +3086,141 @@ class AppLocalizationsSetup {
   "success": "Success",
   "@success": {
     "description": "Success title"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button text"
+  },
+  "confirm": "Confirm",
+  "@confirm": {
+    "description": "Confirm button text"
+  },
+  "delete": "Delete",
+  "@delete": {
+    "description": "Delete button text"
+  },
+  "accept": "Accept",
+  "@accept": {
+    "description": "Accept button text"
+  },
+  "logoutConfirmationMessage": "Are you sure you want to log out?",
+  "@logoutConfirmationMessage": {
+    "description": "Logout confirmation dialog message"
+  },
+  "deleteConfirmationMessage": "Are you sure you want to delete \"{itemName}\"?",
+  "@deleteConfirmationMessage": {
+    "description": "Delete confirmation dialog message",
+    "placeholders": {
+      "itemName": {
+        "type": "String"
+      }
+    }
+  },
+  "settings": "Settings",
+  "@settings": {
+    "description": "Settings page title"
+  },
+  "appearance": "Appearance",
+  "@appearance": {
+    "description": "Appearance section header"
+  },
+  "theme": "Theme",
+  "@theme": {
+    "description": "Theme option label"
+  },
+  "lightMode": "Light",
+  "@lightMode": {
+    "description": "Light theme option"
+  },
+  "darkMode": "Dark",
+  "@darkMode": {
+    "description": "Dark theme option"
+  },
+  "systemDefault": "System default",
+  "@systemDefault": {
+    "description": "System default theme option"
+  },
+  "selectTheme": "Select theme",
+  "@selectTheme": {
+    "description": "Theme selector title"
+  },
+  "account": "Account",
+  "@account": {
+    "description": "Account section header"
+  },
+  "guest": "Guest",
+  "@guest": {
+    "description": "Guest user label"
+  },
+  "about": "About",
+  "@about": {
+    "description": "About section header"
+  },
+  "appInfo": "App info",
+  "@appInfo": {
+    "description": "App info option label"
+  },
+  "version": "Version",
+  "@version": {
+    "description": "Version label"
+  },
+  "buildNumber": "Build number",
+  "@buildNumber": {
+    "description": "Build number label"
+  },
+  "packageName": "Package name",
+  "@packageName": {
+    "description": "Package name label"
+  },
+  "appName": "App name",
+  "@appName": {
+    "description": "App name label"
+  },
+  "licenses": "Licenses",
+  "@licenses": {
+    "description": "Licenses option label"
+  },
+  "language": "Language",
+  "@language": {
+    "description": "Language option label"
+  },
+  "selectLanguage": "Select language",
+  "@selectLanguage": {
+    "description": "Language selector title"
+  },
+  "english": "English",
+  "@english": {
+    "description": "English language option"
+  },
+  "spanish": "Spanish",
+  "@spanish": {
+    "description": "Spanish language option"
+  },
+  "createAccount": "Create Account",
+  "@createAccount": {
+    "description": "Register page title"
+  },
+  "fillInYourDetails": "Fill in your details to get started",
+  "@fillInYourDetails": {
+    "description": "Register page subtitle"
+  },
+  "name": "Name",
+  "@name": {
+    "description": "Name field label"
+  },
+  "confirmPassword": "Confirm Password",
+  "@confirmPassword": {
+    "description": "Confirm password field label"
+  },
+  "passwordsDoNotMatch": "Passwords do not match",
+  "@passwordsDoNotMatch": {
+    "description": "Password mismatch error"
+  },
+  "alreadyHaveAccount": "Already have an account? Login",
+  "@alreadyHaveAccount": {
+    "description": "Login link text"
   }
-}
-
-''';
+}''';
   static const String _application_injector_dart = r'''import 'package:get_it/get_it.dart';
 import '../core/network/http_client.dart';
 import '../core/utils/secure_storage_utils.dart';
@@ -2033,6 +3236,7 @@ import '../features/auth/presentation/blocs/auth_bloc/auth_bloc.dart';
 import '../features/auth/data/repositories/auth_repository_impl.dart';
 import '../features/auth/data/datasources/remote/auth_remote_datasource.dart';
 import '../features/auth/data/datasources/local/auth_local_datasource.dart';
+import '../features/settings/presentation/blocs/settings_bloc/settings_bloc.dart';
 
 class Injector {
   Injector._();
@@ -2118,9 +3322,11 @@ class Injector {
     registerLazySingleton<AuthBloc>(
       () => AuthBloc(authUseCases: get<AuthUseCases>()),
     );
+    registerLazySingleton<SettingsBloc>(
+      () => SettingsBloc(),
+    );
   }
 }
-
 ''';
   static const String _application_constants_assets_dart = r'''class Assets {
   static const String imagesPath = 'assets/images/';
@@ -2163,11 +3369,15 @@ class AppTheme {
 import 'package:go_router/go_router.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/auth/presentation/pages/register_page.dart';
+import '../../features/settings/presentation/pages/settings_page.dart';
 
 class Routes {
   const Routes._();
   static const String login = '/login';
+  static const String register = '/register';
   static const String home = '/home';
+  static const String settings = '/settings';
 }
 
 class AppRoutes {
@@ -2179,10 +3389,10 @@ class AppRoutes {
 
   static final GoRouter router = GoRouter(
     errorBuilder: (BuildContext context, GoRouterState state) {
-      debugPrint('Error en ruta: ${state.error}');
+      debugPrint('Route error: ${state.error}');
       return Scaffold(
         body: Center(
-          child: Text('Error en la ruta: ${state.error}', style: const TextStyle(fontSize: 20)),
+          child: Text('Route error: ${state.error}', style: const TextStyle(fontSize: 20)),
         ),
       );
     },
@@ -2192,16 +3402,23 @@ class AppRoutes {
     routes: <RouteBase>[
       GoRoute(
         path: Routes.login,
-        builder: (BuildContext context, GoRouterState state) => LoginPage(),
+        builder: (BuildContext context, GoRouterState state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: Routes.register,
+        builder: (BuildContext context, GoRouterState state) => const RegisterPage(),
       ),
       GoRoute(
         path: Routes.home,
         builder: (BuildContext context, GoRouterState state) => const HomePage(),
       ),
+      GoRoute(
+        path: Routes.settings,
+        builder: (BuildContext context, GoRouterState state) => const SettingsPage(),
+      ),
     ],
   );
 }
-
 ''';
 
   static Map<String, String> get templates => {
@@ -2212,10 +3429,15 @@ class AppRoutes {
     'core/utils/secure_storage_utils.dart': _core_utils_secure_storage_utils_dart,
     'core/utils/toast_util.dart': _core_utils_toast_util_dart,
     'core/utils/helpers/number_helper.dart': _core_utils_helpers_number_helper_dart,
+    'core/extensions/string_extensions.dart': _core_extensions_string_extensions_dart,
     'core/states/tstateless.dart': _core_states_tstateless_dart,
     'core/states/tstatefull.dart': _core_states_tstatefull_dart,
     'core/errors/failures.dart': _core_errors_failures_dart,
     'core/services/talker_service.dart': _core_services_talker_service_dart,
+    'features/settings/presentation/blocs/settings_bloc/settings_bloc.dart': _features_settings_presentation_blocs_settings_bloc_settings_bloc_dart,
+    'features/settings/presentation/blocs/settings_bloc/settings_state.dart': _features_settings_presentation_blocs_settings_bloc_settings_state_dart,
+    'features/settings/presentation/blocs/settings_bloc/settings_event.dart': _features_settings_presentation_blocs_settings_bloc_settings_event_dart,
+    'features/settings/presentation/pages/settings_page.dart': _features_settings_presentation_pages_settings_page_dart,
     'features/home/data/datasources/remote/home_remote_datasource.dart': _features_home_data_datasources_remote_home_remote_datasource_dart,
     'features/home/data/repositories/home_repository_impl.dart': _features_home_data_repositories_home_repository_impl_dart,
     'features/home/data/models/home_model.dart': _features_home_data_models_home_model_dart,
@@ -2236,10 +3458,12 @@ class AppRoutes {
     'features/auth/presentation/blocs/auth_bloc/auth_event.dart': _features_auth_presentation_blocs_auth_bloc_auth_event_dart,
     'features/auth/presentation/blocs/auth_bloc/auth_bloc.dart': _features_auth_presentation_blocs_auth_bloc_auth_bloc_dart,
     'features/auth/presentation/blocs/auth_bloc/auth_state.dart': _features_auth_presentation_blocs_auth_bloc_auth_state_dart,
+    'features/auth/presentation/pages/register_page.dart': _features_auth_presentation_pages_register_page_dart,
     'features/auth/presentation/pages/login_page.dart': _features_auth_presentation_pages_login_page_dart,
     'shared/shared.dart': _shared_shared_dart,
     'shared/widgets/widgets.dart': _shared_widgets_widgets_dart,
     'shared/widgets/app_header.dart': _shared_widgets_app_header_dart,
+    'shared/widgets/dialogs/app_dialogs.dart': _shared_widgets_dialogs_app_dialogs_dart,
     'main.dart': _main_dart,
     'application/application.dart': _application_application_dart,
     'application/l10n/intl_es.arb': _application_l10n_intl_es_arb,

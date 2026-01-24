@@ -48,6 +48,7 @@ class FileSystemDataSourceImpl implements FileSystemDataSource {
           'dartz: ^0.10.1',
           'path_provider: ^2.1.5',
           'path: ^1.9.0',
+          'package_info_plus: ^8.0.0',
           'equatable: ^2.0.7',
           'get_it: ^8.0.3',
           'dio: ^5.7.0',

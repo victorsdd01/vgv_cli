@@ -11,4 +11,3 @@ class AuthEvent with _$AuthEvent {
     AuthErrorStatus? errorStatus,
   }) = _ResetSuccessAndErrorStatus;
 }
-

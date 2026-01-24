@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/auth/presentation/pages/register_page.dart';
+import '../../features/settings/presentation/pages/settings_page.dart';
 
 class Routes {
   const Routes._();
   static const String login = '/login';
+  static const String register = '/register';
   static const String home = '/home';
+  static const String settings = '/settings';
 }
 
 class AppRoutes {
@@ -18,10 +22,10 @@ class AppRoutes {
 
   static final GoRouter router = GoRouter(
     errorBuilder: (BuildContext context, GoRouterState state) {
-      debugPrint('Error en ruta: ${state.error}');
+      debugPrint('Route error: ${state.error}');
       return Scaffold(
         body: Center(
-          child: Text('Error en la ruta: ${state.error}', style: const TextStyle(fontSize: 20)),
+          child: Text('Route error: ${state.error}', style: const TextStyle(fontSize: 20)),
         ),
       );
     },
@@ -34,10 +38,17 @@ class AppRoutes {
         builder: (BuildContext context, GoRouterState state) => const LoginPage(),
       ),
       GoRoute(
+        path: Routes.register,
+        builder: (BuildContext context, GoRouterState state) => const RegisterPage(),
+      ),
+      GoRoute(
         path: Routes.home,
         builder: (BuildContext context, GoRouterState state) => const HomePage(),
+      ),
+      GoRoute(
+        path: Routes.settings,
+        builder: (BuildContext context, GoRouterState state) => const SettingsPage(),
       ),
     ],
   );
 }
-

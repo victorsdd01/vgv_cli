@@ -21,8 +21,9 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, UserEntity>> login(String email, String password) async {
     final Either<Failure, UserModel> result = await authRemoteDataSource.login(email, password);
+
     return result.fold(
-      (Failure failure) => Left<Failure, UserEntity>(failure),
+      Left.new,
       (UserModel model) async {
         await authLocalDataSource.saveUser(model);
         if (model.token != null) {
@@ -36,8 +37,9 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, UserEntity>> register(String email, String password, String? name) async {
     final Either<Failure, UserModel> result = await authRemoteDataSource.register(email, password, name);
+
     return result.fold(
-      (Failure failure) => Left<Failure, UserEntity>(failure),
+      Left.new,
       (UserModel model) async {
         await authLocalDataSource.saveUser(model);
         if (model.token != null) {
@@ -69,22 +71,22 @@ class AuthRepositoryImpl implements AuthRepository {
       if (token == null) {
         return const Right<Failure, UserEntity?>(null);
       }
-      
+
       final Either<Failure, List<UserModel>> allUsers = await authLocalDataSource.getAllUsers();
+
       return allUsers.fold(
-        (Failure failure) => Left<Failure, UserEntity?>(failure),
+        Left.new,
         (List<UserModel> users) {
           if (users.isEmpty) {
             return const Right<Failure, UserEntity?>(null);
           }
-          try {
-            final UserModel user = users.firstWhere(
-              (UserModel u) => u.token == token,
-            );
-            return Right<Failure, UserEntity?>(UserEntity.fromModel(user));
-          } catch (e) {
+
+          final int index = users.indexWhere((UserModel u) => u.token == token);
+          if (index == -1) {
             return const Right<Failure, UserEntity?>(null);
           }
+
+          return Right<Failure, UserEntity?>(UserEntity.fromModel(users[index]));
         },
       );
     } catch (e) {
@@ -102,4 +104,3 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 }
-

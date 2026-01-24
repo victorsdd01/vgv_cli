@@ -9,24 +9,18 @@ import '../../../../application/routes/routes.dart';
 import '../../../../application/generated/l10n.dart';
 import '../../../../core/states/tstatefull.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
+class _RegisterPageState extends TStateful<RegisterPage, AuthBloc> {
   final GlobalKey<FormBuilderState> _formKey = GlobalKey<FormBuilderState>();
 
   @override
   AuthBloc get bloc => Injector.get<AuthBloc>();
-
-  @override
-  void initState() {
-    super.initState();
-    bloc.add(const AuthEvent.checkAuth());
-  }
 
   @override
   Widget bodyWidget(
@@ -35,32 +29,13 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
     S translation,
   ) => Scaffold(
     appBar: AppBar(
-      title: Text(translation.login),
+      title: Text(translation.register),
       backgroundColor: theme.colorScheme.inversePrimary,
     ),
     body: BlocConsumer<AuthBloc, AuthState>(
       bloc: bloc,
       listener: _handleStateChanges,
-      builder: (BuildContext context, AuthState state) {
-        if (state.status.isCheckAuth) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  translation.loading,
-                  style: theme.textTheme.bodyLarge,
-                ),
-              ],
-            ),
-          );
-        }
-        
-        return SingleChildScrollView(
+      builder: (BuildContext context, AuthState state) => SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: FormBuilder(
           key: _formKey,
@@ -69,7 +44,7 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
             children: <Widget>[
               const SizedBox(height: 32),
               Text(
-                translation.welcomeBack,
+                translation.createAccount,
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -77,13 +52,27 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
               ),
               const SizedBox(height: 8),
               Text(
-                translation.pleaseSignInToContinue,
+                translation.fillInYourDetails,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
+              FormBuilderTextField(
+                name: 'name',
+                decoration: InputDecoration(
+                  labelText: translation.name,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.person),
+                ),
+                textCapitalization: TextCapitalization.words,
+                validator: FormBuilderValidators.compose(<String? Function(String?)>[
+                  FormBuilderValidators.required(),
+                  FormBuilderValidators.minLength(2),
+                ]),
+              ),
+              const SizedBox(height: 16),
               FormBuilderTextField(
                 name: 'email',
                 decoration: InputDecoration(
@@ -111,17 +100,36 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
                   FormBuilderValidators.minLength(6),
                 ]),
               ),
+              const SizedBox(height: 16),
+              FormBuilderTextField(
+                name: 'confirmPassword',
+                decoration: InputDecoration(
+                  labelText: translation.confirmPassword,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock_outline),
+                ),
+                obscureText: true,
+                validator: FormBuilderValidators.compose(<String? Function(String?)>[
+                  FormBuilderValidators.required(),
+                  (String? value) {
+                    if (value != _formKey.currentState?.fields['password']?.value) {
+                      return translation.passwordsDoNotMatch;
+                    }
+                    return null;
+                  },
+                ]),
+              ),
               const SizedBox(height: 24),
               SizedBox(
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: state.status.isLogin ? null : _onLoginPressed,
+                  onPressed: state.status.isRegister ? null : _onRegisterPressed,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: theme.colorScheme.onPrimary,
                     disabledBackgroundColor: theme.colorScheme.primary.withValues(alpha: 0.6),
                   ),
-                  child: state.status.isLogin
+                  child: state.status.isRegister
                       ? SizedBox(
                           height: 20,
                           width: 20,
@@ -132,19 +140,18 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
                             ),
                           ),
                         )
-                      : Text(translation.login),
+                      : Text(translation.register),
                 ),
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () => context.push(Routes.register),
-                child: Text(translation.dontHaveAccount),
+                onPressed: () => context.pop(),
+                child: Text(translation.alreadyHaveAccount),
               ),
             ],
           ),
         ),
-      );
-      },
+      ),
     ),
   );
 
@@ -152,7 +159,7 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
     if (state.isAuthenticated && state.user != null) {
       context.go(Routes.home);
     }
-    if (state.errorStatus.login && state.failure != null) {
+    if (state.errorStatus.register && state.failure != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(state.failure!.message),
@@ -161,24 +168,25 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
       );
       bloc.add(
         const AuthEvent.resetSuccessAndErrorStatus(
-          errorStatus: AuthErrorStatus(login: false),
+          errorStatus: AuthErrorStatus(register: false),
         ),
       );
     }
-    if (state.successStatus.login) {
+    if (state.successStatus.register) {
       bloc.add(
         const AuthEvent.resetSuccessAndErrorStatus(
-          successStatus: AuthSuccessStatus(login: false),
+          successStatus: AuthSuccessStatus(register: false),
         ),
       );
     }
   }
 
-  void _onLoginPressed() {
-    if (_formKey.currentState?.saveAndValidate() ?? false) {
+  void _onRegisterPressed() {
+    if (_formKey.currentState?.saveAndValidate() != false) {
+      final String name = _formKey.currentState?.value['name'] as String;
       final String email = _formKey.currentState?.value['email'] as String;
       final String password = _formKey.currentState?.value['password'] as String;
-      bloc.add(AuthEvent.login(email, password));
+      bloc.add(AuthEvent.register(email, password, name));
     }
   }
 }

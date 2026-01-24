@@ -45,4 +45,3 @@ abstract class AuthState with _$AuthState {
     UserEntity? user,
   }) = _AuthState;
 }
-

@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appTitle": "{{project_name}}",
+  "appTitle": "{{PROJECT_NAME}}",
   "@appTitle": {
     "description": "The application title"
   },
@@ -63,6 +63,138 @@
   "success": "Success",
   "@success": {
     "description": "Success title"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button text"
+  },
+  "confirm": "Confirm",
+  "@confirm": {
+    "description": "Confirm button text"
+  },
+  "delete": "Delete",
+  "@delete": {
+    "description": "Delete button text"
+  },
+  "accept": "Accept",
+  "@accept": {
+    "description": "Accept button text"
+  },
+  "logoutConfirmationMessage": "Are you sure you want to log out?",
+  "@logoutConfirmationMessage": {
+    "description": "Logout confirmation dialog message"
+  },
+  "deleteConfirmationMessage": "Are you sure you want to delete \"{itemName}\"?",
+  "@deleteConfirmationMessage": {
+    "description": "Delete confirmation dialog message",
+    "placeholders": {
+      "itemName": {
+        "type": "String"
+      }
+    }
+  },
+  "settings": "Settings",
+  "@settings": {
+    "description": "Settings page title"
+  },
+  "appearance": "Appearance",
+  "@appearance": {
+    "description": "Appearance section header"
+  },
+  "theme": "Theme",
+  "@theme": {
+    "description": "Theme option label"
+  },
+  "lightMode": "Light",
+  "@lightMode": {
+    "description": "Light theme option"
+  },
+  "darkMode": "Dark",
+  "@darkMode": {
+    "description": "Dark theme option"
+  },
+  "systemDefault": "System default",
+  "@systemDefault": {
+    "description": "System default theme option"
+  },
+  "selectTheme": "Select theme",
+  "@selectTheme": {
+    "description": "Theme selector title"
+  },
+  "account": "Account",
+  "@account": {
+    "description": "Account section header"
+  },
+  "guest": "Guest",
+  "@guest": {
+    "description": "Guest user label"
+  },
+  "about": "About",
+  "@about": {
+    "description": "About section header"
+  },
+  "appInfo": "App info",
+  "@appInfo": {
+    "description": "App info option label"
+  },
+  "version": "Version",
+  "@version": {
+    "description": "Version label"
+  },
+  "buildNumber": "Build number",
+  "@buildNumber": {
+    "description": "Build number label"
+  },
+  "packageName": "Package name",
+  "@packageName": {
+    "description": "Package name label"
+  },
+  "appName": "App name",
+  "@appName": {
+    "description": "App name label"
+  },
+  "licenses": "Licenses",
+  "@licenses": {
+    "description": "Licenses option label"
+  },
+  "language": "Language",
+  "@language": {
+    "description": "Language option label"
+  },
+  "selectLanguage": "Select language",
+  "@selectLanguage": {
+    "description": "Language selector title"
+  },
+  "english": "English",
+  "@english": {
+    "description": "English language option"
+  },
+  "spanish": "Spanish",
+  "@spanish": {
+    "description": "Spanish language option"
+  },
+  "createAccount": "Create Account",
+  "@createAccount": {
+    "description": "Register page title"
+  },
+  "fillInYourDetails": "Fill in your details to get started",
+  "@fillInYourDetails": {
+    "description": "Register page subtitle"
+  },
+  "name": "Name",
+  "@name": {
+    "description": "Name field label"
+  },
+  "confirmPassword": "Confirm Password",
+  "@confirmPassword": {
+    "description": "Confirm password field label"
+  },
+  "passwordsDoNotMatch": "Passwords do not match",
+  "@passwordsDoNotMatch": {
+    "description": "Password mismatch error"
+  },
+  "alreadyHaveAccount": "Already have an account? Login",
+  "@alreadyHaveAccount": {
+    "description": "Login link text"
   }
 }
-
