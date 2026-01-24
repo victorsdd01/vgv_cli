@@ -18,6 +18,7 @@ abstract class FileSystemDataSource {
   Future<void> createInternationalization(String projectName);
   Future<void> ensureCleanArchitectureFiles(String projectName);
   Future<void> createVSCodeLaunchConfig(String projectName);
+  Future<void> createGitIgnore(String projectName);
 }
 
 /// Implementation of FileSystemDataSource
@@ -1949,7 +1950,93 @@ class AppLocalizationsSetup {
     launchJsonFile.writeAsStringSync(content);
   }
 
+  @override
+  Future<void> createGitIgnore(String projectName) async {
+    final gitignorePath = path.join(projectName, '.gitignore');
+    final gitignoreFile = File(gitignorePath);
+    
+    final content = '''# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
 
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code related
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# iOS/macOS
+**/ios/Pods/
+**/macos/Pods/
+**/ios/.symlinks/
+**/macos/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/macos/Flutter/Flutter.framework
+**/macos/Flutter/Flutter.podspec
+
+# Generated files
+*.freezed.dart
+*.g.dart
+*.gr.dart
+*.mocks.dart
+lib/application/generated/
+
+# Coverage
+coverage/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Credentials
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
+
+# Local configuration
+local.properties
+key.properties
+''';
+    
+    gitignoreFile.writeAsStringSync(content);
+  }
 
 
   Future<void> _createMvvmBaseFiles(String projectName, StateManagementType stateManagement, bool includeFreezed) async {

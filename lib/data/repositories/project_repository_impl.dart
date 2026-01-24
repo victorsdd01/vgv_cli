@@ -57,6 +57,8 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
     await _fileSystemDataSource.createVSCodeLaunchConfig(config.projectName);
 
+    await _fileSystemDataSource.createGitIgnore(config.projectName);
+
     await _fileSystemDataSource.createInternationalization(config.projectName);
 
     await _fileSystemDataSource.createBarrelFiles(
