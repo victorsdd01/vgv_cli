@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.20] - 2026-01-24
+
+### Changes
+- refactor: convert LoginPage to StatefulWidget for improved state management
+
 ## [1.10.19] - 2026-01-24
 
 ### Changes
