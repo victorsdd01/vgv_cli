@@ -6,18 +6,8 @@ import '../../../../application/generated/l10n.dart';
 import '../../../../core/states/tstateless.dart';
 import '../../domain/entities/home_entity.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends TStateless<HomeBloc> {
   const HomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) => BlocProvider<HomeBloc>(
-    create: (BuildContext context) => Injector.get<HomeBloc>()..add(const HomeEvent.initialized()),
-    child: const _HomeView(),
-  );
-}
-
-class _HomeView extends TStateless<HomeBloc> {
-  const _HomeView();
 
   @override
   HomeBloc get bloc => Injector.get<HomeBloc>();
@@ -33,6 +23,7 @@ class _HomeView extends TStateless<HomeBloc> {
       backgroundColor: theme.colorScheme.inversePrimary,
       actions: <Widget>[
         BlocBuilder<HomeBloc, HomeState>(
+          bloc: bloc,
           builder: (BuildContext context, HomeState state) => IconButton(
             onPressed: state.status.isGetItems
                 ? null
@@ -54,6 +45,7 @@ class _HomeView extends TStateless<HomeBloc> {
       ],
     ),
     body: BlocConsumer<HomeBloc, HomeState>(
+      bloc: bloc,
       listener: (BuildContext ctx, HomeState state) => _handleStateChanges(ctx, state, translation),
       builder: (BuildContext context, HomeState state) => _buildBody(state, theme, translation),
     ),
@@ -161,4 +153,3 @@ class _HomeView extends TStateless<HomeBloc> {
     ),
   );
 }
-
