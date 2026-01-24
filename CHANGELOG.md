@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.29] - 2026-01-24
+
+### Changes
+- chore: update .gitignore to include Swift Package Manager files
+
 ## [1.10.28] - 2026-01-24
 
 ### Changes
