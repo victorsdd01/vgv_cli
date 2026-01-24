@@ -126,18 +126,12 @@ class CliController {
 
   void _printWelcomeMessage() {
     print('');
-    print('$_brightMagenta$_bold  ███████╗██╗     ██╗   ██╗████████╗████████╗███████╗██████╗ $_reset');
-    print('$_brightMagenta$_bold  ██╔════╝██║     ██║   ██║╚══██╔══╝╚══██╔══╝██╔════╝██╔══██╗$_reset');
-    print('$_brightMagenta$_bold  █████╗  ██║     ██║   ██║   ██║      ██║   █████╗  ██████╔╝$_reset');
-    print('$_brightMagenta$_bold  ██╔══╝  ██║     ██║   ██║   ██║      ██║   ██╔══╝  ██╔══██╗$_reset');
-    print('$_brightMagenta$_bold  ██║     ███████╗╚██████╔╝   ██║      ██║   ███████╗██║  ██║$_reset');
-    print('$_brightMagenta$_bold  ╚═╝     ╚══════╝ ╚═════╝    ╚═╝      ╚═╝   ╚══════╝╚═╝  ╚═╝$_reset');
-    print('$_brightMagenta$_bold  ███████╗ ██████╗ ██████╗  ███████╗███████╗$_reset');
-    print('$_brightMagenta$_bold  ██╔════╝██╔═══██╗██╔══██╗██╔════╝ ██╔════╝$_reset');
-    print('$_brightMagenta$_bold  █████╗  ██║   ██║██████╔╝██║  ███╗█████╗  $_reset');
-    print('$_brightMagenta$_bold  ██╔══╝  ██║   ██║██╔══██╗██║   ██║██╔══╝  $_reset');
-    print('$_brightMagenta$_bold  ██║     ╚██████╔╝██║  ██║╚██████╔╝███████╗$_reset');
-    print('$_brightMagenta$_bold  ╚═╝      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝$_reset');
+    print('$_brightMagenta$_bold  ██╗   ██╗ ██████╗ ██╗   ██╗$_reset');
+    print('$_brightMagenta$_bold  ██║   ██║██╔════╝ ██║   ██║$_reset');
+    print('$_brightMagenta$_bold  ██║   ██║██║  ███╗██║   ██║$_reset');
+    print('$_brightMagenta$_bold  ╚██╗ ██╔╝██║   ██║╚██╗ ██╔╝$_reset');
+    print('$_brightMagenta$_bold   ╚████╔╝ ╚██████╔╝ ╚████╔╝ $_reset');
+    print('$_brightMagenta$_bold    ╚═══╝   ╚═════╝   ╚═══╝  $_reset');
     print('');
     print('$_dim  The Ultimate Flutter Project Generator$_reset');
     print('');
