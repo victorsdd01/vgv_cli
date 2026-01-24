@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.17] - 2026-01-24
+
+### Changes
+- feat: enhance LoginPage with improved form handling and localization
+
 ## [1.10.16] - 2026-01-24
 
 ### Changes
