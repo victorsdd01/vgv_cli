@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.28] - 2026-01-24
+
+### Changes
+- feat: update banner display logic in MyApp
+
 ## [1.10.27] - 2026-01-24
 
 ### Changes
