@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.34] - 2026-01-24
+
+### Changes
+- chore: rename package to vgv_cli
+
 ## [1.10.33] - 2026-01-24
 
 ### Changes
