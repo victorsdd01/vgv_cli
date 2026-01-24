@@ -3477,8 +3477,10 @@ class AppRoutes {
   };
 
   static String _processTemplate(String content, String projectName) {
+    final String titleCaseName = projectName.split('_').map((w) => w.isNotEmpty ? w[0].toUpperCase() + w.substring(1) : '').join(' ');
     return content
         .replaceAll('{{project_name}}', projectName)
+        .replaceAll('{{PROJECT_NAME}}', titleCaseName)
         .replaceAll('template_project', projectName);
   }
 

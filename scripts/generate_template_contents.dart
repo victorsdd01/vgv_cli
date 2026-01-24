@@ -35,8 +35,10 @@ void main() async {
   buffer.writeln('  };');
   buffer.writeln('');
   buffer.writeln('  static String _processTemplate(String content, String projectName) {');
+  buffer.writeln('    final String titleCaseName = projectName.split(\'_\').map((w) => w.isNotEmpty ? w[0].toUpperCase() + w.substring(1) : \'\').join(\' \');');
   buffer.writeln('    return content');
   buffer.writeln('        .replaceAll(\'{{project_name}}\', projectName)');
+  buffer.writeln('        .replaceAll(\'{{PROJECT_NAME}}\', titleCaseName)');
   buffer.writeln('        .replaceAll(\'template_project\', projectName);');
   buffer.writeln('  }');
   buffer.writeln('');
