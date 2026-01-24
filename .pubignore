@@ -1,0 +1,27 @@
+# Ignore template files (they're stored as strings in template_contents.dart)
+lib/core/templates/blocs/
+
+# Build artifacts
+build/
+lib/core/templates/blocs/build/
+
+# Development files
+*.sh
+*.bat
+*.ps1
+generate_project.dart
+regenerate_and_generate.dart
+regenerate_templates.dart
+test_cli.sh
+check_installation.sh
+
+# Scripts (not needed for published package)
+scripts/
+
+# Guides (README is enough)
+UNINSTALL_GUIDE.md
+UPDATE_GUIDE.md
+USAGE.md
+
+# GitHub workflows
+.github/

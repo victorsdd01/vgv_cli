@@ -19,11 +19,7 @@ dev_dependencies:
   lints: ^5.1.1
   test: ^1.26.3
 
-# Export the main library
-flutterforge_cli:
-  main: lib/flutterforge_cli.dart
-
-# Executable configuration
+# Executable configuration - maps command name to file in bin/
 executables:
   flutterforge: flutterforge
 
