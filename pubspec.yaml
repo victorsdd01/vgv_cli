@@ -21,6 +21,6 @@ dev_dependencies:
 
 # Executable configuration - maps command name to file in bin/
 executables:
-  flutterforge: flutterforge
+  vgv: vgv
 
 
