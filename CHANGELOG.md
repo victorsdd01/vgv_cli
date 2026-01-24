@@ -13,49 +13,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - chore: add .pubignore file to exclude unnecessary files from publication
 
 ## [1.10.29] - 2026-01-24
+## [1.10.29] - 2026-01-24 - Phase 1 Release
 
-### Changes
-- chore: update .gitignore to include Swift Package Manager files
+### Added
+- Interactive CLI with arrow-key navigation (using `interact` package)
+- Multiple CLI flags: `--help`, `--version`, `--quick`, `--name`, `--org`, `--output`, `--no-git`, `--dry-run`
+- Environment configurations: Development, Staging, Production
+- Environment-specific entry points: `main_dev.dart`, `main_staging.dart`, `main_production.dart`
+- Debug banner showing current environment (DEV/STAGE/PROD) with color coding
+- VS Code `launch.json` with 9 debug configurations (3 environments x 3 modes)
+- VS Code `settings.json` with recommended editor settings
+- Settings feature with theme (Light/Dark/System) and language (EN/ES) persistence
+- HydratedBloc for automatic state persistence
+- Reusable dialogs utility (`AppDialogs`)
+- String extensions for common operations
+- Default organization based on project name (`com.{project_name}`)
+- Swift Package Manager entries in `.gitignore`
+- MIT License file
+- Comprehensive README
 
-## [1.10.28] - 2026-01-24
+### Changed
+- Removed emojis from CLI output for cleaner appearance
+- Improved platform selection with multi-select support
+- Enhanced BLoC state pattern with Status/SuccessStatus/ErrorStatus classes
+- Base widgets (`TStateless`, `TStateful`) provide direct access to theme, translations, and BLoC
 
-### Changes
-- feat: update banner display logic in MyApp
-
-## [1.10.27] - 2026-01-24
-
-### Changes
-- feat: enhance CLI project creation with new flags and quick mode
-
-## [1.10.26] - 2026-01-24
-
-### Changes
-- feat: add .gitignore file generation during project setup
-
-## [1.10.25] - 2026-01-24
-
-### Changes
-- feat: add VSCode launch configuration generation for projects
-
-## [1.10.24] - 2026-01-24
-
-### Changes
-- feat: introduce environment-specific main entry points and configuration management
-
-## [1.10.23] - 2026-01-24
-
-### Changes
-- feat: enhance CLI project creation with improved user interaction and platform selection
-
-## [1.10.22] - 2026-01-24
-
-### Changes
-- feat: enhance localization support with additional strings for user interface
-
-## [1.10.21] - 2026-01-24
-
-### Changes
-- feat: implement Settings feature with theme and language management
+### Fixed
+- Correct build order: `flutter pub get` before localization and build_runner
+- Proper async handling in BLoC event handlers
 
 ## [1.10.20] - 2026-01-24
 

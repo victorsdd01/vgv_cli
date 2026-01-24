@@ -1,0 +1,23 @@
+# CODEOWNERS - Defines who must review PRs for specific files/directories
+# Documentation: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default: All files require approval from the repository owner
+* @victorsdd01
+
+# Core CLI logic
+/lib/ @victorsdd01
+/bin/ @victorsdd01
+
+# Templates
+/lib/core/templates/ @victorsdd01
+
+# Configuration files
+pubspec.yaml @victorsdd01
+analysis_options.yaml @victorsdd01
+
+# CI/CD workflows
+/.github/ @victorsdd01
+
+# Documentation
+README.md @victorsdd01
+CHANGELOG.md @victorsdd01
