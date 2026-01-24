@@ -1623,15 +1623,14 @@ class LoginPage extends TStateless<AuthBloc> {
   @override
   AuthBloc get bloc => Injector.get<AuthBloc>();
 
+  final GlobalKey<FormBuilderState> formKey = GlobalKey<FormBuilderState>();
+
   @override
   Widget bodyWidget(
     BuildContext context,
     ThemeData theme,
     S translation,
-  ) {
-    final GlobalKey<FormBuilderState> formKey = GlobalKey<FormBuilderState>();
-    
-    return Scaffold(
+  ) => Scaffold(
       appBar: AppBar(
         title: Text(translation.login),
         backgroundColor: theme.colorScheme.inversePrimary,
@@ -1691,7 +1690,37 @@ class LoginPage extends TStateless<AuthBloc> {
                   ]),
                 ),
                 const SizedBox(height: 24),
-                _buildLoginButton(state, theme, translation, formKey),
+                SizedBox(
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: state.status.isLogin
+                        ? null
+                        : () {
+                            if (formKey.currentState?.saveAndValidate() ?? false) {
+                              final String email = formKey.currentState?.value['email'] as String;
+                              final String password = formKey.currentState?.value['password'] as String;
+                              bloc.add(AuthEvent.login(email, password));
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: theme.colorScheme.onPrimary,
+                      disabledBackgroundColor: theme.colorScheme.primary.withOpacity(0.6),
+                    ),
+                    child: state.status.isLogin
+                        ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                theme.colorScheme.onPrimary,
+                              ),
+                            ),
+                          )
+                        : Text(translation.login),
+                  ),
+                );
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
@@ -1703,9 +1732,8 @@ class LoginPage extends TStateless<AuthBloc> {
             ),
           ),
         ),
-      ),
-    );
-  }
+    ),
+  );
 
   void _handleStateChanges(BuildContext context, AuthState state) {
     if (state.isAuthenticated && state.user != null) {
@@ -1733,42 +1761,6 @@ class LoginPage extends TStateless<AuthBloc> {
     }
   }
 
-  Widget _buildLoginButton(
-    AuthState state,
-    ThemeData theme,
-    S translation,
-    GlobalKey<FormBuilderState> formKey,
-  ) => SizedBox(
-    height: 50,
-    child: ElevatedButton(
-      onPressed: state.status.isLogin
-          ? null
-          : () {
-              if (formKey.currentState?.saveAndValidate() ?? false) {
-                final String email = formKey.currentState?.value['email'] as String;
-                final String password = formKey.currentState?.value['password'] as String;
-                bloc.add(AuthEvent.login(email, password));
-              }
-            },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
-        disabledBackgroundColor: theme.colorScheme.primary.withOpacity(0.6),
-      ),
-      child: state.status.isLogin
-          ? SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  theme.colorScheme.onPrimary,
-                ),
-              ),
-            )
-          : Text(translation.login),
-    ),
-  );
 }
 ''';
   static const String _shared_shared_dart = r'''export 'widgets/widgets.dart';

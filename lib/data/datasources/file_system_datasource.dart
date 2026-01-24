@@ -1835,15 +1835,67 @@ class AppLocalizationsSetup {
   "@@locale": "en",
   "appTitle": "Flutter App",
   "@appTitle": {
-    "description": "The title of the application"
+    "description": "The application title"
   },
-  "welcome": "Welcome",
-  "@welcome": {
-    "description": "Welcome message"
+  "login": "Login",
+  "@login": {
+    "description": "Login button and page title"
   },
-  "hello": "Hello",
-  "@hello": {
-    "description": "Hello message"
+  "welcomeBack": "Welcome Back",
+  "@welcomeBack": {
+    "description": "Welcome message on login page"
+  },
+  "pleaseSignInToContinue": "Please sign in to continue",
+  "@pleaseSignInToContinue": {
+    "description": "Subtitle on login page"
+  },
+  "email": "Email",
+  "@email": {
+    "description": "Email field label"
+  },
+  "password": "Password",
+  "@password": {
+    "description": "Password field label"
+  },
+  "dontHaveAccount": "Don't have an account? Register",
+  "@dontHaveAccount": {
+    "description": "Register link text"
+  },
+  "home": "Home",
+  "@home": {
+    "description": "Home page title"
+  },
+  "noItemsAvailable": "No items available",
+  "@noItemsAvailable": {
+    "description": "Empty state message"
+  },
+  "refresh": "Refresh",
+  "@refresh": {
+    "description": "Refresh button text"
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "Retry button text"
+  },
+  "logout": "Logout",
+  "@logout": {
+    "description": "Logout button text"
+  },
+  "register": "Register",
+  "@register": {
+    "description": "Register button text"
+  },
+  "loading": "Loading...",
+  "@loading": {
+    "description": "Loading indicator text"
+  },
+  "error": "Error",
+  "@error": {
+    "description": "Error title"
+  },
+  "success": "Success",
+  "@success": {
+    "description": "Success title"
   }
 }''';
   }
@@ -1855,13 +1907,65 @@ class AppLocalizationsSetup {
   "@appTitle": {
     "description": "El título de la aplicación"
   },
-  "welcome": "Bienvenido",
-  "@welcome": {
-    "description": "Mensaje de bienvenida"
+  "login": "Iniciar Sesión",
+  "@login": {
+    "description": "Botón y título de inicio de sesión"
   },
-  "hello": "Hola",
-  "@hello": {
-    "description": "Mensaje de hola"
+  "welcomeBack": "Bienvenido de nuevo",
+  "@welcomeBack": {
+    "description": "Mensaje de bienvenida en la página de inicio de sesión"
+  },
+  "pleaseSignInToContinue": "Por favor inicia sesión para continuar",
+  "@pleaseSignInToContinue": {
+    "description": "Subtítulo en la página de inicio de sesión"
+  },
+  "email": "Correo electrónico",
+  "@email": {
+    "description": "Etiqueta del campo de correo"
+  },
+  "password": "Contraseña",
+  "@password": {
+    "description": "Etiqueta del campo de contraseña"
+  },
+  "dontHaveAccount": "¿No tienes cuenta? Regístrate",
+  "@dontHaveAccount": {
+    "description": "Texto del enlace de registro"
+  },
+  "home": "Inicio",
+  "@home": {
+    "description": "Título de la página de inicio"
+  },
+  "noItemsAvailable": "No hay elementos disponibles",
+  "@noItemsAvailable": {
+    "description": "Mensaje de estado vacío"
+  },
+  "refresh": "Actualizar",
+  "@refresh": {
+    "description": "Texto del botón actualizar"
+  },
+  "retry": "Reintentar",
+  "@retry": {
+    "description": "Texto del botón reintentar"
+  },
+  "logout": "Cerrar sesión",
+  "@logout": {
+    "description": "Texto del botón cerrar sesión"
+  },
+  "register": "Registrarse",
+  "@register": {
+    "description": "Texto del botón registrarse"
+  },
+  "loading": "Cargando...",
+  "@loading": {
+    "description": "Texto del indicador de carga"
+  },
+  "error": "Error",
+  "@error": {
+    "description": "Título de error"
+  },
+  "success": "Éxito",
+  "@success": {
+    "description": "Título de éxito"
   }
 }''';
   }
