@@ -1,6 +1,6 @@
 name: vgv_cli
 description: A powerful Flutter CLI tool for creating projects with interactive prompts, supporting Clean Architecture, BLoC, Freezed, Go Router, and internationalization.
-version: 1.10.40
+version: 1.10.41
 homepage: https://github.com/victorsdd01/vgv_cli
 repository: https://github.com/victorsdd01/vgv_cli.git
 issue_tracker: https://github.com/victorsdd01/vgv_cli/issues
