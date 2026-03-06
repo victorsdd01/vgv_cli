@@ -84,6 +84,7 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
       'flutter',
       args,
       workingDirectory: Directory.current.path,
+      runInShell: true,
     );
 
     if (result.exitCode != 0) {
@@ -96,7 +97,7 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
   @override
   Future<bool> isFlutterInstalled() async {
     try {
-      final result = await Process.run('flutter', ['--version']);
+      final result = await Process.run('flutter', ['--version'], runInShell: true);
       return result.exitCode == 0;
     } catch (e) {
       return false;
@@ -111,6 +112,7 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
         'dart',
         ['run', 'intl_utils:generate'],
         workingDirectory: projectName,
+        runInShell: true,
       );
 
       if (result.exitCode != 0) {
@@ -151,6 +153,7 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
         'flutter',
         ['clean'],
         workingDirectory: projectName,
+        runInShell: true,
       );
 
       if (result.exitCode == 0) {
@@ -159,6 +162,7 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
           'flutter',
           ['pub', 'get'],
           workingDirectory: projectName,
+          runInShell: true,
         );
       }
     } catch (e) {
@@ -173,6 +177,7 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
         'dart',
         ['run', 'build_runner', 'build', '-d'],
         workingDirectory: projectName,
+        runInShell: true,
       );
 
       if (result.exitCode != 0) {
@@ -195,7 +200,10 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
     }
     
     try {
-      final podCheck = await Process.run('which', ['pod']);
+      // CocoaPods is only available on macOS
+      if (!Platform.isMacOS) return;
+
+      final podCheck = await Process.run('which', ['pod'], runInShell: true);
       if (podCheck.exitCode != 0) {
         return; // CocoaPods not installed, skip silently
       }
@@ -214,8 +222,8 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
             await podfileLock.delete();
           }
 
-          await Process.run('pod', ['repo', 'update'], workingDirectory: '$projectName/ios');
-          await Process.run('pod', ['install', '--repo-update'], workingDirectory: '$projectName/ios');
+          await Process.run('pod', ['repo', 'update'], workingDirectory: '$projectName/ios', runInShell: true);
+          await Process.run('pod', ['install', '--repo-update'], workingDirectory: '$projectName/ios', runInShell: true);
         }
       }
 
@@ -233,8 +241,8 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
             await podfileLock.delete();
           }
 
-          await Process.run('pod', ['repo', 'update'], workingDirectory: '$projectName/macos');
-          await Process.run('pod', ['install', '--repo-update'], workingDirectory: '$projectName/macos');
+          await Process.run('pod', ['repo', 'update'], workingDirectory: '$projectName/macos', runInShell: true);
+          await Process.run('pod', ['install', '--repo-update'], workingDirectory: '$projectName/macos', runInShell: true);
         }
       }
     } catch (e) {
