@@ -90,42 +90,29 @@ jobs:
 
       - name: Get PR information
         id: pr_info
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          PR_TITLE_RAW: ${{ github.event.pull_request.title }}
-          PR_BODY_RAW: ${{ github.event.pull_request.body }}
-          COMMIT_SHA: ${{ github.sha }}
-        run: |
-          set -e
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let title = '';
+            let body = '';
 
-          # Get PR title and body safely via environment variables
-          if [ "$EVENT_NAME" == "pull_request" ]; then
-            PR_TITLE="$PR_TITLE_RAW"
-            PR_BODY="$PR_BODY_RAW"
-          else
-            # For push events, use commit message
-            PR_TITLE=$(git log -1 --pretty=%s "$COMMIT_SHA")
-            PR_BODY=$(git log -1 --pretty=%b "$COMMIT_SHA")
-          fi
+            if (context.eventName === 'pull_request') {
+              title = context.payload.pull_request?.title || '';
+              body = context.payload.pull_request?.body || '';
+            } else {
+              // For push events, use commit message
+              const commit = context.payload.head_commit;
+              title = commit?.message?.split('\n')[0] || '';
+              body = commit?.message?.split('\n').slice(1).join('\n').trim() || '';
+            }
 
-          # Sanitize variables - remove carriage returns
-          PR_TITLE=$(echo "${PR_TITLE}" | tr -d '\r' || echo "")
-          PR_BODY=$(echo "${PR_BODY}" | tr -d '\r' || echo "")
+            // Write to temp files to avoid shell interpretation of special characters
+            fs.writeFileSync('/tmp/pr_title.txt', title);
+            fs.writeFileSync('/tmp/pr_body.txt', body);
 
-          echo "PR Title: ${PR_TITLE}"
-
-          # Use delimiter to handle multiline content safely
-          {
-            echo "pr_title<<EOF"
-            echo "${PR_TITLE}"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
-
-          {
-            echo "pr_body<<EOF"
-            echo "${PR_BODY}"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
+            // Also set outputs for steps that need them
+            core.setOutput('pr_title', title);
 
       - name: Configure Git
         if: steps.check_version_bump.outputs.already_done == 'false'
@@ -256,17 +243,6 @@ jobs:
           
           echo "✅ Updated pubspec.yaml:"
           grep "version:" pubspec.yaml
-
-      - name: Write PR info to temp files
-        if: steps.check_version_bump.outputs.already_done == 'false'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const title = '${{ steps.pr_info.outputs.pr_title }}'.replace(/'/g, '');
-            const body = `${{ steps.pr_info.outputs.pr_body }}`;
-            fs.writeFileSync('/tmp/pr_title.txt', title);
-            fs.writeFileSync('/tmp/pr_body.txt', body);
 
       - name: Update CHANGELOG.md
         if: steps.check_version_bump.outputs.already_done == 'false'
