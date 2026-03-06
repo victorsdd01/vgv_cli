@@ -354,7 +354,7 @@ class VgvCli {
         '--source',
         'git',
         'https://github.com/victorsdd01/vgv_cli.git'
-      ]);
+      ], runInShell: true);
       
       if (result.exitCode == 0) {
         final newVersion = await VersionChecker.getLatestCLIVersionAny();
