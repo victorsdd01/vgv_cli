@@ -41,8 +41,12 @@ jobs:
           HEAD_COMMIT_MSG=$(git log -1 --format="%s" || echo "")
           echo "HEAD commit message: $HEAD_COMMIT_MSG"
 
+          # Check if HEAD commit is a version bump commit OR a merge of a bump branch
           if echo "$HEAD_COMMIT_MSG" | grep -qi "chore: bump version"; then
             echo "HEAD commit is a version bump commit, skipping..."
+            echo "already_done=true" >> $GITHUB_OUTPUT
+          elif echo "$HEAD_COMMIT_MSG" | grep -qi "chore/bump-version"; then
+            echo "HEAD commit is a merge of a version bump branch, skipping..."
             echo "already_done=true" >> $GITHUB_OUTPUT
           else
             echo "already_done=false" >> $GITHUB_OUTPUT
