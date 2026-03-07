@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.45] - 2026-03-07
+
+### Changes
+- Merge pull request #47 from victorsdd01/chore/bump-version-1.10.44
+
 ## [1.10.44] - 2026-03-07
 
 ### Changes
