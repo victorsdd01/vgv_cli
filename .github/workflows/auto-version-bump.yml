@@ -219,7 +219,7 @@ jobs:
       - name: Create version bump PR
         if: steps.check_version_bump.outputs.already_done == 'false'
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.version }}"
           BUMP_BRANCH="chore/bump-version-$NEW_VERSION"
