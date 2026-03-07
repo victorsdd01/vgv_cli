@@ -1,4 +1,5 @@
 import 'package:interact/interact.dart';
+import '../../core/utils/ansi_colors.dart';
 import '../../domain/entities/project_config.dart';
 import '../../domain/repositories/project_repository.dart';
 
@@ -7,18 +8,16 @@ class CliController {
 
   CliController(this._projectRepository);
 
-  // ANSI Color Codes
-  static const String _reset = '\x1B[0m';
-  static const String _bold = '\x1B[1m';
-  static const String _dim = '\x1B[2m';
-  
-  // Colors
-  static const String _green = '\x1B[32m';
-  static const String _yellow = '\x1B[33m';
-  static const String _cyan = '\x1B[36m';
-  static const String _red = '\x1B[31m';
-  static const String _brightGreen = '\x1B[92m';
-  static const String _brightMagenta = '\x1B[95m';
+  // Short aliases for AnsiColors
+  static const String _reset = AnsiColors.reset;
+  static const String _bold = AnsiColors.bold;
+  static const String _dim = AnsiColors.dim;
+  static const String _green = AnsiColors.green;
+  static const String _yellow = AnsiColors.yellow;
+  static const String _cyan = AnsiColors.cyan;
+  static const String _red = AnsiColors.red;
+  static const String _brightGreen = AnsiColors.brightGreen;
+  static const String _brightMagenta = AnsiColors.brightMagenta;
 
   Future<void> runInteractiveMode() async {
     _printWelcomeMessage();
