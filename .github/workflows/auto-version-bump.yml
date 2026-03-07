@@ -90,38 +90,29 @@ jobs:
 
       - name: Get PR information
         id: pr_info
-        run: |
-          set -e
-          
-          # Get PR title and body, handling special characters safely
-          # For push events, use commit message
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            PR_TITLE="${{ github.event.pull_request.title }}"
-            PR_BODY="${{ github.event.pull_request.body }}"
-          else
-            # For push events, use commit message
-            PR_TITLE=$(git log -1 --pretty=%s "${{ github.sha }}")
-            PR_BODY=$(git log -1 --pretty=%b "${{ github.sha }}")
-          fi
-          
-          # Sanitize variables - remove carriage returns
-          PR_TITLE=$(echo "${PR_TITLE}" | tr -d '\r' || echo "")
-          PR_BODY=$(echo "${PR_BODY}" | tr -d '\r' || echo "")
-          
-          echo "PR Title: ${PR_TITLE}"
-          
-          # Use delimiter to handle multiline content safely
-          {
-            echo "pr_title<<EOF"
-            echo "${PR_TITLE}"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
-          
-          {
-            echo "pr_body<<EOF"
-            echo "${PR_BODY}"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let title = '';
+            let body = '';
+
+            if (context.eventName === 'pull_request') {
+              title = context.payload.pull_request?.title || '';
+              body = context.payload.pull_request?.body || '';
+            } else {
+              // For push events, use commit message
+              const commit = context.payload.head_commit;
+              title = commit?.message?.split('\n')[0] || '';
+              body = commit?.message?.split('\n').slice(1).join('\n').trim() || '';
+            }
+
+            // Write to temp files to avoid shell interpretation of special characters
+            fs.writeFileSync('/tmp/pr_title.txt', title);
+            fs.writeFileSync('/tmp/pr_body.txt', body);
+
+            // Also set outputs for steps that need them
+            core.setOutput('pr_title', title);
 
       - name: Configure Git
         if: steps.check_version_bump.outputs.already_done == 'false'
@@ -255,51 +246,52 @@ jobs:
 
       - name: Update CHANGELOG.md
         if: steps.check_version_bump.outputs.already_done == 'false'
+        env:
+          VERSION: ${{ steps.new_version.outputs.version }}
         run: |
-          VERSION="${{ steps.new_version.outputs.version }}"
-          PR_TITLE="${{ steps.pr_info.outputs.pr_title }}"
-          PR_BODY="${{ steps.pr_info.outputs.pr_body }}"
           DATE=$(date +%Y-%m-%d)
-          
+
+          # Read PR title and body safely from files (avoids shell interpretation of backticks)
+          PR_TITLE=$(cat /tmp/pr_title.txt 2>/dev/null || echo "")
+          PR_BODY=$(cat /tmp/pr_body.txt 2>/dev/null || echo "")
+
           # Clean PR title (remove version tags like [MINOR], [MAJOR], etc.)
-          CLEAN_TITLE=$(echo "$PR_TITLE" | sed 's/\[MINOR\]//g' | sed 's/\[MAJOR\]//g' | sed 's/\[PATCH\]//g' | sed 's/\[SKIP\]//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-          
+          CLEAN_TITLE=$(printf '%s' "$PR_TITLE" | sed 's/\[MINOR\]//g' | sed 's/\[MAJOR\]//g' | sed 's/\[PATCH\]//g' | sed 's/\[SKIP\]//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+
           # Extract changelog content from PR body if it exists
           CHANGELOG_CONTENT=""
-          if echo "$PR_BODY" | grep -qiE "## (Changelog|What's New|Changes)"; then
-            # Extract content between ## Changelog/What's New/Changes and next ##
-            CHANGELOG_CONTENT=$(echo "$PR_BODY" | sed -n '/## [Cc]hangelog\|## [Ww]hat'\''s [Nn]ew\|## [Cc]hanges/I,/^##/p' | sed '/^##/d' | sed '/^$/d' | head -n 10)
+          if printf '%s' "$PR_BODY" | grep -qiE "## (Changelog|What's New|Changes)"; then
+            CHANGELOG_CONTENT=$(printf '%s' "$PR_BODY" | sed -n '/## [Cc]hangelog\|## [Ww]hat'\''s [Nn]ew\|## [Cc]hanges/I,/^##/p' | sed '/^##/d' | sed '/^$/d' | head -n 10)
           fi
-          
+
           # If no changelog content found, use PR title
           if [ -z "$CHANGELOG_CONTENT" ] || [ "$CHANGELOG_CONTENT" = "" ]; then
             CHANGELOG_CONTENT="- $CLEAN_TITLE"
           else
-            # Format the content properly (ensure each line starts with -)
-            CHANGELOG_CONTENT=$(echo "$CHANGELOG_CONTENT" | sed 's/^/- /' | sed 's/^- -/-/')
+            CHANGELOG_CONTENT=$(printf '%s' "$CHANGELOG_CONTENT" | sed 's/^/- /' | sed 's/^- -/-/')
           fi
-          
+
           # Create Python script file
           cat > /tmp/update_changelog.py << 'PYEOF'
           import re
           import os
-          
+
           version = os.environ.get('VERSION', '')
           date = os.environ.get('DATE', '')
           changelog_content = os.environ.get('CHANGELOG_CONTENT', '')
-          
+
           # Create new changelog entry
           new_entry = f"""## [{version}] - {date}
-          
+
           ### Changes
           {changelog_content}
-          
+
           """
-          
+
           # Read current CHANGELOG
           with open('CHANGELOG.md', 'r', encoding='utf-8') as f:
               content = f.read()
-          
+
           # Find [Unreleased] section and insert after it
           if '## [Unreleased]' in content:
               # Find the end of [Unreleased] section (after the last item before next ##)
@@ -317,20 +309,20 @@ jobs:
               lines = content.split('\n')
               lines.insert(8, new_entry.strip())
               content = '\n'.join(lines)
-          
+
           # Write updated content
           with open('CHANGELOG.md', 'w', encoding='utf-8') as f:
               f.write(content)
-          
+
           print(f"✅ Updated CHANGELOG.md with version {version}")
           PYEOF
-          
+
           # Execute Python script with environment variables
-          export VERSION="${{ steps.new_version.outputs.version }}"
+          export VERSION="$VERSION"
           export DATE="$DATE"
           export CHANGELOG_CONTENT="$CHANGELOG_CONTENT"
           python3 /tmp/update_changelog.py
-          
+
           echo ""
           echo "📋 New changelog entry preview:"
           head -n 25 CHANGELOG.md
