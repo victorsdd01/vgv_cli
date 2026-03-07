@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:path/path.dart' as p;
 import '../../domain/entities/project_config.dart';
 
 /// Data source for Flutter command operations
@@ -11,15 +12,15 @@ abstract class FlutterCommandDataSource {
     required DesktopPlatform desktopPlatform,
     CustomDesktopPlatforms? customDesktopPlatforms,
   });
-  
+
   Future<bool> isFlutterInstalled();
-  
+
   Future<void> generateLocalizationFiles(String projectName);
-  
+
   Future<void> cleanBuildCache(String projectName);
-  
+
   Future<void> runBuildRunner(String projectName);
-  
+
   Future<void> setupCocoaPods(String projectName, List<PlatformType> platforms);
 }
 
@@ -34,11 +35,26 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
     required DesktopPlatform desktopPlatform,
     CustomDesktopPlatforms? customDesktopPlatforms,
   }) async {
+    // Validate project name is a valid Dart package name
+    if (!RegExp(r'^[a-z][a-z0-9_]*$').hasMatch(projectName)) {
+      throw FlutterCommandException(
+        'Invalid project name "$projectName". Must be lowercase with underscores only.',
+      );
+    }
+
+    // Check if directory already exists
+    final projectDir = Directory(p.join(Directory.current.path, projectName));
+    if (projectDir.existsSync()) {
+      throw FlutterCommandException(
+        'Directory "$projectName" already exists. Choose a different name or delete the existing directory.',
+      );
+    }
+
     final args = ['create', '--org', organizationName];
-    
+
     // Collect all platforms in a single list
     final allPlatforms = <String>[];
-    
+
     // Add mobile platforms
     if (platforms.contains(PlatformType.mobile)) {
       if (mobilePlatform == MobilePlatform.android || mobilePlatform == MobilePlatform.both) {
@@ -48,12 +64,12 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
         allPlatforms.add('ios');
       }
     }
-    
+
     // Add web platform
     if (platforms.contains(PlatformType.web)) {
       allPlatforms.add('web');
     }
-    
+
     // Add desktop platforms
     if (platforms.contains(PlatformType.desktop)) {
       if (desktopPlatform == DesktopPlatform.custom && customDesktopPlatforms != null) {
@@ -72,14 +88,14 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
         }
       }
     }
-    
+
     // Add single --platforms flag with all platforms combined
     if (allPlatforms.isNotEmpty) {
       args.add('--platforms=${allPlatforms.join(',')}');
     }
-    
+
     args.add(projectName);
-    
+
     final result = await Process.run(
       'flutter',
       args,
@@ -107,7 +123,6 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
   @override
   Future<void> generateLocalizationFiles(String projectName) async {
     try {
-      // Always run intl_utils:generate directly since it's more reliable
       final result = await Process.run(
         'dart',
         ['run', 'intl_utils:generate'],
@@ -116,39 +131,36 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
       );
 
       if (result.exitCode != 0) {
-        print('Warning: Failed to generate localization files. You may need to run "dart run intl_utils:generate" manually.');
+        // Silent: runs during spinner animation
       }
 
-      // Always fix the import in app_localizations.dart after generation
       await _fixAppLocalizationsImport(projectName);
-    } catch (e) {
-      print('Warning: Failed to generate localization files: $e');
+    } catch (_) {
+      // Silent: runs during spinner animation
     }
   }
 
   Future<void> _fixAppLocalizationsImport(String projectName) async {
     try {
-      final appLocalizationsFile = File('$projectName/lib/application/generated/l10n/app_localizations.dart');
+      final appLocalizationsFile = File(p.join(projectName, 'lib', 'application', 'generated', 'l10n', 'app_localizations.dart'));
       if (appLocalizationsFile.existsSync()) {
         String content = appLocalizationsFile.readAsStringSync();
-        
-        // Replace the wrong import with the correct one
+
         content = content.replaceFirst(
           "import 'package:flutter_gen/gen_l10n/app_localizations.dart';",
           "import '../l10n.dart';"
         );
-        
+
         appLocalizationsFile.writeAsStringSync(content);
       }
-    } catch (e) {
-      // Silently handle the error - this is not critical for the user experience
+    } catch (_) {
+      // Silent: runs during spinner animation
     }
   }
 
   @override
   Future<void> cleanBuildCache(String projectName) async {
     try {
-      // Run flutter clean to clear build cache
       final result = await Process.run(
         'flutter',
         ['clean'],
@@ -157,7 +169,6 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
       );
 
       if (result.exitCode == 0) {
-        // Run flutter pub get to restore dependencies
         await Process.run(
           'flutter',
           ['pub', 'get'],
@@ -165,8 +176,8 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
           runInShell: true,
         );
       }
-    } catch (e) {
-      print('Warning: Failed to clean build cache: $e');
+    } catch (_) {
+      // Silent: runs during spinner animation
     }
   }
 
@@ -181,24 +192,26 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
       );
 
       if (result.exitCode != 0) {
-        // Warning will be shown silently - user can run manually if needed
+        // Silent: runs during spinner animation
       }
-    } catch (e) {
-      // Silently handle - user can run manually if needed
+    } catch (_) {
+      // Silent: runs during spinner animation
     }
   }
 
   @override
   Future<void> setupCocoaPods(String projectName, List<PlatformType> platforms) async {
-    final bool hasIOS = platforms.contains(PlatformType.mobile) && 
-                        Directory('$projectName/ios').existsSync();
-    final bool hasMacOS = platforms.contains(PlatformType.desktop) && 
-                          Directory('$projectName/macos').existsSync();
-    
+    final iosPath = p.join(projectName, 'ios');
+    final macosPath = p.join(projectName, 'macos');
+    final bool hasIOS = platforms.contains(PlatformType.mobile) &&
+                        Directory(iosPath).existsSync();
+    final bool hasMacOS = platforms.contains(PlatformType.desktop) &&
+                          Directory(macosPath).existsSync();
+
     if (!hasIOS && !hasMacOS) {
       return;
     }
-    
+
     try {
       // CocoaPods is only available on macOS
       if (!Platform.isMacOS) return;
@@ -210,11 +223,11 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
 
       // Setup iOS CocoaPods
       if (hasIOS) {
-        final iosDir = Directory('$projectName/ios');
+        final iosDir = Directory(iosPath);
         if (iosDir.existsSync()) {
-          final podsDir = Directory('$projectName/ios/Pods');
-          final podfileLock = File('$projectName/ios/Podfile.lock');
-          
+          final podsDir = Directory(p.join(iosPath, 'Pods'));
+          final podfileLock = File(p.join(iosPath, 'Podfile.lock'));
+
           if (podsDir.existsSync()) {
             await podsDir.delete(recursive: true);
           }
@@ -222,18 +235,18 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
             await podfileLock.delete();
           }
 
-          await Process.run('pod', ['repo', 'update'], workingDirectory: '$projectName/ios', runInShell: true);
-          await Process.run('pod', ['install', '--repo-update'], workingDirectory: '$projectName/ios', runInShell: true);
+          await Process.run('pod', ['repo', 'update'], workingDirectory: iosPath, runInShell: true);
+          await Process.run('pod', ['install', '--repo-update'], workingDirectory: iosPath, runInShell: true);
         }
       }
 
       // Setup macOS CocoaPods
       if (hasMacOS) {
-        final macosDir = Directory('$projectName/macos');
+        final macosDir = Directory(macosPath);
         if (macosDir.existsSync()) {
-          final podsDir = Directory('$projectName/macos/Pods');
-          final podfileLock = File('$projectName/macos/Podfile.lock');
-          
+          final podsDir = Directory(p.join(macosPath, 'Pods'));
+          final podfileLock = File(p.join(macosPath, 'Podfile.lock'));
+
           if (podsDir.existsSync()) {
             await podsDir.delete(recursive: true);
           }
@@ -241,12 +254,12 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
             await podfileLock.delete();
           }
 
-          await Process.run('pod', ['repo', 'update'], workingDirectory: '$projectName/macos', runInShell: true);
-          await Process.run('pod', ['install', '--repo-update'], workingDirectory: '$projectName/macos', runInShell: true);
+          await Process.run('pod', ['repo', 'update'], workingDirectory: macosPath, runInShell: true);
+          await Process.run('pod', ['install', '--repo-update'], workingDirectory: macosPath, runInShell: true);
         }
       }
-    } catch (e) {
-      // Silently handle - user can run pod install manually if needed
+    } catch (_) {
+      // Silent: runs during spinner animation
     }
   }
 }
@@ -258,4 +271,4 @@ class FlutterCommandException implements Exception {
 
   @override
   String toString() => 'FlutterCommandException: $message';
-} 
+}

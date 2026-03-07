@@ -3,14 +3,16 @@
 import 'dart:io';
 import 'package:args/args.dart';
 import 'core/di/dependency_injection.dart';
+import 'core/utils/ansi_colors.dart';
 import 'core/utils/version_checker.dart';
 import 'presentation/controllers/cli_controller.dart';
 
+// Short alias for AnsiColors to keep print statements readable
 /// Main CLI class for VGV
 class VgvCli {
   static const String _appName = 'vgv';
   static const String _description = 'A Flutter CLI tool for creating projects with interactive prompts.';
-  
+
   /// Get current version from pubspec.yaml
   static String get _version => VersionChecker.getCurrentVersion();
 
@@ -91,7 +93,7 @@ class VgvCli {
         }
       }
     } catch (e) {
-      // Silently fail - not critical
+      stderr.writeln('Warning: Could not initialize version file: $e');
     }
   }
 
@@ -154,16 +156,9 @@ class VgvCli {
   }
 
   Future<void> _showUpdateProgress() async {
-    const String reset = '\x1B[0m';
-    const String bold = '\x1B[1m';
-    const String brightGreen = '\x1B[92m';
-    const String brightYellow = '\x1B[93m';
-    const String brightCyan = '\x1B[96m';
-    const String dim = '\x1B[2m';
-    
-    print('${brightCyan}${bold}Update Progress${reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}Update Progress${AnsiColors.reset}');
     print('');
-    
+
     final steps = [
       {'text': 'Checking for latest version', 'duration': 600},
       {'text': 'Downloading new version', 'duration': 1200},
@@ -171,51 +166,46 @@ class VgvCli {
       {'text': 'Updating global package', 'duration': 800},
       {'text': 'Finalizing installation', 'duration': 600},
     ];
-    
+
     for (int i = 0; i < steps.length; i++) {
       final step = steps[i];
-      
-      print('${brightCyan}${bold}[${i + 1}/${steps.length}]${reset} ${brightYellow}${step['text']}${reset}');
-      
-      stdout.write('${dim}    ${_getSpinner(0)} [${_getProgressBar(0)}] 0%${reset}');
-      
+
+      print('${AnsiColors.brightCyan}${AnsiColors.bold}[${i + 1}/${steps.length}]${AnsiColors.reset} ${AnsiColors.brightYellow}${step['text']}${AnsiColors.reset}');
+
+      stdout.write('${AnsiColors.dim}    ${_getSpinner(0)} [${_getProgressBar(0)}] 0%${AnsiColors.reset}');
+
       for (int p = 0; p <= 100; p += 5) {
         await Future.delayed(Duration(milliseconds: (step['duration'] as int) ~/ 20));
-        stdout.write('\r${dim}    ${_getSpinner(p ~/ 5)} [${_getProgressBar(p)}] ${p.toString().padLeft(3)}%${reset}');
+        stdout.write('\r${AnsiColors.dim}    ${_getSpinner(p ~/ 5)} [${_getProgressBar(p)}] ${p.toString().padLeft(3)}%${AnsiColors.reset}');
       }
-      
-      print(' ${brightGreen}done${reset}');
+
+      print(' ${AnsiColors.brightGreen}done${AnsiColors.reset}');
     }
-    
+
     print('');
-    print('${brightGreen}${bold}All steps completed successfully${reset}');
+    print('${AnsiColors.brightGreen}${AnsiColors.bold}All steps completed successfully${AnsiColors.reset}');
     print('');
   }
-  
+
   Future<void> _showCompletionCelebration() async {
-    const String reset = '\x1B[0m';
-    const String bold = '\x1B[1m';
-    const String brightGreen = '\x1B[92m';
-    const String brightMagenta = '\x1B[95m';
-    
     print('');
-    print('${brightMagenta}${bold}╔══════════════════════════════════════════════════════════════╗${reset}');
-    print('${brightMagenta}${bold}║${reset}${brightGreen}${bold}                       UPDATE COMPLETE                        ${reset}${brightMagenta}${bold}║${reset}');
-    print('${brightMagenta}${bold}╚══════════════════════════════════════════════════════════════╝${reset}');
+    print('${AnsiColors.brightMagenta}${AnsiColors.bold}╔══════════════════════════════════════════════════════════════╗${AnsiColors.reset}');
+    print('${AnsiColors.brightMagenta}${AnsiColors.bold}║${AnsiColors.reset}${AnsiColors.brightGreen}${AnsiColors.bold}                       UPDATE COMPLETE                        ${AnsiColors.reset}${AnsiColors.brightMagenta}${AnsiColors.bold}║${AnsiColors.reset}');
+    print('${AnsiColors.brightMagenta}${AnsiColors.bold}╚══════════════════════════════════════════════════════════════╝${AnsiColors.reset}');
     print('');
   }
-  
+
   String _getProgressBar(int percentage) {
     const int barLength = 20;
     final filledLength = (percentage / 100 * barLength).round();
     final emptyLength = barLength - filledLength;
-    
+
     final filled = '█' * filledLength;
     final empty = '░' * emptyLength;
-    
+
     return filled + empty;
   }
-  
+
   String _getSpinner(int step) {
     final spinners = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
     return spinners[step % spinners.length];
@@ -225,26 +215,21 @@ class VgvCli {
     try {
       final currentVersion = _version;
       final latestVersion = await VersionChecker.getLatestCLIVersionAny();
-      
+
       if (latestVersion != null) {
         final isUpdateAvailable = VersionChecker.compareVersions(currentVersion, latestVersion) < 0;
-        
+
         if (isUpdateAvailable) {
-          const String reset = '\x1B[0m';
-          const String bold = '\x1B[1m';
-          const String brightYellow = '\x1B[93m';
-          const String dim = '\x1B[2m';
-          
           print('');
-          print('${brightYellow}${bold}Update Available${reset}');
-          print('${dim}   Current: $currentVersion${reset}');
-          print('${dim}   Latest:  $latestVersion${reset}');
-          print('${dim}   Run: vgv -u to update${reset}');
+          print('${AnsiColors.brightYellow}${AnsiColors.bold}Update Available${AnsiColors.reset}');
+          print('${AnsiColors.dim}   Current: $currentVersion${AnsiColors.reset}');
+          print('${AnsiColors.dim}   Latest:  $latestVersion${AnsiColors.reset}');
+          print('${AnsiColors.dim}   Run: vgv -u to update${AnsiColors.reset}');
           print('');
         }
       }
     } catch (e) {
-      // Silently fail
+      // Update check failure is not critical
     }
   }
 
@@ -253,33 +238,26 @@ class VgvCli {
   }
 
   Future<void> _runDryRun(String? projectName, String? organization, String? outputDir) async {
-    const String reset = '\x1B[0m';
-    const String bold = '\x1B[1m';
-    const String brightCyan = '\x1B[96m';
-    const String brightYellow = '\x1B[93m';
-    const String brightGreen = '\x1B[92m';
-    const String dim = '\x1B[2m';
-
     final defaultOrg = projectName != null ? 'com.$projectName' : '<interactive>';
-    
+
     print('');
-    print('${brightCyan}${bold}DRY RUN - No files will be created${reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}DRY RUN - No files will be created${AnsiColors.reset}');
     print('');
-    print('${brightGreen}${bold}Configuration:${reset}');
-    print('${dim}   Project Name:  ${reset}${brightYellow}${projectName ?? "<interactive>"}${reset}');
-    print('${dim}   Organization:  ${reset}${brightYellow}${organization ?? defaultOrg}${reset}');
-    print('${dim}   Output:        ${reset}${brightYellow}${outputDir ?? Directory.current.path}${reset}');
+    print('${AnsiColors.brightGreen}${AnsiColors.bold}Configuration:${AnsiColors.reset}');
+    print('${AnsiColors.dim}   Project Name:  ${AnsiColors.reset}${AnsiColors.brightYellow}${projectName ?? "<interactive>"}${AnsiColors.reset}');
+    print('${AnsiColors.dim}   Organization:  ${AnsiColors.reset}${AnsiColors.brightYellow}${organization ?? defaultOrg}${AnsiColors.reset}');
+    print('${AnsiColors.dim}   Output:        ${AnsiColors.reset}${AnsiColors.brightYellow}${outputDir ?? Directory.current.path}${AnsiColors.reset}');
     print('');
-    print('${brightGreen}${bold}Would create:${reset}');
-    print('${dim}   - Flutter project with Clean Architecture${reset}');
-    print('${dim}   - BLoC state management with Freezed${reset}');
-    print('${dim}   - GoRouter navigation${reset}');
-    print('${dim}   - Internationalization (en, es)${reset}');
-    print('${dim}   - Environment configs (dev, staging, production)${reset}');
-    print('${dim}   - VS Code launch configurations${reset}');
-    print('${dim}   - Auth feature (login, register)${reset}');
-    print('${dim}   - Home feature${reset}');
-    print('${dim}   - Settings feature (theme, language)${reset}');
+    print('${AnsiColors.brightGreen}${AnsiColors.bold}Would create:${AnsiColors.reset}');
+    print('${AnsiColors.dim}   - Flutter project with Clean Architecture${AnsiColors.reset}');
+    print('${AnsiColors.dim}   - BLoC state management with Freezed${AnsiColors.reset}');
+    print('${AnsiColors.dim}   - GoRouter navigation${AnsiColors.reset}');
+    print('${AnsiColors.dim}   - Internationalization (en, es)${AnsiColors.reset}');
+    print('${AnsiColors.dim}   - Environment configs (dev, staging, production)${AnsiColors.reset}');
+    print('${AnsiColors.dim}   - VS Code launch configurations${AnsiColors.reset}');
+    print('${AnsiColors.dim}   - Auth feature (login, register)${AnsiColors.reset}');
+    print('${AnsiColors.dim}   - Home feature${AnsiColors.reset}');
+    print('${AnsiColors.dim}   - Settings feature (theme, language)${AnsiColors.reset}');
     print('');
   }
 
@@ -300,21 +278,12 @@ class VgvCli {
   }
 
   Future<void> _updateCLI() async {
-    const String reset = '\x1B[0m';
-    const String bold = '\x1B[1m';
-    const String brightCyan = '\x1B[96m';
-    const String brightGreen = '\x1B[92m';
-    const String brightYellow = '\x1B[93m';
-    const String brightRed = '\x1B[91m';
-    const String red = '\x1B[31m';
-    const String dim = '\x1B[2m';
-    
     print('');
-    print('${brightCyan}${bold}╔══════════════════════════════════════════════════════════════╗${reset}');
-    print('${brightCyan}${bold}║${reset}${bold}                          VGV UPDATE                          ${reset}${brightCyan}${bold}║${reset}');
-    print('${brightCyan}${bold}╚══════════════════════════════════════════════════════════════╝${reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}╔══════════════════════════════════════════════════════════════╗${AnsiColors.reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}║${AnsiColors.reset}${AnsiColors.bold}                          VGV UPDATE                          ${AnsiColors.reset}${AnsiColors.brightCyan}${AnsiColors.bold}║${AnsiColors.reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}╚══════════════════════════════════════════════════════════════╝${AnsiColors.reset}');
     print('');
-    
+
     String currentVersion = _version;
     if (currentVersion == '1.0.0') {
       final gitCurrentVersion = await VersionChecker.getLatestCLIVersionFromGit();
@@ -322,31 +291,31 @@ class VgvCli {
         currentVersion = gitCurrentVersion;
       }
     }
-    print('${brightGreen}${bold}Current:${reset} ${brightYellow}$currentVersion${reset}');
-    
+    print('${AnsiColors.brightGreen}${AnsiColors.bold}Current:${AnsiColors.reset} ${AnsiColors.brightYellow}$currentVersion${AnsiColors.reset}');
+
     final latestVersion = await VersionChecker.getLatestCLIVersionAny();
     if (latestVersion != null) {
-      print('${brightGreen}${bold}Latest:${reset}  ${brightYellow}$latestVersion${reset}');
-      
+      print('${AnsiColors.brightGreen}${AnsiColors.bold}Latest:${AnsiColors.reset}  ${AnsiColors.brightYellow}$latestVersion${AnsiColors.reset}');
+
       if (latestVersion == currentVersion) {
         print('');
-        print('${brightGreen}${bold}You already have the latest version${reset}');
+        print('${AnsiColors.brightGreen}${AnsiColors.bold}You already have the latest version${AnsiColors.reset}');
         print('');
         return;
       }
     } else {
-      print('${brightYellow}Could not check for latest version${reset}');
-      print('${dim}Proceeding with update from main branch...${reset}');
+      print('${AnsiColors.brightYellow}Could not check for latest version${AnsiColors.reset}');
+      print('${AnsiColors.dim}Proceeding with update from main branch...${AnsiColors.reset}');
     }
-    
+
     print('');
-    
+
     try {
-      print('${brightYellow}${bold}Updating VGV CLI...${reset}');
+      print('${AnsiColors.brightYellow}${AnsiColors.bold}Updating VGV CLI...${AnsiColors.reset}');
       print('');
-      
+
       await _showUpdateProgress();
-      
+
       final result = Process.runSync('dart', [
         'pub',
         'global',
@@ -355,7 +324,7 @@ class VgvCli {
         'git',
         'https://github.com/victorsdd01/vgv_cli.git'
       ], runInShell: true);
-      
+
       if (result.exitCode == 0) {
         final newVersion = await VersionChecker.getLatestCLIVersionAny();
         if (newVersion != null) {
@@ -366,128 +335,113 @@ class VgvCli {
             VersionChecker.saveInstalledVersion(currentVersion);
           }
         }
-        
+
         await _showCompletionCelebration();
-        print('${brightGreen}${bold}VGV CLI updated successfully${reset}');
+        print('${AnsiColors.brightGreen}${AnsiColors.bold}VGV CLI updated successfully${AnsiColors.reset}');
         print('');
-        print('${brightCyan}${bold}What\'s new:${reset}');
-        print('${dim}   - Latest features and improvements${reset}');
-        print('${dim}   - Bug fixes and performance enhancements${reset}');
-        print('${dim}   - Updated dependencies and templates${reset}');
+        print('${AnsiColors.brightCyan}${AnsiColors.bold}What\'s new:${AnsiColors.reset}');
+        print('${AnsiColors.dim}   - Latest features and improvements${AnsiColors.reset}');
+        print('${AnsiColors.dim}   - Bug fixes and performance enhancements${AnsiColors.reset}');
+        print('${AnsiColors.dim}   - Updated dependencies and templates${AnsiColors.reset}');
         print('');
-        print('${brightGreen}Ready to create Flutter projects${reset}');
+        print('${AnsiColors.brightGreen}Ready to create Flutter projects${AnsiColors.reset}');
         print('');
       } else {
-        print('${brightRed}${bold}Update failed${reset}');
-        print('${red}${result.stderr}${reset}');
+        print('${AnsiColors.brightRed}${AnsiColors.bold}Update failed${AnsiColors.reset}');
+        print('${AnsiColors.red}${result.stderr}${AnsiColors.reset}');
         print('');
-        print('${brightYellow}Try: vgv -u${reset}');
+        print('${AnsiColors.brightYellow}Try: vgv -u${AnsiColors.reset}');
         print('');
       }
     } catch (e) {
-      print('${brightRed}${bold}Update failed:${reset} ${red}$e${reset}');
+      print('${AnsiColors.brightRed}${AnsiColors.bold}Update failed:${AnsiColors.reset} ${AnsiColors.red}$e${AnsiColors.reset}');
       print('');
-      print('${brightYellow}Try: vgv -u${reset}');
+      print('${AnsiColors.brightYellow}Try: vgv -u${AnsiColors.reset}');
       print('');
     }
   }
 
   Future<void> _printVersion() async {
-    const String reset = '\x1B[0m';
-    const String bold = '\x1B[1m';
-    const String brightCyan = '\x1B[96m';
-    const String brightMagenta = '\x1B[95m';
-    const String brightGreen = '\x1B[92m';
-    const String brightYellow = '\x1B[93m';
-    const String dim = '\x1B[2m';
-    
     print('');
-    print('${brightCyan}${bold}╔══════════════════════════════════════════════════════════════╗${reset}');
-    print('${brightCyan}${bold}║${reset}${brightMagenta}${bold}                           VGV CLI                            ${reset}${brightCyan}${bold}║${reset}');
-    print('${brightCyan}${bold}║${reset}${dim}           The Ultimate Flutter Project Generator           ${reset}${brightCyan}${bold}║${reset}');
-    print('${brightCyan}${bold}╚══════════════════════════════════════════════════════════════╝${reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}╔══════════════════════════════════════════════════════════════╗${AnsiColors.reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}║${AnsiColors.reset}${AnsiColors.brightMagenta}${AnsiColors.bold}                           VGV CLI                            ${AnsiColors.reset}${AnsiColors.brightCyan}${AnsiColors.bold}║${AnsiColors.reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}║${AnsiColors.reset}${AnsiColors.dim}           The Ultimate Flutter Project Generator           ${AnsiColors.reset}${AnsiColors.brightCyan}${AnsiColors.bold}║${AnsiColors.reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}╚══════════════════════════════════════════════════════════════╝${AnsiColors.reset}');
     print('');
-    
+
     final currentVersion = VersionChecker.getCurrentVersion();
-    print('${brightGreen}${bold}Version:${reset}     ${brightYellow}$currentVersion${reset}');
-    
+    print('${AnsiColors.brightGreen}${AnsiColors.bold}Version:${AnsiColors.reset}     ${AnsiColors.brightYellow}$currentVersion${AnsiColors.reset}');
+
     try {
       final latestVersion = await VersionChecker.getLatestCLIVersionAny();
-      
+
       if (latestVersion != null) {
         final comparison = VersionChecker.compareVersions(currentVersion, latestVersion);
         if (comparison < 0) {
-          print('${brightYellow}${bold}Latest:${reset}      ${brightYellow}$latestVersion${reset} ${brightYellow}(update available)${reset}');
+          print('${AnsiColors.brightYellow}${AnsiColors.bold}Latest:${AnsiColors.reset}      ${AnsiColors.brightYellow}$latestVersion${AnsiColors.reset} ${AnsiColors.brightYellow}(update available)${AnsiColors.reset}');
           print('');
-          print('${dim}Run: vgv -u to update${reset}');
+          print('${AnsiColors.dim}Run: vgv -u to update${AnsiColors.reset}');
         } else if (comparison == 0) {
-          print('${brightGreen}${bold}Status:${reset}      ${brightGreen}Up to date${reset}');
+          print('${AnsiColors.brightGreen}${AnsiColors.bold}Status:${AnsiColors.reset}      ${AnsiColors.brightGreen}Up to date${AnsiColors.reset}');
         } else {
-          print('${brightYellow}${bold}Status:${reset}      ${brightYellow}Development version${reset}');
-          print('${dim}Latest stable: $latestVersion${reset}');
+          print('${AnsiColors.brightYellow}${AnsiColors.bold}Status:${AnsiColors.reset}      ${AnsiColors.brightYellow}Development version${AnsiColors.reset}');
+          print('${AnsiColors.dim}Latest stable: $latestVersion${AnsiColors.reset}');
         }
       } else {
-        print('${dim}Status:      Could not check for updates${reset}');
+        print('${AnsiColors.dim}Status:      Could not check for updates${AnsiColors.reset}');
       }
     } catch (e) {
-      // Silently fail
+      // Version check failure is not critical
     }
-    
+
     print('');
-    print('${brightGreen}${bold}Description:${reset} ${dim}$_description${reset}');
-    print('${brightCyan}${bold}Repository:${reset}  ${dim}https://github.com/victorsdd01/vgv_cli${reset}');
-    print('${brightCyan}${bold}Update:${reset}      ${dim}vgv -u | vgv --update${reset}');
+    print('${AnsiColors.brightGreen}${AnsiColors.bold}Description:${AnsiColors.reset} ${AnsiColors.dim}$_description${AnsiColors.reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}Repository:${AnsiColors.reset}  ${AnsiColors.dim}https://github.com/victorsdd01/vgv_cli${AnsiColors.reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}Update:${AnsiColors.reset}      ${AnsiColors.dim}vgv -u | vgv --update${AnsiColors.reset}');
     print('');
   }
 
   void _printUsage() {
-    const String reset = '\x1B[0m';
-    const String bold = '\x1B[1m';
-    const String brightCyan = '\x1B[96m';
-    const String brightGreen = '\x1B[92m';
-    const String brightYellow = '\x1B[93m';
-    const String dim = '\x1B[2m';
-    
     print('');
-    print('${brightCyan}${bold}╔══════════════════════════════════════════════════════════════╗${reset}');
-    print('${brightCyan}${bold}║${reset}${bold}                            VGV CLI                           ${reset}${brightCyan}${bold}║${reset}');
-    print('${brightCyan}${bold}╚══════════════════════════════════════════════════════════════╝${reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}╔══════════════════════════════════════════════════════════════╗${AnsiColors.reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}║${AnsiColors.reset}${AnsiColors.bold}                            VGV CLI                           ${AnsiColors.reset}${AnsiColors.brightCyan}${AnsiColors.bold}║${AnsiColors.reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}╚══════════════════════════════════════════════════════════════╝${AnsiColors.reset}');
     print('');
-    print('${brightGreen}${bold}Description:${reset} ${dim}$_description${reset}');
+    print('${AnsiColors.brightGreen}${AnsiColors.bold}Description:${AnsiColors.reset} ${AnsiColors.dim}$_description${AnsiColors.reset}');
     print('');
-    print('${brightGreen}${bold}Usage:${reset}');
-    print('  ${brightYellow}$_appName${reset}                    ${dim}Start interactive mode${reset}');
-    print('  ${brightYellow}$_appName${reset} ${brightCyan}-q${reset}                 ${dim}Quick mode with defaults${reset}');
-    print('  ${brightYellow}$_appName${reset} ${brightCyan}-n${reset} <name>          ${dim}Create project with name${reset}');
-    print('  ${brightYellow}$_appName${reset} ${brightCyan}-n${reset} <name> ${brightCyan}--org${reset} <org> ${dim}With organization${reset}');
+    print('${AnsiColors.brightGreen}${AnsiColors.bold}Usage:${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset}                    ${AnsiColors.dim}Start interactive mode${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}-q${AnsiColors.reset}                 ${AnsiColors.dim}Quick mode with defaults${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}-n${AnsiColors.reset} <name>          ${AnsiColors.dim}Create project with name${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}-n${AnsiColors.reset} <name> ${AnsiColors.brightCyan}--org${AnsiColors.reset} <org> ${AnsiColors.dim}With organization${AnsiColors.reset}');
     print('');
-    print('${brightGreen}${bold}Flags:${reset}');
-    print('  ${brightCyan}-h, --help${reset}                   ${dim}Show this help message${reset}');
-    print('  ${brightCyan}-v, --version${reset}                ${dim}Show version information${reset}');
-    print('  ${brightCyan}-u, --update${reset}                 ${dim}Update to latest version${reset}');
-    print('  ${brightCyan}-q, --quick${reset}                  ${dim}Quick mode with defaults${reset}');
-    print('  ${brightCyan}-n, --name${reset} <name>            ${dim}Project name${reset}');
-    print('  ${brightCyan}    --org${reset} <org>              ${dim}Organization (com.example)${reset}');
-    print('  ${brightCyan}-o, --output${reset} <dir>           ${dim}Output directory${reset}');
-    print('  ${brightCyan}    --no-git${reset}                 ${dim}Skip git initialization${reset}');
-    print('  ${brightCyan}    --dry-run${reset}                ${dim}Preview without creating${reset}');
+    print('${AnsiColors.brightGreen}${AnsiColors.bold}Flags:${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}-h, --help${AnsiColors.reset}                   ${AnsiColors.dim}Show this help message${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}-v, --version${AnsiColors.reset}                ${AnsiColors.dim}Show version information${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}-u, --update${AnsiColors.reset}                 ${AnsiColors.dim}Update to latest version${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}-q, --quick${AnsiColors.reset}                  ${AnsiColors.dim}Quick mode with defaults${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}-n, --name${AnsiColors.reset} <name>            ${AnsiColors.dim}Project name${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}    --org${AnsiColors.reset} <org>              ${AnsiColors.dim}Organization (com.example)${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}-o, --output${AnsiColors.reset} <dir>           ${AnsiColors.dim}Output directory${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}    --no-git${AnsiColors.reset}                 ${AnsiColors.dim}Skip git initialization${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}    --dry-run${AnsiColors.reset}                ${AnsiColors.dim}Preview without creating${AnsiColors.reset}');
     print('');
-    print('${brightGreen}${bold}Examples:${reset}');
-    print('  ${dim}$_appName${reset}');
-    print('  ${dim}$_appName -q -n my_app${reset}');
-    print('  ${dim}$_appName -n my_app --org com.mycompany${reset}');
-    print('  ${dim}$_appName -n my_app -o ~/projects --no-git${reset}');
-    print('  ${dim}$_appName --dry-run -n test_app${reset}');
+    print('${AnsiColors.brightGreen}${AnsiColors.bold}Examples:${AnsiColors.reset}');
+    print('  ${AnsiColors.dim}$_appName${AnsiColors.reset}');
+    print('  ${AnsiColors.dim}$_appName -q -n my_app${AnsiColors.reset}');
+    print('  ${AnsiColors.dim}$_appName -n my_app --org com.mycompany${AnsiColors.reset}');
+    print('  ${AnsiColors.dim}$_appName -n my_app -o ~/projects --no-git${AnsiColors.reset}');
+    print('  ${AnsiColors.dim}$_appName --dry-run -n test_app${AnsiColors.reset}');
     print('');
-    print('${brightGreen}${bold}Features:${reset}');
-    print('  ${dim}- Clean Architecture with BLoC + Freezed${reset}');
-    print('  ${dim}- Multi-platform support (iOS, Android, Web, Desktop)${reset}');
-    print('  ${dim}- Environment configs (dev, staging, production)${reset}');
-    print('  ${dim}- Internationalization (en, es)${reset}');
-    print('  ${dim}- GoRouter navigation${reset}');
-    print('  ${dim}- VS Code debug configurations${reset}');
+    print('${AnsiColors.brightGreen}${AnsiColors.bold}Features:${AnsiColors.reset}');
+    print('  ${AnsiColors.dim}- Clean Architecture with BLoC + Freezed${AnsiColors.reset}');
+    print('  ${AnsiColors.dim}- Multi-platform support (iOS, Android, Web, Desktop)${AnsiColors.reset}');
+    print('  ${AnsiColors.dim}- Environment configs (dev, staging, production)${AnsiColors.reset}');
+    print('  ${AnsiColors.dim}- Internationalization (en, es)${AnsiColors.reset}');
+    print('  ${AnsiColors.dim}- GoRouter navigation${AnsiColors.reset}');
+    print('  ${AnsiColors.dim}- VS Code debug configurations${AnsiColors.reset}');
     print('');
-    print('${brightCyan}${bold}Repository:${reset} ${dim}https://github.com/victorsdd01/vgv_cli${reset}');
+    print('${AnsiColors.brightCyan}${AnsiColors.bold}Repository:${AnsiColors.reset} ${AnsiColors.dim}https://github.com/victorsdd01/vgv_cli${AnsiColors.reset}');
     print('');
   }
 }

@@ -56,156 +56,47 @@ class VersionChecker {
     return null;
   }
   
-  /// Get current version from pubspec.yaml or from installed package
+  /// Get current version from saved file or dart pub global list
   static String getCurrentVersion() {
-    // First, try to get version from the saved version file (most reliable)
+    // 1. Try saved version file (most reliable for installed CLI)
     final savedVersion = getInstalledVersionFromFile();
     if (savedVersion != null) {
       return savedVersion;
     }
-    
+
+    // 2. Try dart pub global list
     try {
-      // Second, try to get version from dart pub global list
-      try {
-        final result = Process.runSync(
-          'dart',
-          ['pub', 'global', 'list'],
-          runInShell: true,
-        );
-        if (result.exitCode == 0) {
-          final output = result.stdout.toString();
-          // Look for vgv_cli in the output
-          final lines = output.split('\n');
-          for (final line in lines) {
-            if (line.contains('vgv_cli')) {
-              // Format is usually: "vgv_cli 1.10.6 from git ..."
-              final versionMatch = RegExp(r'vgv_cli\s+(\d+\.\d+\.\d+)').firstMatch(line);
-              if (versionMatch != null) {
-                final version = versionMatch.group(1)!;
-                // Only save if version file doesn't exist (don't overwrite existing)
-                if (getInstalledVersionFromFile() == null) {
-                  saveInstalledVersion(version);
-                }
-                return version;
-              }
-            }
-          }
+      final result = Process.runSync(
+        'dart',
+        ['pub', 'global', 'list'],
+        runInShell: true,
+      );
+      if (result.exitCode == 0) {
+        final versionMatch = RegExp(r'vgv_cli\s+(\d+\.\d+\.\d+)')
+            .firstMatch(result.stdout.toString());
+        if (versionMatch != null) {
+          final version = versionMatch.group(1)!;
+          saveInstalledVersion(version);
+          return version;
         }
-      } catch (e) {
-        // Continue to fallback methods
       }
-      
-      // Fallback: try to find pubspec.yaml
-      final pubspecPath = _findPubspecPath();
-      if (pubspecPath != null) {
-        final file = File(pubspecPath);
-        if (file.existsSync()) {
-          final content = file.readAsStringSync();
+    } catch (_) {}
+
+    // 3. Try local pubspec.yaml (development mode)
+    try {
+      final localPubspec = File(path.join(Directory.current.path, 'pubspec.yaml'));
+      if (localPubspec.existsSync()) {
+        final content = localPubspec.readAsStringSync();
+        if (content.contains('name: vgv_cli')) {
           final versionMatch = RegExp(r'version:\s*(\d+\.\d+\.\d+)').firstMatch(content);
           if (versionMatch != null) {
-            final version = versionMatch.group(1)!;
-            // Only save if version file doesn't exist (don't overwrite existing)
-            if (getInstalledVersionFromFile() == null) {
-              saveInstalledVersion(version);
-            }
-            return version;
+            return versionMatch.group(1)!;
           }
         }
       }
-      
-      // Last resort: try to get from Git repository
-      try {
-        final gitVersion = getLatestCLIVersionFromGitSync();
-        if (gitVersion != null) {
-          // Don't save Git version as installed version, it's just a fallback
-          return gitVersion;
-        }
-      } catch (e) {
-        // Ignore errors
-      }
-    } catch (e) {
-      // Fallback to default version
-    }
-    
+    } catch (_) {}
+
     return '1.0.0';
-  }
-  
-  /// Find pubspec.yaml path (works when installed globally or locally)
-  /// Prioritizes pub-cache (global installation) over local paths
-  static String? _findPubspecPath() {
-    try {
-      final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
-      final possiblePaths = <String>[];
-      
-      // FIRST: Try pub-cache locations for globally installed packages (priority)
-      if (homeDir.isNotEmpty) {
-        final pubCacheBase = path.join(homeDir, '.pub-cache');
-        
-        // Try global_packages location
-        possiblePaths.add(path.join(pubCacheBase, 'global_packages', 'vgv_cli', 'pubspec.yaml'));
-        
-        // Try git cache location (for packages installed from Git)
-        try {
-          final gitCacheDir = Directory(path.join(pubCacheBase, 'git', 'cache'));
-          if (gitCacheDir.existsSync()) {
-            final entries = gitCacheDir.listSync();
-            for (final entry in entries) {
-              if (entry is Directory) {
-                final pubspecFile = File(path.join(entry.path, 'pubspec.yaml'));
-                if (pubspecFile.existsSync()) {
-                  final content = pubspecFile.readAsStringSync();
-                  // Check if this is the vgv_cli package
-                  if (content.contains('name: vgv_cli') || 
-                      entry.path.contains('vgv_cli') ||
-                      entry.path.contains('flutter-forge')) {
-                    possiblePaths.add(pubspecFile.path);
-                  }
-                }
-              }
-            }
-          }
-        } catch (e) {
-          // Ignore errors when searching
-        }
-      }
-      
-      // SECOND: Try to find pubspec.yaml relative to the script location (local development)
-      try {
-        final scriptPath = Platform.script.toFilePath();
-        final scriptDir = path.dirname(scriptPath);
-        final scriptDirNormalized = path.normalize(scriptDir);
-        
-        possiblePaths.addAll([
-          path.join(scriptDirNormalized, 'pubspec.yaml'),
-          path.join(scriptDirNormalized, '..', 'pubspec.yaml'),
-          path.join(scriptDirNormalized, '..', '..', 'pubspec.yaml'),
-          path.join(scriptDirNormalized, '..', '..', '..', 'pubspec.yaml'),
-          path.join(scriptDirNormalized, '..', '..', '..', '..', 'pubspec.yaml'),
-          path.join(scriptDirNormalized, '..', '..', '..', '..', '..', 'pubspec.yaml'),
-          path.join(scriptDirNormalized, '..', '..', '..', '..', '..', '..', 'pubspec.yaml'),
-          path.join(Directory.current.path, 'pubspec.yaml'),
-        ]);
-      } catch (e) {
-        // Ignore errors
-      }
-      
-      // Check paths in order (pub-cache first, then local)
-      for (final possiblePath in possiblePaths) {
-        try {
-          final normalizedPath = path.normalize(possiblePath);
-          final file = File(normalizedPath);
-          if (file.existsSync()) {
-            return normalizedPath;
-          }
-        } catch (e) {
-          // Continue searching
-        }
-      }
-    } catch (e) {
-      // Try alternative method
-    }
-    
-    return null;
   }
   
   /// Get version from Git synchronously (for fallback when pubspec.yaml not found locally)
@@ -284,18 +175,25 @@ class VersionChecker {
   static Future<String?> getLatestCLIVersion() async {
     try {
       final response = await http.get(Uri.parse(_githubApiUrl));
-      
+
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final tagName = data['tag_name']?.toString();
-        if (tagName != null) {
-          return tagName.replaceFirst('v', '');
+        final dynamic data;
+        try {
+          data = json.decode(response.body);
+        } on FormatException {
+          return null;
+        }
+        if (data is Map<String, dynamic>) {
+          final tagName = data['tag_name']?.toString();
+          if (tagName != null) {
+            return tagName.replaceFirst('v', '');
+          }
         }
       }
     } catch (e) {
-      // Silently fail - network issues shouldn't break the CLI
+      // Network issues shouldn't break the CLI
     }
-    
+
     return null;
   }
   

@@ -59,8 +59,8 @@ class FileSystemDataSourceImpl implements FileSystemDataSource {
           'pretty_dio_logger: ^1.4.0',
           'talker_dio_logger: ^4.4.1',
           'talker_flutter: ^4.4.1',
-          'flutter_form_builder: ^9.4.1',
-          'form_builder_validators: ^10.0.1',
+          'flutter_form_builder: ^10.2.0',
+          'form_builder_validators: ^11.2.0',
           'drift: ^2.18.0',
           'sqlite3_flutter_libs: ^0.5.0',
         ]);
