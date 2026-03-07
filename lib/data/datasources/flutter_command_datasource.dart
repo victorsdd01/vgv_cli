@@ -131,12 +131,12 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
       );
 
       if (result.exitCode != 0) {
-        stderr.writeln('Warning: Failed to generate localization files. You may need to run "dart run intl_utils:generate" manually.');
+        // Silent: runs during spinner animation
       }
 
       await _fixAppLocalizationsImport(projectName);
-    } catch (e) {
-      stderr.writeln('Warning: Failed to generate localization files: $e');
+    } catch (_) {
+      // Silent: runs during spinner animation
     }
   }
 
@@ -153,8 +153,8 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
 
         appLocalizationsFile.writeAsStringSync(content);
       }
-    } catch (e) {
-      stderr.writeln('Warning: Could not fix app_localizations import: $e');
+    } catch (_) {
+      // Silent: runs during spinner animation
     }
   }
 
@@ -176,8 +176,8 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
           runInShell: true,
         );
       }
-    } catch (e) {
-      stderr.writeln('Warning: Failed to clean build cache: $e');
+    } catch (_) {
+      // Silent: runs during spinner animation
     }
   }
 
@@ -192,10 +192,10 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
       );
 
       if (result.exitCode != 0) {
-        stderr.writeln('Warning: build_runner failed. You may need to run "dart run build_runner build -d" manually.');
+        // Silent: runs during spinner animation
       }
-    } catch (e) {
-      stderr.writeln('Warning: Failed to run build_runner: $e');
+    } catch (_) {
+      // Silent: runs during spinner animation
     }
   }
 
@@ -258,8 +258,8 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
           await Process.run('pod', ['install', '--repo-update'], workingDirectory: macosPath, runInShell: true);
         }
       }
-    } catch (e) {
-      stderr.writeln('Warning: CocoaPods setup failed: $e. You can run "pod install" manually.');
+    } catch (_) {
+      // Silent: runs during spinner animation
     }
   }
 }
