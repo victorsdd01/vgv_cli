@@ -234,7 +234,7 @@ jobs:
           # Create a new branch for the version bump
           git checkout -b "$BUMP_BRANCH"
           git add pubspec.yaml CHANGELOG.md
-          git commit -m "chore: bump version to $NEW_VERSION"
+          git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
           git push origin "$BUMP_BRANCH"
 
           # Create a PR targeting main (skip if one already exists)
