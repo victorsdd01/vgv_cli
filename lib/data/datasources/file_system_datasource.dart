@@ -2060,7 +2060,7 @@ key.properties
   Future<void> configureFlavors(ProjectConfig config) async {
     if (config.flavors.isEmpty) return;
     await _configureAndroidFlavors(config);
-    // iOS flavor configuration is added in a later step.
+    await _configureIosFlavors(config);
   }
 
   /// Converts a package name into a human friendly app name.
@@ -2200,6 +2200,336 @@ key.properties
       'android:label="@string/app_name"',
     );
     manifest.writeAsStringSync(content);
+  }
+
+  // ── iOS ────────────────────────────────────────────────────────────────
+
+  /// Configures iOS flavors by adding per-flavor xcconfig files, duplicating
+  /// the Debug/Release/Profile build configurations into
+  /// `<BuildType>-<flavor>` variants (with a distinct bundle id) inside
+  /// `project.pbxproj`, and generating a shared scheme per flavor.
+  Future<void> _configureIosFlavors(ProjectConfig config) async {
+    final iosDir = Directory(path.join(config.projectName, 'ios'));
+    final pbxFile =
+        File(path.join(iosDir.path, 'Runner.xcodeproj', 'project.pbxproj'));
+    // iOS platform was not generated for this project.
+    if (!pbxFile.existsSync()) return;
+
+    var pbx = pbxFile.readAsStringSync();
+    final firstFlavor = config.flavors.first.flavorName;
+    if (pbx.contains('/* Debug-$firstFlavor */')) return; // idempotent
+
+    final appName = _humanizeName(config.projectName);
+    final baseBundleId = _iosBaseBundleId(pbx) ??
+        '${config.organizationName}.${config.projectName}';
+    const buildTypes = ['Debug', 'Release', 'Profile'];
+
+    var seed = 0;
+    String nextId() => _pbxId(seed++);
+
+    // 1) Create xcconfig files + PBXFileReference / group entries.
+    final flutterDir = Directory(path.join(iosDir.path, 'Flutter'));
+    final xcconfigRefIds = <String, String>{}; // "Debug-dev" -> fileRef id
+    final fileRefLines = <String>[];
+    final groupChildLines = <String>[];
+    for (final flavor in config.flavors) {
+      for (final buildType in buildTypes) {
+        final cfgName = '$buildType-${flavor.flavorName}';
+        File(path.join(flutterDir.path, '$cfgName.xcconfig')).writeAsStringSync(
+          _iosXcconfigContent(buildType, flavor, appName, baseBundleId),
+        );
+        final refId = nextId();
+        xcconfigRefIds[cfgName] = refId;
+        fileRefLines.add(
+          '\t\t$refId /* $cfgName.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = "$cfgName.xcconfig"; path = "Flutter/$cfgName.xcconfig"; sourceTree = "<group>"; };',
+        );
+        groupChildLines.add('\t\t\t\t$refId /* $cfgName.xcconfig */,');
+      }
+    }
+
+    pbx = pbx.replaceFirst(
+      '/* End PBXFileReference section */',
+      '${fileRefLines.join('\n')}\n/* End PBXFileReference section */',
+    );
+    pbx = pbx.replaceFirstMapped(
+      RegExp(r'\n\t\t\t\t9740EEB31CF90195004384FC /\* Generated\.xcconfig \*/,'),
+      (m) => '${m.group(0)}\n${groupChildLines.join('\n')}',
+    );
+
+    // 2) Duplicate build configurations per flavor across the config lists.
+    const lists = [
+      'Build configuration list for PBXNativeTarget "RunnerTests"',
+      'Build configuration list for PBXProject "Runner"',
+      'Build configuration list for PBXNativeTarget "Runner"',
+    ];
+    final newBlocks = <String>[];
+    for (final listComment in lists) {
+      final isRunnerTarget = listComment == lists.last;
+      final members = _configListMembers(pbx, listComment);
+      final newMemberLines = <String>[];
+      for (final memberId in members) {
+        final block = _xcBuildConfigBlock(pbx, memberId);
+        if (block.isEmpty) continue;
+        final buildType = _configName(block);
+        for (final flavor in config.flavors) {
+          final newId = nextId();
+          final cfgName = '$buildType-${flavor.flavorName}';
+          var clone = block
+              .replaceFirst(
+                '$memberId /* $buildType */',
+                '$newId /* $cfgName */',
+              )
+              .replaceFirst(
+                RegExp('name = "?$buildType"?;'),
+                'name = "$cfgName";',
+              );
+          if (isRunnerTarget) {
+            final refId = xcconfigRefIds[cfgName]!;
+            if (clone.contains('baseConfigurationReference')) {
+              clone = clone.replaceFirst(
+                RegExp(r'baseConfigurationReference = [0-9A-F]{24} /\* [^*]+\.xcconfig \*/;'),
+                'baseConfigurationReference = $refId /* $cfgName.xcconfig */;',
+              );
+            } else {
+              clone = clone.replaceFirst(
+                'isa = XCBuildConfiguration;',
+                'isa = XCBuildConfiguration;\n\t\t\tbaseConfigurationReference = $refId /* $cfgName.xcconfig */;',
+              );
+            }
+            clone = clone.replaceFirst(
+              RegExp(r'PRODUCT_BUNDLE_IDENTIFIER = "?[^";]+"?;'),
+              'PRODUCT_BUNDLE_IDENTIFIER = "${flavor.bundleId(baseBundleId)}";',
+            );
+          }
+          newBlocks.add(clone);
+          newMemberLines.add('\t\t\t\t$newId /* $cfgName */,');
+        }
+      }
+      pbx = _appendToConfigList(pbx, listComment, newMemberLines.join('\n'));
+    }
+
+    pbx = pbx.replaceFirst(
+      '/* End XCBuildConfiguration section */',
+      '${newBlocks.join('\n')}\n/* End XCBuildConfiguration section */',
+    );
+
+    pbxFile.writeAsStringSync(pbx);
+
+    // 3) Generate a shared scheme per flavor.
+    final schemesDir = Directory(
+      path.join(iosDir.path, 'Runner.xcodeproj', 'xcshareddata', 'xcschemes'),
+    );
+    schemesDir.createSync(recursive: true);
+    for (final flavor in config.flavors) {
+      File(path.join(schemesDir.path, '${flavor.flavorName}.xcscheme'))
+          .writeAsStringSync(_iosSchemeContent(flavor.flavorName));
+    }
+  }
+
+  /// Generates a deterministic, collision-free 24-char pbxproj object id.
+  /// The `FF` prefix guarantees no clash with `flutter create`'s ids.
+  String _pbxId(int seed) =>
+      'FF${seed.toRadixString(16).toUpperCase().padLeft(22, '0')}';
+
+  /// Reads the base (production) bundle id from the Runner target settings,
+  /// ignoring the RunnerTests identifier.
+  String? _iosBaseBundleId(String pbx) {
+    for (final m
+        in RegExp(r'PRODUCT_BUNDLE_IDENTIFIER = "?([^";]+)"?;').allMatches(pbx)) {
+      final value = m.group(1)!;
+      if (!value.contains('RunnerTests')) return value;
+    }
+    return null;
+  }
+
+  /// Returns the ordered member config ids of an XCConfigurationList block.
+  List<String> _configListMembers(String pbx, String listComment) {
+    final idx = pbx.indexOf('/* $listComment */ = {');
+    if (idx == -1) return const [];
+    final bcStart = pbx.indexOf('buildConfigurations = (', idx);
+    final bcEnd = pbx.indexOf(');', bcStart);
+    final arr = pbx.substring(bcStart, bcEnd);
+    return RegExp(r'([0-9A-F]{24}) /\*')
+        .allMatches(arr)
+        .map((m) => m.group(1)!)
+        .toList();
+  }
+
+  /// Extracts a full XCBuildConfiguration block (including the closing `};`).
+  String _xcBuildConfigBlock(String pbx, String id) {
+    final start = pbx.indexOf('\t\t$id /* ');
+    if (start == -1) return '';
+    final end = pbx.indexOf('\n\t\t};', start);
+    if (end == -1) return '';
+    return '${pbx.substring(start, end)}\n\t\t};';
+  }
+
+  /// Reads the `name = ...;` of an XCBuildConfiguration block.
+  String _configName(String block) =>
+      RegExp(r'\bname = "?([A-Za-z]+)"?;').firstMatch(block)?.group(1) ?? '';
+
+  /// Appends member id lines before the closing of a config list array.
+  String _appendToConfigList(String pbx, String listComment, String lines) {
+    if (lines.isEmpty) return pbx;
+    final idx = pbx.indexOf('/* $listComment */ = {');
+    if (idx == -1) return pbx;
+    final bcStart = pbx.indexOf('buildConfigurations = (', idx);
+    final closeIdx = pbx.indexOf('\t\t\t);', bcStart);
+    if (closeIdx == -1) return pbx;
+    return '${pbx.substring(0, closeIdx)}$lines\n${pbx.substring(closeIdx)}';
+  }
+
+  String _iosXcconfigContent(
+    String buildType,
+    Flavor flavor,
+    String appName,
+    String baseBundleId,
+  ) {
+    final lower = buildType.toLowerCase();
+    return '#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.$lower-${flavor.flavorName}.xcconfig"\n'
+        '#include "Generated.xcconfig"\n'
+        'FLUTTER_TARGET=lib/main_${flavor.entryPoint}.dart\n'
+        'ASSETCATALOG_COMPILER_APPICON_NAME=AppIcon\n'
+        'PRODUCT_BUNDLE_IDENTIFIER=${flavor.bundleId(baseBundleId)}\n'
+        'BUNDLE_DISPLAY_NAME=$appName${flavor.appNameSuffix}\n';
+  }
+
+  /// Builds a shared scheme for [flavorName] based on the default Runner
+  /// scheme, binding each action to the `<BuildType>-<flavor>` configuration.
+  String _iosSchemeContent(String flavorName) {
+    const template = r'''<?xml version="1.0" encoding="UTF-8"?>
+<Scheme
+   LastUpgradeVersion = "1510"
+   version = "1.3">
+   <BuildAction
+      parallelizeBuildables = "YES"
+      buildImplicitDependencies = "YES">
+      <PreActions>
+         <ExecutionAction
+            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
+            <ActionContent
+               title = "Run Prepare Flutter Framework Script"
+               scriptText = "/bin/sh &quot;$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh&quot; prepare&#10;">
+               <EnvironmentBuildable>
+                  <BuildableReference
+                     BuildableIdentifier = "primary"
+                     BlueprintIdentifier = "97C146ED1CF9000F007C117D"
+                     BuildableName = "Runner.app"
+                     BlueprintName = "Runner"
+                     ReferencedContainer = "container:Runner.xcodeproj">
+                  </BuildableReference>
+               </EnvironmentBuildable>
+            </ActionContent>
+         </ExecutionAction>
+      </PreActions>
+      <BuildActionEntries>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "97C146ED1CF9000F007C117D"
+               BuildableName = "Runner.app"
+               BlueprintName = "Runner"
+               ReferencedContainer = "container:Runner.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+   <TestAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      customLLDBInitFile = "$(SRCROOT)/Flutter/ephemeral/flutter_lldbinit"
+      shouldUseLaunchSchemeArgsEnv = "YES">
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "97C146ED1CF9000F007C117D"
+            BuildableName = "Runner.app"
+            BlueprintName = "Runner"
+            ReferencedContainer = "container:Runner.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
+      <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "331C8080294A63A400263BE5"
+               BuildableName = "RunnerTests.xctest"
+               BlueprintName = "RunnerTests"
+               ReferencedContainer = "container:Runner.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
+   </TestAction>
+   <LaunchAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      customLLDBInitFile = "$(SRCROOT)/Flutter/ephemeral/flutter_lldbinit"
+      launchStyle = "0"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO"
+      debugDocumentVersioning = "YES"
+      debugServiceExtension = "internal"
+      enableGPUValidationMode = "1"
+      allowLocationSimulation = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "97C146ED1CF9000F007C117D"
+            BuildableName = "Runner.app"
+            BlueprintName = "Runner"
+            ReferencedContainer = "container:Runner.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </LaunchAction>
+   <ProfileAction
+      buildConfiguration = "Profile"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      savedToolIdentifier = ""
+      useCustomWorkingDirectory = "NO"
+      debugDocumentVersioning = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "97C146ED1CF9000F007C117D"
+            BuildableName = "Runner.app"
+            BlueprintName = "Runner"
+            ReferencedContainer = "container:Runner.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </ProfileAction>
+   <AnalyzeAction
+      buildConfiguration = "Debug">
+   </AnalyzeAction>
+   <ArchiveAction
+      buildConfiguration = "Release"
+      revealArchiveInOrganizer = "YES">
+   </ArchiveAction>
+</Scheme>
+''';
+    return template
+        .replaceAll(
+          'buildConfiguration = "Debug"',
+          'buildConfiguration = "Debug-$flavorName"',
+        )
+        .replaceAll(
+          'buildConfiguration = "Profile"',
+          'buildConfiguration = "Profile-$flavorName"',
+        )
+        .replaceAll(
+          'buildConfiguration = "Release"',
+          'buildConfiguration = "Release-$flavorName"',
+        );
   }
 
 
