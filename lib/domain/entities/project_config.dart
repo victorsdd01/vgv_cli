@@ -46,6 +46,20 @@ class ProjectConfig {
   /// desktop do not support `flutter run --flavor`.
   bool get usesNativeFlavors => platforms.contains(PlatformType.mobile);
 
+  /// Production base bundle id (`flutter create` appends the project name to
+  /// `--org`). If the org already ends with the project name we avoid the
+  /// duplicated tail — e.g. org `com.test2` + project `test2` → `com.test2`,
+  /// not `com.test2.test2`. Otherwise → `<org>.<projectName>`.
+  String get baseBundleId => organizationName.endsWith('.$projectName')
+      ? organizationName
+      : '$organizationName.$projectName';
+
+  /// The value to pass to `flutter create --org` so the resulting
+  /// applicationId/bundleId equals [baseBundleId] (flutter appends the project
+  /// name, so we strip the trailing `.<projectName>`).
+  String get organizationForCreate =>
+      baseBundleId.substring(0, baseBundleId.length - projectName.length - 1);
+
   /// Validates project name format
   static bool isValidProjectName(String name) {
     return RegExp(r'^[a-z][a-z0-9_]*$').hasMatch(name);

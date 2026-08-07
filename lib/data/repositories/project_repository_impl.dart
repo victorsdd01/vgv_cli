@@ -31,7 +31,9 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
     await _flutterCommandDataSource.createFlutterProject(
       projectName: config.projectName,
-      organizationName: config.organizationName,
+      // Use the de-duplicated org so the bundle id isn't doubled
+      // (e.g. com.test2 + test2 => com.test2, not com.test2.test2).
+      organizationName: config.organizationForCreate,
       platforms: config.platforms,
       mobilePlatform: config.mobilePlatform,
       desktopPlatform: config.desktopPlatform,

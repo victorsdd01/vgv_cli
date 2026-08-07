@@ -348,7 +348,7 @@ class CliController {
     }
 
     // Bundle ID preview: the entered id is production; others derive a suffix.
-    final baseId = '${config.organizationName}.${config.projectName}';
+    final baseId = config.baseBundleId;
     _logger
       ..info('')
       ..info('  ${label('Bundle IDs')}');
