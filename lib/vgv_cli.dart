@@ -137,60 +137,12 @@ class VgvCli {
     }
   }
 
-  Future<void> _showUpdateProgress() async {
-    print('${AnsiColors.brightCyan}${AnsiColors.bold}Update Progress${AnsiColors.reset}');
-    print('');
-
-    final steps = [
-      {'text': 'Checking for latest version', 'duration': 600},
-      {'text': 'Downloading new version', 'duration': 1200},
-      {'text': 'Installing dependencies', 'duration': 1000},
-      {'text': 'Updating global package', 'duration': 800},
-      {'text': 'Finalizing installation', 'duration': 600},
-    ];
-
-    for (int i = 0; i < steps.length; i++) {
-      final step = steps[i];
-
-      print('${AnsiColors.brightCyan}${AnsiColors.bold}[${i + 1}/${steps.length}]${AnsiColors.reset} ${AnsiColors.brightYellow}${step['text']}${AnsiColors.reset}');
-
-      stdout.write('${AnsiColors.dim}    ${_getSpinner(0)} [${_getProgressBar(0)}] 0%${AnsiColors.reset}');
-
-      for (int p = 0; p <= 100; p += 5) {
-        await Future.delayed(Duration(milliseconds: (step['duration'] as int) ~/ 20));
-        stdout.write('\r${AnsiColors.dim}    ${_getSpinner(p ~/ 5)} [${_getProgressBar(p)}] ${p.toString().padLeft(3)}%${AnsiColors.reset}');
-      }
-
-      print(' ${AnsiColors.brightGreen}done${AnsiColors.reset}');
-    }
-
-    print('');
-    print('${AnsiColors.brightGreen}${AnsiColors.bold}All steps completed successfully${AnsiColors.reset}');
-    print('');
-  }
-
   Future<void> _showCompletionCelebration() async {
     print('');
     print('${AnsiColors.brightMagenta}${AnsiColors.bold}╔══════════════════════════════════════════════════════════════╗${AnsiColors.reset}');
     print('${AnsiColors.brightMagenta}${AnsiColors.bold}║${AnsiColors.reset}${AnsiColors.brightGreen}${AnsiColors.bold}                       UPDATE COMPLETE                        ${AnsiColors.reset}${AnsiColors.brightMagenta}${AnsiColors.bold}║${AnsiColors.reset}');
     print('${AnsiColors.brightMagenta}${AnsiColors.bold}╚══════════════════════════════════════════════════════════════╝${AnsiColors.reset}');
     print('');
-  }
-
-  String _getProgressBar(int percentage) {
-    const int barLength = 20;
-    final filledLength = (percentage / 100 * barLength).round();
-    final emptyLength = barLength - filledLength;
-
-    final filled = '█' * filledLength;
-    final empty = '░' * emptyLength;
-
-    return filled + empty;
-  }
-
-  String _getSpinner(int step) {
-    final spinners = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-    return spinners[step % spinners.length];
   }
 
   Future<void> _checkForUpdates() async {
@@ -288,9 +240,8 @@ class VgvCli {
 
     try {
       print('${AnsiColors.brightYellow}${AnsiColors.bold}Updating VGV CLI...${AnsiColors.reset}');
+      print('${AnsiColors.dim}   Downloading and installing from git (this can take a minute)...${AnsiColors.reset}');
       print('');
-
-      await _showUpdateProgress();
 
       final result = Process.runSync('dart', [
         'pub',
