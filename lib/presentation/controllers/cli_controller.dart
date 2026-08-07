@@ -1,35 +1,32 @@
-import 'package:interact/interact.dart';
-import '../../core/utils/ansi_colors.dart';
+import 'package:mason_logger/mason_logger.dart';
 import '../../domain/entities/project_config.dart';
 import '../../domain/repositories/project_repository.dart';
 
 class CliController {
   final ProjectRepository _projectRepository;
+  final Logger _logger;
 
-  CliController(this._projectRepository);
+  CliController(this._projectRepository, {Logger? logger})
+      : _logger = logger ?? Logger();
 
-  // Short aliases for AnsiColors
-  static const String _reset = AnsiColors.reset;
-  static const String _bold = AnsiColors.bold;
-  static const String _dim = AnsiColors.dim;
-  static const String _green = AnsiColors.green;
-  static const String _yellow = AnsiColors.yellow;
-  static const String _cyan = AnsiColors.cyan;
-  static const String _red = AnsiColors.red;
-  static const String _brightGreen = AnsiColors.brightGreen;
-  static const String _brightMagenta = AnsiColors.brightMagenta;
-
-  Future<void> runInteractiveMode() async {
+  Future<void> runInteractiveMode({
+    String? organization,
+    String? outputDir,
+    bool noGit = false,
+    List<Flavor>? flavors,
+  }) async {
     _printWelcomeMessage();
-    
+
     final projectName = _getProjectName();
-    final organization = _getOrganization(projectName);
+    final org = _getOrganization(projectName, organization);
     final platforms = _getPlatforms();
+    // If flavors were passed via --flavors, honor them and skip the prompt.
+    final selectedFlavors = flavors ?? _getFlavors();
     final includeLinterRules = _getLinterRulesChoice();
 
     final config = ProjectConfig(
       projectName: projectName,
-      organizationName: organization,
+      organizationName: org,
       platforms: platforms,
       stateManagement: StateManagementType.bloc,
       architecture: ArchitectureType.cleanArchitecture,
@@ -37,12 +34,17 @@ class CliController {
       includeLinterRules: includeLinterRules,
       includeFreezed: true,
       mobilePlatform: _selectedMobilePlatform,
-      desktopPlatform: _selectedDesktopPlatforms != null ? DesktopPlatform.custom : DesktopPlatform.all,
+      desktopPlatform: _selectedDesktopPlatforms != null
+          ? DesktopPlatform.custom
+          : DesktopPlatform.all,
       customDesktopPlatforms: _selectedDesktopPlatforms,
+      outputDirectory: outputDir,
+      skipGitInit: noGit,
+      flavors: selectedFlavors,
     );
 
     _printConfigurationSummary(config);
-    
+
     if (_confirmConfiguration()) {
       await _createProject(config);
     } else {
@@ -56,15 +58,16 @@ class CliController {
     String? outputDir,
     bool noGit = false,
     bool quickMode = false,
+    List<Flavor>? flavors,
   }) async {
     _printWelcomeMessage();
-    
+
     // Get or validate project name
     String finalProjectName;
     if (projectName != null && projectName.isNotEmpty) {
-      if (!RegExp(r'^[a-z][a-z0-9_]*$').hasMatch(projectName)) {
-        print('$_red  Invalid project name: $projectName$_reset');
-        print('$_dim  Must be lowercase with underscores only.$_reset');
+      if (!ProjectConfig.isValidProjectName(projectName)) {
+        _logger.err('Invalid project name: $projectName');
+        _logger.detail('Must be lowercase with underscores only.');
         return;
       }
       finalProjectName = projectName;
@@ -72,29 +75,29 @@ class CliController {
       // In quick mode without name, ask for it
       finalProjectName = _getProjectName();
     } else {
-      print('$_red  Project name is required.$_reset');
-      print('$_dim  Use: vgv -n <name>$_reset');
+      _logger.err('Project name is required.');
+      _logger.detail('Use: vgv -n <name>');
       return;
     }
-    
+
     // Get or use default organization based on project name
     String finalOrganization;
     if (organization != null && organization.isNotEmpty) {
-      if (!RegExp(r'^[a-z][a-z0-9._]*[a-z0-9]$').hasMatch(organization)) {
-        print('$_red  Invalid organization: $organization$_reset');
-        print('$_dim  Must be lowercase with dots (e.g., com.example)$_reset');
+      if (!ProjectConfig.isValidOrganizationName(organization)) {
+        _logger.err('Invalid organization: $organization');
+        _logger.detail('Must be lowercase with dots (e.g., com.example)');
         return;
       }
       finalOrganization = organization;
     } else {
       finalOrganization = 'com.$finalProjectName';
     }
-    
+
     // Default platforms for quick/flag mode
     final platforms = [PlatformType.mobile, PlatformType.web];
     _selectedMobilePlatform = MobilePlatform.both;
     _selectedDesktopPlatforms = null;
-    
+
     final config = ProjectConfig(
       projectName: finalProjectName,
       organizationName: finalOrganization,
@@ -109,10 +112,11 @@ class CliController {
       customDesktopPlatforms: null,
       outputDirectory: outputDir,
       skipGitInit: noGit,
+      flavors: flavors ?? const [Flavor.dev, Flavor.staging, Flavor.production],
     );
-    
+
     _printConfigurationSummary(config);
-    
+
     if (quickMode) {
       // In quick mode, proceed without confirmation
       await _createProject(config);
@@ -124,59 +128,63 @@ class CliController {
   }
 
   void _printWelcomeMessage() {
-    print('');
-    print('$_brightMagenta$_bold  ██╗   ██╗ ██████╗ ██╗   ██╗$_reset');
-    print('$_brightMagenta$_bold  ██║   ██║██╔════╝ ██║   ██║$_reset');
-    print('$_brightMagenta$_bold  ██║   ██║██║  ███╗██║   ██║$_reset');
-    print('$_brightMagenta$_bold  ╚██╗ ██╔╝██║   ██║╚██╗ ██╔╝$_reset');
-    print('$_brightMagenta$_bold   ╚████╔╝ ╚██████╔╝ ╚████╔╝ $_reset');
-    print('$_brightMagenta$_bold    ╚═══╝   ╚═════╝   ╚═══╝  $_reset');
-    print('');
-    print('$_dim  The Ultimate Flutter Project Generator$_reset');
-    print('');
+    String banner(String line) => styleBold.wrap(lightMagenta.wrap(line)!)!;
+    _logger
+      ..info('')
+      ..info(banner('  ██╗   ██╗ ██████╗ ██╗   ██╗'))
+      ..info(banner('  ██║   ██║██╔════╝ ██║   ██║'))
+      ..info(banner('  ██║   ██║██║  ███╗██║   ██║'))
+      ..info(banner('  ╚██╗ ██╔╝██║   ██║╚██╗ ██╔╝'))
+      ..info(banner('   ╚████╔╝ ╚██████╔╝ ╚████╔╝ '))
+      ..info(banner('    ╚═══╝   ╚═════╝   ╚═══╝  '))
+      ..info('')
+      ..info(styleDim.wrap('  The Ultimate Flutter Project Generator'))
+      ..info('');
   }
 
   String _getProjectName() {
     while (true) {
-      final name = Input(
-        prompt: 'Project name',
-        defaultValue: '',
-      ).interact();
-      
+      final name = _logger.prompt('${lightCyan.wrap('?')} Project name');
+
       if (name.isEmpty) {
-        print('$_red  Project name cannot be empty.$_reset');
+        _logger.err('Project name cannot be empty.');
         continue;
       }
-      
-      if (!RegExp(r'^[a-z][a-z0-9_]*$').hasMatch(name)) {
-        print('$_red  Project name must be lowercase with underscores only.$_reset');
-        print('$_dim  Example: my_awesome_app, flutter_app, todo_list$_reset');
+
+      if (!ProjectConfig.isValidProjectName(name)) {
+        _logger.err('Project name must be lowercase with underscores only.');
+        _logger.detail('Example: my_awesome_app, flutter_app, todo_list');
         continue;
       }
-      
+
       return name;
     }
   }
 
-  String _getOrganization(String projectName) {
-    final defaultOrg = 'com.$projectName';
-    
+  String _getOrganization(String projectName, [String? provided]) {
+    // If --org was passed and is valid, use it as the default (the user can
+    // still confirm or change it); otherwise fall back to com.<projectName>.
+    final defaultOrg =
+        (provided != null && ProjectConfig.isValidOrganizationName(provided))
+            ? provided
+            : 'com.$projectName';
+
     while (true) {
-      final org = Input(
-        prompt: 'Organization',
+      final org = _logger.prompt(
+        '${lightCyan.wrap('?')} Organization',
         defaultValue: defaultOrg,
-      ).interact();
-      
+      );
+
       if (org.isEmpty) {
         return defaultOrg;
       }
-      
-      if (!RegExp(r'^[a-z][a-z0-9._]*[a-z0-9]$').hasMatch(org)) {
-        print('$_red  Organization must be lowercase with dots, min 2 chars.$_reset');
-        print('$_dim  Example: com.example, dev.mycompany$_reset');
+
+      if (!ProjectConfig.isValidOrganizationName(org)) {
+        _logger.err('Organization must be lowercase with dots, min 2 chars.');
+        _logger.detail('Example: com.example, dev.mycompany');
         continue;
       }
-      
+
       return org;
     }
   }
@@ -186,9 +194,7 @@ class CliController {
   CustomDesktopPlatforms? _selectedDesktopPlatforms;
 
   List<PlatformType> _getPlatforms() {
-    print('');
-    
-    final platformOptions = [
+    const platformOptions = [
       'Mobile Only (Android & iOS)',
       'Web Only',
       'Desktop Only (Windows, macOS, Linux)',
@@ -199,11 +205,12 @@ class CliController {
       'Custom Selection',
     ];
 
-    final selection = Select(
-      prompt: 'Select platforms',
-      options: platformOptions,
-      initialIndex: 0,
-    ).interact();
+    final selected = _logger.chooseOne(
+      '${lightCyan.wrap('?')} Select platforms',
+      choices: platformOptions,
+      defaultValue: platformOptions.first,
+    );
+    final selection = platformOptions.indexOf(selected);
 
     // Reset custom selections
     _selectedMobilePlatform = MobilePlatform.both;
@@ -232,29 +239,27 @@ class CliController {
   }
 
   List<PlatformType> _getCustomPlatformSelection() {
-    print('');
-    
-    final platformOptions = [
-      'Android',
-      'iOS',
-      'Web',
-      'Windows',
-      'macOS',
-      'Linux',
-    ];
+    const android = 'Android';
+    const ios = 'iOS';
+    const web = 'Web';
+    const windows = 'Windows';
+    const macos = 'macOS';
+    const linux = 'Linux';
+    const platformOptions = [android, ios, web, windows, macos, linux];
 
-    final selections = MultiSelect(
-      prompt: 'Select platforms (space to toggle, enter to confirm)',
-      options: platformOptions,
-      defaults: [true, true, false, false, false, false],
-    ).interact();
+    final selections = _logger.chooseAny(
+      '${lightCyan.wrap('?')} Select platforms '
+      '${styleDim.wrap('(space to toggle, enter to confirm)')}',
+      choices: platformOptions,
+      defaultValues: const [android, ios],
+    );
 
     final platforms = <PlatformType>[];
-    
+
     // Track specific mobile platforms
-    final hasAndroid = selections.contains(0);
-    final hasIOS = selections.contains(1);
-    
+    final hasAndroid = selections.contains(android);
+    final hasIOS = selections.contains(ios);
+
     if (hasAndroid || hasIOS) {
       platforms.add(PlatformType.mobile);
       if (hasAndroid && hasIOS) {
@@ -265,17 +270,17 @@ class CliController {
         _selectedMobilePlatform = MobilePlatform.ios;
       }
     }
-    
+
     // Track web
-    if (selections.contains(2)) {
+    if (selections.contains(web)) {
       platforms.add(PlatformType.web);
     }
-    
+
     // Track specific desktop platforms
-    final hasWindows = selections.contains(3);
-    final hasMacOS = selections.contains(4);
-    final hasLinux = selections.contains(5);
-    
+    final hasWindows = selections.contains(windows);
+    final hasMacOS = selections.contains(macos);
+    final hasLinux = selections.contains(linux);
+
     if (hasWindows || hasMacOS || hasLinux) {
       platforms.add(PlatformType.desktop);
       _selectedDesktopPlatforms = CustomDesktopPlatforms(
@@ -284,46 +289,79 @@ class CliController {
         linux: hasLinux,
       );
     }
-    
+
     if (platforms.isEmpty) {
-      print('$_yellow  No platforms selected. Defaulting to Mobile.$_reset');
+      _logger.warn('No platforms selected. Defaulting to Mobile.');
       platforms.add(PlatformType.mobile);
       _selectedMobilePlatform = MobilePlatform.both;
     }
-    
+
     return platforms;
   }
 
+  List<Flavor> _getFlavors() {
+    final selected = _logger.chooseAny<Flavor>(
+      '${lightCyan.wrap('?')} Which flavors do you want to generate? '
+      '${styleDim.wrap('(space to toggle, enter to confirm)')}',
+      choices: Flavor.values,
+      defaultValues: Flavor.values,
+      display: (flavor) => flavor.displayName,
+    );
+
+    if (selected.isEmpty) {
+      _logger.warn(
+        'No flavors selected. Defaulting to all (dev, staging, production).',
+      );
+      return const [Flavor.dev, Flavor.staging, Flavor.production];
+    }
+
+    // Preserve canonical order (dev, staging, production).
+    return Flavor.values.where(selected.contains).toList();
+  }
+
   bool _getLinterRulesChoice() {
-    print('');
-    return Confirm(
-      prompt: 'Include custom linter rules?',
+    return _logger.confirm(
+      '${lightCyan.wrap('?')} Include custom linter rules?',
       defaultValue: false,
-    ).interact();
+    );
   }
 
   void _printConfigurationSummary(ProjectConfig config) {
-    print('');
-    print('$_cyan$_bold  Configuration Summary$_reset');
-    print('$_dim  ─────────────────────────────────────────$_reset');
-    print('');
-    print('  $_dim Project:$_reset       $_brightGreen${config.projectName}$_reset');
-    print('  $_dim Organization:$_reset  $_brightGreen${config.organizationName}$_reset');
-    print('  $_dim Platforms:$_reset     $_brightGreen${_formatPlatforms(config.platforms)}$_reset');
-    print('  $_dim State:$_reset         ${_brightGreen}BLoC$_reset');
-    print('  $_dim Navigation:$_reset    ${_brightGreen}Go Router$_reset');
-    print('  $_dim Architecture:$_reset  ${_brightGreen}Clean Architecture$_reset');
-    print('  $_dim Code Gen:$_reset      ${_brightGreen}Freezed$_reset');
-    print('  $_dim Environments:$_reset  ${_brightGreen}Dev, Staging, Production$_reset');
+    String label(String text) => styleDim.wrap(text)!;
+    String value(String text) => lightGreen.wrap(text)!;
+
+    _logger
+      ..info('')
+      ..info(styleBold.wrap(cyan.wrap('  Configuration Summary')))
+      ..info(styleDim.wrap('  ─────────────────────────────────────────'))
+      ..info('')
+      ..info('  ${label('Project:')}       ${value(config.projectName)}')
+      ..info('  ${label('Organization:')}  ${value(config.organizationName)}')
+      ..info('  ${label('Platforms:')}     ${value(_formatPlatforms(config.platforms))}')
+      ..info('  ${label('State:')}         ${value('BLoC')}')
+      ..info('  ${label('Navigation:')}    ${value('Go Router')}')
+      ..info('  ${label('Architecture:')}  ${value('Clean Architecture')}')
+      ..info('  ${label('Code Gen:')}      ${value('Freezed')}')
+      ..info('  ${label('Flavors:')}       ${value(config.flavors.map((f) => f.displayName).join(', '))}');
     if (config.includeLinterRules) {
-      print('  $_dim Linter:$_reset        ${_brightGreen}Custom Rules$_reset');
+      _logger.info('  ${label('Linter:')}        ${value('Custom Rules')}');
     }
-    print('');
+
+    // Bundle ID preview: the entered id is production; others derive a suffix.
+    final baseId = '${config.organizationName}.${config.projectName}';
+    _logger
+      ..info('')
+      ..info('  ${label('Bundle IDs')}');
+    for (final flavor in config.flavors) {
+      final name = flavor.displayName.padRight(12);
+      _logger.info('    ${styleDim.wrap(name)} ${value(flavor.bundleId(baseId))}');
+    }
+    _logger.info('');
   }
 
   String _formatPlatforms(List<PlatformType> platforms) {
     final names = <String>[];
-    
+
     for (final p in platforms) {
       switch (p) {
         case PlatformType.mobile:
@@ -348,63 +386,85 @@ class CliController {
           }
       }
     }
-    
+
     return names.join(', ');
   }
 
   bool _confirmConfiguration() {
-    return Confirm(
-      prompt: 'Create project with this configuration?',
+    return _logger.confirm(
+      '${lightCyan.wrap('?')} Create project with this configuration?',
       defaultValue: true,
-    ).interact();
+    );
   }
 
   Future<void> _createProject(ProjectConfig config) async {
-    print('');
-    
-    final spinner = Spinner(
-      icon: '$_brightGreen[+]$_reset',
-      leftPrompt: (done) => '',
-      rightPrompt: (done) => done 
-          ? '$_brightGreen Project created successfully$_reset'
-          : '$_cyan Creating Flutter project...$_reset',
-    ).interact();
-    
+    _logger.info('');
+
+    if (!await _projectRepository.isFlutterInstalled()) {
+      _logger
+        ..err('Flutter is not installed or not on your PATH.')
+        ..detail('Install Flutter, verify with `flutter doctor`, then retry.');
+      return;
+    }
+
+    final progress = _logger.progress('Creating Flutter project...');
+
     try {
-      await _projectRepository.createProject(config);
-      spinner.done();
-      
-      print('');
-      print('$_green$_bold  Done!$_reset');
-      print('');
-      print('$_dim  Next steps:$_reset');
-      print('    cd ${config.projectName}');
-      print('    flutter run -t lib/main_dev.dart');
-      print('');
-      print('$_dim  Run environments:$_reset');
-      print('    flutter run -t lib/main_dev.dart        $_dim# Development$_reset');
-      print('    flutter run -t lib/main_staging.dart    $_dim# Staging$_reset');
-      print('    flutter run -t lib/main_production.dart $_dim# Production$_reset');
-      print('');
-      
+      final warnings = await _projectRepository.createProject(config);
+      progress.complete(
+        warnings.isEmpty
+            ? 'Project created successfully'
+            : 'Project created with ${warnings.length} warning(s)',
+      );
+
+      final firstFlavor = config.flavors.first;
+      final native = config.usesNativeFlavors;
+      String runCmd(Flavor f) => native
+          ? 'flutter run --flavor ${f.flavorName} -t lib/main_${f.entryPoint}.dart'
+          : 'flutter run -t lib/main_${f.entryPoint}.dart';
+      _logger
+        ..info('')
+        ..info(styleBold.wrap(green.wrap('  Done!')))
+        ..info('')
+        ..info(styleDim.wrap('  Next steps:'))
+        ..info('    cd ${config.projectName}')
+        ..info('    ${runCmd(firstFlavor)}')
+        ..info('')
+        ..info(styleDim.wrap('  Run flavors:'));
+      for (final flavor in config.flavors) {
+        _logger.info(
+          '    ${runCmd(flavor)}  ${styleDim.wrap('# ${flavor.displayName}')}',
+        );
+      }
+      _logger.info('');
+
+      if (warnings.isNotEmpty) {
+        _logger.warn('Some post-generation steps need your attention:');
+        for (final warning in warnings) {
+          _logger.info('    - $warning');
+        }
+        _logger.info(styleDim.wrap('  The project was created; finish these steps manually.'));
+        _logger.info('');
+      }
     } catch (e) {
-      spinner.done();
-      print('');
-      print('$_red$_bold  Error creating project:$_reset');
-      print('$_red  $e$_reset');
-      print('');
-      print('$_dim  Troubleshooting:$_reset');
-      print('    - Check your Flutter installation');
-      print('    - Ensure you have write permissions');
-      print('    - Try running: flutter doctor');
-      print('');
+      progress.fail('Failed to create project');
+      _logger
+        ..err('  Error creating project:')
+        ..err('  $e')
+        ..info('')
+        ..info(styleDim.wrap('  Troubleshooting:'))
+        ..info('    - Check your Flutter installation')
+        ..info('    - Ensure you have write permissions')
+        ..info('    - Try running: flutter doctor')
+        ..info('');
     }
   }
 
   void _printCancelledMessage() {
-    print('');
-    print('$_yellow  Project creation cancelled.$_reset');
-    print('$_dim  Run vgv again when ready.$_reset');
-    print('');
+    _logger
+      ..info('')
+      ..warn('Project creation cancelled.')
+      ..info(styleDim.wrap('  Run vgv again when ready.'))
+      ..info('');
   }
 }

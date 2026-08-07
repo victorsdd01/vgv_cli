@@ -5,6 +5,7 @@ import 'package:args/args.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/utils/ansi_colors.dart';
 import 'core/utils/version_checker.dart';
+import 'domain/entities/project_config.dart';
 import 'presentation/controllers/cli_controller.dart';
 
 // Short alias for AnsiColors to keep print statements readable
@@ -65,6 +66,10 @@ class VgvCli {
         abbr: 'o',
         help: 'Output directory (defaults to current directory)',
       )
+      ..addOption(
+        'flavors',
+        help: 'Comma-separated flavors to generate: dev,staging,prod (default: all)',
+      )
       ..addFlag(
         'no-git',
         help: 'Skip git initialization',
@@ -82,27 +87,9 @@ class VgvCli {
     _cliController = DependencyInjection.instance.cliController;
   }
 
-  /// Initialize version file if it doesn't exist
-  void _initializeVersionFile() {
-    try {
-      // Only initialize if the file doesn't exist
-      if (VersionChecker.getInstalledVersionFromFile() == null) {
-        final currentVersion = VersionChecker.getCurrentVersion();
-        if (currentVersion != '1.0.0') {
-          VersionChecker.saveInstalledVersion(currentVersion);
-        }
-      }
-    } catch (e) {
-      stderr.writeln('Warning: Could not initialize version file: $e');
-    }
-  }
-
   Future<void> run(List<String> arguments) async {
     try {
       _argResults = _argParser.parse(arguments);
-
-      // Initialize version file if it doesn't exist (first run)
-      _initializeVersionFile();
 
       if (_argResults['help']) {
         _printUsage();
@@ -129,6 +116,7 @@ class VgvCli {
       final noGit = _argResults['no-git'] as bool;
       final dryRun = _argResults['dry-run'] as bool;
       final quickMode = _argResults['quick'] as bool;
+      final flavors = _parseFlavors(_argResults['flavors'] as String?);
 
       if (dryRun) {
         await _runDryRun(projectName, organization, outputDir);
@@ -142,49 +130,24 @@ class VgvCli {
           outputDir: outputDir,
           noGit: noGit,
           quickMode: quickMode,
+          flavors: flavors,
         );
         return;
       }
 
-      // Run in interactive mode
-      await _runInteractiveMode();
+      // Run in interactive mode, honoring any flags the user did pass
+      // (org / output / no-git / flavors) instead of silently ignoring them.
+      await _runInteractiveMode(
+        organization: organization,
+        outputDir: outputDir,
+        noGit: noGit,
+        flavors: flavors,
+      );
     } catch (e) {
       print('Error: $e');
       _printUsage();
       exit(1);
     }
-  }
-
-  Future<void> _showUpdateProgress() async {
-    print('${AnsiColors.brightCyan}${AnsiColors.bold}Update Progress${AnsiColors.reset}');
-    print('');
-
-    final steps = [
-      {'text': 'Checking for latest version', 'duration': 600},
-      {'text': 'Downloading new version', 'duration': 1200},
-      {'text': 'Installing dependencies', 'duration': 1000},
-      {'text': 'Updating global package', 'duration': 800},
-      {'text': 'Finalizing installation', 'duration': 600},
-    ];
-
-    for (int i = 0; i < steps.length; i++) {
-      final step = steps[i];
-
-      print('${AnsiColors.brightCyan}${AnsiColors.bold}[${i + 1}/${steps.length}]${AnsiColors.reset} ${AnsiColors.brightYellow}${step['text']}${AnsiColors.reset}');
-
-      stdout.write('${AnsiColors.dim}    ${_getSpinner(0)} [${_getProgressBar(0)}] 0%${AnsiColors.reset}');
-
-      for (int p = 0; p <= 100; p += 5) {
-        await Future.delayed(Duration(milliseconds: (step['duration'] as int) ~/ 20));
-        stdout.write('\r${AnsiColors.dim}    ${_getSpinner(p ~/ 5)} [${_getProgressBar(p)}] ${p.toString().padLeft(3)}%${AnsiColors.reset}');
-      }
-
-      print(' ${AnsiColors.brightGreen}done${AnsiColors.reset}');
-    }
-
-    print('');
-    print('${AnsiColors.brightGreen}${AnsiColors.bold}All steps completed successfully${AnsiColors.reset}');
-    print('');
   }
 
   Future<void> _showCompletionCelebration() async {
@@ -193,22 +156,6 @@ class VgvCli {
     print('${AnsiColors.brightMagenta}${AnsiColors.bold}║${AnsiColors.reset}${AnsiColors.brightGreen}${AnsiColors.bold}                       UPDATE COMPLETE                        ${AnsiColors.reset}${AnsiColors.brightMagenta}${AnsiColors.bold}║${AnsiColors.reset}');
     print('${AnsiColors.brightMagenta}${AnsiColors.bold}╚══════════════════════════════════════════════════════════════╝${AnsiColors.reset}');
     print('');
-  }
-
-  String _getProgressBar(int percentage) {
-    const int barLength = 20;
-    final filledLength = (percentage / 100 * barLength).round();
-    final emptyLength = barLength - filledLength;
-
-    final filled = '█' * filledLength;
-    final empty = '░' * emptyLength;
-
-    return filled + empty;
-  }
-
-  String _getSpinner(int step) {
-    final spinners = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-    return spinners[step % spinners.length];
   }
 
   Future<void> _checkForUpdates() async {
@@ -233,8 +180,39 @@ class VgvCli {
     }
   }
 
-  Future<void> _runInteractiveMode() async {
-    await _cliController.runInteractiveMode();
+  /// Parses `--flavors dev,staging,prod` into a canonical, de-duplicated list.
+  /// Returns null when the flag is absent (callers then use the default set).
+  /// Exits with code 1 on an unknown token.
+  List<Flavor>? _parseFlavors(String? arg) {
+    if (arg == null || arg.trim().isEmpty) return null;
+    final selected = <Flavor>{};
+    for (final token in arg.split(',')) {
+      if (token.trim().isEmpty) continue;
+      final flavor = Flavor.tryParse(token);
+      if (flavor == null) {
+        print('${AnsiColors.brightRed}${AnsiColors.bold}Error:${AnsiColors.reset} '
+            'unknown flavor "${token.trim()}". Valid values: dev, staging, prod.');
+        exit(1);
+      }
+      selected.add(flavor);
+    }
+    if (selected.isEmpty) return null;
+    // Preserve canonical order (dev, staging, production).
+    return Flavor.values.where(selected.contains).toList();
+  }
+
+  Future<void> _runInteractiveMode({
+    String? organization,
+    String? outputDir,
+    bool noGit = false,
+    List<Flavor>? flavors,
+  }) async {
+    await _cliController.runInteractiveMode(
+      organization: organization,
+      outputDir: outputDir,
+      noGit: noGit,
+      flavors: flavors,
+    );
   }
 
   Future<void> _runDryRun(String? projectName, String? organization, String? outputDir) async {
@@ -267,6 +245,7 @@ class VgvCli {
     String? outputDir,
     bool noGit = false,
     bool quickMode = false,
+    List<Flavor>? flavors,
   }) async {
     await _cliController.runWithFlags(
       projectName: projectName,
@@ -274,6 +253,7 @@ class VgvCli {
       outputDir: outputDir,
       noGit: noGit,
       quickMode: quickMode,
+      flavors: flavors,
     );
   }
 
@@ -284,13 +264,7 @@ class VgvCli {
     print('${AnsiColors.brightCyan}${AnsiColors.bold}╚══════════════════════════════════════════════════════════════╝${AnsiColors.reset}');
     print('');
 
-    String currentVersion = _version;
-    if (currentVersion == '1.0.0') {
-      final gitCurrentVersion = await VersionChecker.getLatestCLIVersionFromGit();
-      if (gitCurrentVersion != null) {
-        currentVersion = gitCurrentVersion;
-      }
-    }
+    final currentVersion = _version;
     print('${AnsiColors.brightGreen}${AnsiColors.bold}Current:${AnsiColors.reset} ${AnsiColors.brightYellow}$currentVersion${AnsiColors.reset}');
 
     final latestVersion = await VersionChecker.getLatestCLIVersionAny();
@@ -312,9 +286,8 @@ class VgvCli {
 
     try {
       print('${AnsiColors.brightYellow}${AnsiColors.bold}Updating VGV CLI...${AnsiColors.reset}');
+      print('${AnsiColors.dim}   Downloading and installing from git (this can take a minute)...${AnsiColors.reset}');
       print('');
-
-      await _showUpdateProgress();
 
       final result = Process.runSync('dart', [
         'pub',
@@ -326,16 +299,8 @@ class VgvCli {
       ], runInShell: true);
 
       if (result.exitCode == 0) {
-        final newVersion = await VersionChecker.getLatestCLIVersionAny();
-        if (newVersion != null) {
-          VersionChecker.saveInstalledVersion(newVersion);
-        } else {
-          final currentVersion = VersionChecker.getCurrentVersion();
-          if (currentVersion != '1.0.0') {
-            VersionChecker.saveInstalledVersion(currentVersion);
-          }
-        }
-
+        // The freshly activated package carries its own baked version, so
+        // there is nothing to persist locally.
         await _showCompletionCelebration();
         print('${AnsiColors.brightGreen}${AnsiColors.bold}VGV CLI updated successfully${AnsiColors.reset}');
         print('');
@@ -423,6 +388,7 @@ class VgvCli {
     print('  ${AnsiColors.brightCyan}-n, --name${AnsiColors.reset} <name>            ${AnsiColors.dim}Project name${AnsiColors.reset}');
     print('  ${AnsiColors.brightCyan}    --org${AnsiColors.reset} <org>              ${AnsiColors.dim}Organization (com.example)${AnsiColors.reset}');
     print('  ${AnsiColors.brightCyan}-o, --output${AnsiColors.reset} <dir>           ${AnsiColors.dim}Output directory${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}    --flavors${AnsiColors.reset} <list>          ${AnsiColors.dim}Flavors: dev,staging,prod (default all)${AnsiColors.reset}');
     print('  ${AnsiColors.brightCyan}    --no-git${AnsiColors.reset}                 ${AnsiColors.dim}Skip git initialization${AnsiColors.reset}');
     print('  ${AnsiColors.brightCyan}    --dry-run${AnsiColors.reset}                ${AnsiColors.dim}Preview without creating${AnsiColors.reset}');
     print('');

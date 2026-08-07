@@ -14,6 +14,10 @@ class ProjectConfig {
   final String? outputDirectory;
   final bool skipGitInit;
 
+  /// Native flavors to generate (dev, staging, production).
+  /// Each flavor gets its own applicationId/bundleId, app name and entry point.
+  final List<Flavor> flavors;
+
   const ProjectConfig({
     required this.projectName,
     required this.organizationName,
@@ -28,27 +32,36 @@ class ProjectConfig {
     this.customDesktopPlatforms,
     this.outputDirectory,
     this.skipGitInit = false,
+    this.flavors = const [Flavor.dev, Flavor.staging, Flavor.production],
   });
 
   /// Validates the project configuration
   bool get isValid {
-    return isValidProjectName(projectName) && 
+    return isValidProjectName(projectName) &&
            isValidOrganizationName(organizationName);
   }
+
+  /// Whether native flavors (Android product flavors / iOS schemes) apply.
+  /// Flavors are only wired natively for mobile; web and (Windows/Linux)
+  /// desktop do not support `flutter run --flavor`.
+  bool get usesNativeFlavors => platforms.contains(PlatformType.mobile);
 
   /// Validates project name format
   static bool isValidProjectName(String name) {
     return RegExp(r'^[a-z][a-z0-9_]*$').hasMatch(name);
   }
 
-  /// Validates organization name format (allows underscores for project name compatibility)
+  /// Validates organization name format: dot-separated segments, each starting
+  /// with a letter (e.g. `com.example`). Rejects consecutive/trailing dots,
+  /// which would produce an invalid applicationId/bundleId.
   static bool isValidOrganizationName(String name) {
-    return RegExp(r'^[a-z][a-z0-9._]*[a-z0-9]$').hasMatch(name);
+    if (name.length < 2) return false;
+    return RegExp(r'^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$').hasMatch(name);
   }
 
   @override
   String toString() {
-    return 'ProjectConfig(projectName: $projectName, organizationName: $organizationName, stateManagement: $stateManagement, architecture: $architecture, includeGoRouter: $includeGoRouter, includeLinterRules: $includeLinterRules, includeFreezed: $includeFreezed, platforms: $platforms, mobilePlatform: $mobilePlatform, desktopPlatform: $desktopPlatform, customDesktopPlatforms: $customDesktopPlatforms, outputDirectory: $outputDirectory, skipGitInit: $skipGitInit)';
+    return 'ProjectConfig(projectName: $projectName, organizationName: $organizationName, stateManagement: $stateManagement, architecture: $architecture, includeGoRouter: $includeGoRouter, includeLinterRules: $includeLinterRules, includeFreezed: $includeFreezed, platforms: $platforms, mobilePlatform: $mobilePlatform, desktopPlatform: $desktopPlatform, customDesktopPlatforms: $customDesktopPlatforms, outputDirectory: $outputDirectory, skipGitInit: $skipGitInit, flavors: $flavors)';
   }
 
   @override
@@ -67,7 +80,8 @@ class ProjectConfig {
         other.desktopPlatform == desktopPlatform &&
         other.customDesktopPlatforms == customDesktopPlatforms &&
         other.outputDirectory == outputDirectory &&
-        other.skipGitInit == skipGitInit;
+        other.skipGitInit == skipGitInit &&
+        other.flavors == flavors;
   }
 
   @override
@@ -84,7 +98,8 @@ class ProjectConfig {
         desktopPlatform.hashCode ^
         customDesktopPlatforms.hashCode ^
         outputDirectory.hashCode ^
-        skipGitInit.hashCode;
+        skipGitInit.hashCode ^
+        flavors.hashCode;
   }
 }
 
@@ -194,6 +209,121 @@ class CustomDesktopPlatforms {
     if (macos) platforms.add('macos');
     if (linux) platforms.add('linux');
     return platforms;
+  }
+}
+
+/// Enum representing the native build flavors of the generated project.
+///
+/// Each flavor maps to an Android product flavor + iOS build configuration and
+/// scheme, a dedicated Dart entry point (`main_<entryPoint>.dart`) and a
+/// distinct bundleId so the flavors can be installed side by side.
+///
+/// The bundleId the user enters is treated as **production** (the clean base);
+/// dev/staging derive their id by appending a suffix. e.g. base `com.test.app`:
+///   production -> com.test.app        (no suffix)
+///   dev        -> com.test.app.dev
+///   staging    -> com.test.app.stage
+enum Flavor {
+  dev,
+  staging,
+  production;
+
+  /// Human readable name shown in prompts/summaries.
+  String get displayName {
+    switch (this) {
+      case Flavor.dev:
+        return 'Development';
+      case Flavor.staging:
+        return 'Staging';
+      case Flavor.production:
+        return 'Production';
+    }
+  }
+
+  /// Name used for `flutter --flavor`, the Android product flavor and the iOS
+  /// scheme / build configuration (matches the JornaDay reference: dev/prod).
+  String get flavorName {
+    switch (this) {
+      case Flavor.dev:
+        return 'dev';
+      case Flavor.staging:
+        return 'staging';
+      case Flavor.production:
+        return 'prod';
+    }
+  }
+
+  /// Dart entry point file name: `lib/main_<entryPoint>.dart`.
+  String get entryPoint {
+    switch (this) {
+      case Flavor.dev:
+        return 'dev';
+      case Flavor.staging:
+        return 'staging';
+      case Flavor.production:
+        return 'production';
+    }
+  }
+
+  /// `AppEnvironment.<environment>` used inside the entry point.
+  String get environment {
+    switch (this) {
+      case Flavor.dev:
+        return 'dev';
+      case Flavor.staging:
+        return 'staging';
+      case Flavor.production:
+        return 'production';
+    }
+  }
+
+  /// Suffix appended to the base bundleId/applicationId.
+  /// Production keeps the base id the user typed (no suffix).
+  String get bundleIdSuffix {
+    switch (this) {
+      case Flavor.dev:
+        return '.dev';
+      case Flavor.staging:
+        return '.stage';
+      case Flavor.production:
+        return '';
+    }
+  }
+
+  /// Suffix appended to the visible app name (empty for production).
+  String get appNameSuffix {
+    switch (this) {
+      case Flavor.dev:
+        return ' Dev';
+      case Flavor.staging:
+        return ' Stage';
+      case Flavor.production:
+        return '';
+    }
+  }
+
+  /// Full bundleId for this flavor given the [baseId] the user entered
+  /// (the base id is the production id).
+  String bundleId(String baseId) => '$baseId$bundleIdSuffix';
+
+  /// Parses a user-supplied flavor token (case-insensitive, lenient aliases).
+  /// Returns null if it doesn't match any flavor.
+  static Flavor? tryParse(String value) {
+    switch (value.trim().toLowerCase()) {
+      case 'dev':
+      case 'develop':
+      case 'development':
+        return Flavor.dev;
+      case 'stg':
+      case 'stage':
+      case 'staging':
+        return Flavor.staging;
+      case 'prod':
+      case 'production':
+        return Flavor.production;
+      default:
+        return null;
+    }
   }
 }
 

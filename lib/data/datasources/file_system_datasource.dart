@@ -17,8 +17,13 @@ abstract class FileSystemDataSource {
   Future<void> createBuildYaml(String projectName);
   Future<void> createInternationalization(String projectName);
   Future<void> ensureCleanArchitectureFiles(String projectName);
-  Future<void> createVSCodeLaunchConfig(String projectName);
+  Future<void> createVSCodeLaunchConfig(String projectName, List<Flavor> flavors, {bool nativeFlavors = true});
   Future<void> createGitIgnore(String projectName);
+
+  /// Configures native build flavors (Android product flavors + iOS build
+  /// configurations/schemes) for the selected [ProjectConfig.flavors].
+  /// Must run after `flutter create` (native folders must already exist).
+  Future<void> configureFlavors(ProjectConfig config);
 }
 
 /// Implementation of FileSystemDataSource
@@ -143,95 +148,39 @@ class FileSystemDataSourceImpl implements FileSystemDataSource {
       'intl_utils: ^2.8.7',
     ]);
 
+    // Insert our dependencies right after each section header, preserving the
+    // entries `flutter create` already wrote (flutter sdk, cupertino_icons,
+    // flutter_test, flutter_lints). The previous approach mis-detected the
+    // `flutter:` SDK dependency as the top-level `flutter:` section and pushed
+    // the SDK + cupertino_icons under dev_dependencies.
     final lines = pubspecContent.split('\n');
     final newLines = <String>[];
-    bool skipUntilNextSection = false;
     bool dependenciesAdded = false;
     bool devDependenciesAdded = false;
-    
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i];
-      final trimmedLine = line.trim();
-      
-      if (trimmedLine == 'dependencies:') {
-        skipUntilNextSection = true;
-        if (!dependenciesAdded) {
-          newLines.add('dependencies:');
-          for (final dep in dependencies) {
-            newLines.add('  $dep');
-          }
-          newLines.add('');
-          dependenciesAdded = true;
-        }
-        continue;
-      }
-      
-      if (trimmedLine == 'dev_dependencies:') {
-        skipUntilNextSection = true;
-        if (!devDependenciesAdded) {
-          newLines.add('dev_dependencies:');
-          for (final dep in devDependencies) {
-            newLines.add('  $dep');
-          }
-          newLines.add('');
-          devDependenciesAdded = true;
-        }
-        continue;
-      }
-      
-      if (skipUntilNextSection) {
-        if (trimmedLine.isEmpty || trimmedLine.startsWith('  ') || trimmedLine.startsWith('    ') || trimmedLine.startsWith('#')) {
-          continue;
-        } else {
-          skipUntilNextSection = false;
-        }
-      }
-      
-      if (trimmedLine == 'flutter:' && !dependenciesAdded) {
-        newLines.add('dependencies:');
-        for (final dep in dependencies) {
-          newLines.add('  $dep');
-        }
-        newLines.add('');
-        dependenciesAdded = true;
-      }
-      
-      if (trimmedLine == 'flutter:' && dependenciesAdded && !devDependenciesAdded) {
-        newLines.add('dev_dependencies:');
-        for (final dep in devDependencies) {
-          newLines.add('  $dep');
-        }
-        newLines.add('');
-        devDependenciesAdded = true;
-      }
-      
+
+    for (final line in lines) {
       newLines.add(line);
-    }
-    
-    if (!dependenciesAdded) {
-      final flutterIndex = newLines.indexWhere((line) => line.trim() == 'flutter:');
-      if (flutterIndex != -1) {
-        newLines.insert(flutterIndex, '');
-        for (int i = dependencies.length - 1; i >= 0; i--) {
-          newLines.insert(flutterIndex, '  ${dependencies[i]}');
-        }
-        newLines.insert(flutterIndex, 'dependencies:');
+      if (line.trim() == 'dependencies:' && !dependenciesAdded) {
+        newLines.addAll(dependencies.map((dep) => '  $dep'));
         dependenciesAdded = true;
-      }
-    }
-    
-    if (!devDependenciesAdded && dependenciesAdded) {
-      final flutterIndex = newLines.indexWhere((line) => line.trim() == 'flutter:');
-      if (flutterIndex != -1) {
-        newLines.insert(flutterIndex, '');
-        for (int i = devDependencies.length - 1; i >= 0; i--) {
-          newLines.insert(flutterIndex, '  ${devDependencies[i]}');
-        }
-        newLines.insert(flutterIndex, 'dev_dependencies:');
+      } else if (line.trim() == 'dev_dependencies:' && !devDependenciesAdded) {
+        newLines.addAll(devDependencies.map((dep) => '  $dep'));
         devDependenciesAdded = true;
       }
     }
-    
+
+    // Fallbacks if a section was missing (unusual for `flutter create` output).
+    if (!dependenciesAdded) {
+      newLines
+        ..add('dependencies:')
+        ..addAll(dependencies.map((dep) => '  $dep'));
+    }
+    if (!devDependenciesAdded) {
+      newLines
+        ..add('dev_dependencies:')
+        ..addAll(devDependencies.map((dep) => '  $dep'));
+    }
+
     pubspecContent = newLines.join('\n');
 
     pubspecFile.writeAsStringSync(pubspecContent);
@@ -1846,7 +1795,16 @@ class AppLocalizationsSetup {
   }
 
   @override
-  Future<void> createVSCodeLaunchConfig(String projectName) async {
+  Future<void> createVSCodeLaunchConfig(String projectName, List<Flavor> flavors, {bool nativeFlavors = true}) async {
+    // Prune entry points for flavors that were NOT selected.
+    for (final flavor in Flavor.values) {
+      if (!flavors.contains(flavor)) {
+        final entry =
+            File(path.join(projectName, 'lib', 'main_${flavor.entryPoint}.dart'));
+        if (entry.existsSync()) entry.deleteSync();
+      }
+    }
+
     final vscodeDir = Directory(path.join(projectName, '.vscode'));
     if (!vscodeDir.existsSync()) {
       vscodeDir.createSync(recursive: true);
@@ -1877,76 +1835,36 @@ class AppLocalizationsSetup {
     final launchJsonPath = path.join(projectName, '.vscode', 'launch.json');
     final launchJsonFile = File(launchJsonPath);
     
+    final entries = <String>[];
+    for (final flavor in flavors) {
+      for (final mode in const ['debug', 'profile', 'release']) {
+        final suffix = mode == 'debug'
+            ? ''
+            : ' - ${mode[0].toUpperCase()}${mode.substring(1)}';
+        final name = '$projectName (${flavor.displayName})$suffix';
+        // `--flavor` only applies to native mobile targets; web and
+        // Windows/Linux desktop reject it, so omit the arg there.
+        final argsLine = nativeFlavors
+            ? '\n      "args": ["--flavor", "${flavor.flavorName}"],'
+            : '';
+        entries.add('''    {
+      "name": "$name",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_${flavor.entryPoint}.dart",$argsLine
+      "flutterMode": "$mode"
+    }''');
+      }
+    }
+
     final content = '''{
   "version": "0.2.0",
   "configurations": [
-    {
-      "name": "$projectName (Dev)",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main_dev.dart",
-      "flutterMode": "debug"
-    },
-    {
-      "name": "$projectName (Dev) - Profile",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main_dev.dart",
-      "flutterMode": "profile"
-    },
-    {
-      "name": "$projectName (Dev) - Release",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main_dev.dart",
-      "flutterMode": "release"
-    },
-    {
-      "name": "$projectName (Staging)",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main_staging.dart",
-      "flutterMode": "debug"
-    },
-    {
-      "name": "$projectName (Staging) - Profile",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main_staging.dart",
-      "flutterMode": "profile"
-    },
-    {
-      "name": "$projectName (Staging) - Release",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main_staging.dart",
-      "flutterMode": "release"
-    },
-    {
-      "name": "$projectName (Production)",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main_production.dart",
-      "flutterMode": "debug"
-    },
-    {
-      "name": "$projectName (Production) - Profile",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main_production.dart",
-      "flutterMode": "profile"
-    },
-    {
-      "name": "$projectName (Production) - Release",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main_production.dart",
-      "flutterMode": "release"
-    }
+${entries.join(',\n')}
   ]
 }
 ''';
-    
+
     launchJsonFile.writeAsStringSync(content);
   }
 
@@ -2045,6 +1963,496 @@ key.properties
 ''';
     
     gitignoreFile.writeAsStringSync(content);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Native flavors (Android product flavors + iOS build configs/schemes)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  @override
+  Future<void> configureFlavors(ProjectConfig config) async {
+    if (config.flavors.isEmpty) return;
+    await _configureAndroidFlavors(config);
+    await _configureIosFlavors(config);
+  }
+
+  /// Converts a package name into a human friendly app name.
+  /// e.g. `my_awesome_app` -> `My Awesome App`
+  String _humanizeName(String projectName) {
+    return path
+        .basename(projectName)
+        .split(RegExp(r'[_\s]+'))
+        .where((word) => word.isNotEmpty)
+        .map((word) => word[0].toUpperCase() + word.substring(1))
+        .join(' ');
+  }
+
+  Future<void> _configureAndroidFlavors(ProjectConfig config) async {
+    final androidAppDir =
+        Directory(path.join(config.projectName, 'android', 'app'));
+    // Android platform was not generated for this project.
+    if (!androidAppDir.existsSync()) return;
+
+    final appName = _humanizeName(config.projectName);
+    final gradleKts = File(path.join(androidAppDir.path, 'build.gradle.kts'));
+    final gradleGroovy = File(path.join(androidAppDir.path, 'build.gradle'));
+
+    if (gradleKts.existsSync()) {
+      _injectKotlinFlavors(gradleKts, config.flavors, appName);
+    } else if (gradleGroovy.existsSync()) {
+      _injectGroovyFlavors(gradleGroovy, config.flavors, appName);
+    }
+
+    _patchAndroidManifestLabel(config.projectName);
+  }
+
+  /// Injects `flavorDimensions` + `productFlavors` into a Kotlin DSL
+  /// (`build.gradle.kts`) `android { }` block, right before `buildTypes`.
+  void _injectKotlinFlavors(
+    File gradle,
+    List<Flavor> flavors,
+    String appName,
+  ) {
+    var content = gradle.readAsStringSync();
+    if (content.contains('productFlavors')) return; // idempotent
+
+    final block = StringBuffer()
+      // resValue(...) requires the resValues build feature, which AGP 8+
+      // disables by default.
+      ..writeln('    buildFeatures {')
+      ..writeln('        resValues = true')
+      ..writeln('    }')
+      ..writeln('    flavorDimensions += "environment"')
+      ..writeln('    productFlavors {');
+    for (final flavor in flavors) {
+      block.writeln('        create("${flavor.flavorName}") {');
+      block.writeln('            dimension = "environment"');
+      if (flavor.bundleIdSuffix.isNotEmpty) {
+        block.writeln(
+          '            applicationIdSuffix = "${flavor.bundleIdSuffix}"',
+        );
+      }
+      block.writeln(
+        '            resValue("string", "app_name", "$appName${flavor.appNameSuffix}")',
+      );
+      block.writeln('        }');
+    }
+    block
+      ..writeln('    }')
+      ..writeln();
+
+    final flavorBlock = block.toString();
+    final anchor = RegExp(r'\n([ \t]*)buildTypes');
+    if (anchor.hasMatch(content)) {
+      content = content.replaceFirstMapped(
+        anchor,
+        (m) => '\n$flavorBlock${m.group(1)}buildTypes',
+      );
+    } else {
+      // Fallback: insert before the final closing brace of the file.
+      final lastBrace = content.lastIndexOf('}');
+      if (lastBrace != -1) {
+        content =
+            '${content.substring(0, lastBrace)}$flavorBlock${content.substring(lastBrace)}';
+      }
+    }
+    gradle.writeAsStringSync(content);
+  }
+
+  /// Injects flavors into a Groovy (`build.gradle`) `android { }` block.
+  void _injectGroovyFlavors(
+    File gradle,
+    List<Flavor> flavors,
+    String appName,
+  ) {
+    var content = gradle.readAsStringSync();
+    if (content.contains('productFlavors')) return; // idempotent
+
+    final block = StringBuffer()
+      // resValue(...) requires the resValues build feature, which AGP 8+
+      // disables by default.
+      ..writeln('    buildFeatures {')
+      ..writeln('        resValues true')
+      ..writeln('    }')
+      ..writeln('    flavorDimensions "environment"')
+      ..writeln('    productFlavors {');
+    for (final flavor in flavors) {
+      block.writeln('        ${flavor.flavorName} {');
+      block.writeln('            dimension "environment"');
+      if (flavor.bundleIdSuffix.isNotEmpty) {
+        block.writeln(
+          '            applicationIdSuffix "${flavor.bundleIdSuffix}"',
+        );
+      }
+      block.writeln(
+        '            resValue "string", "app_name", "$appName${flavor.appNameSuffix}"',
+      );
+      block.writeln('        }');
+    }
+    block
+      ..writeln('    }')
+      ..writeln();
+
+    final flavorBlock = block.toString();
+    final anchor = RegExp(r'\n([ \t]*)buildTypes');
+    if (anchor.hasMatch(content)) {
+      content = content.replaceFirstMapped(
+        anchor,
+        (m) => '\n$flavorBlock${m.group(1)}buildTypes',
+      );
+    } else {
+      final lastBrace = content.lastIndexOf('}');
+      if (lastBrace != -1) {
+        content =
+            '${content.substring(0, lastBrace)}$flavorBlock${content.substring(lastBrace)}';
+      }
+    }
+    gradle.writeAsStringSync(content);
+  }
+
+  /// Points the AndroidManifest label to the per-flavor `app_name` resource.
+  void _patchAndroidManifestLabel(String projectName) {
+    final manifest = File(
+      path.join(projectName, 'android', 'app', 'src', 'main', 'AndroidManifest.xml'),
+    );
+    if (!manifest.existsSync()) return;
+    var content = manifest.readAsStringSync();
+    if (content.contains('android:label="@string/app_name"')) return;
+    content = content.replaceFirst(
+      RegExp(r'android:label="[^"]*"'),
+      'android:label="@string/app_name"',
+    );
+    manifest.writeAsStringSync(content);
+  }
+
+  // ── iOS ────────────────────────────────────────────────────────────────
+
+  /// Configures iOS flavors by adding per-flavor xcconfig files, duplicating
+  /// the Debug/Release/Profile build configurations into
+  /// `<BuildType>-<flavor>` variants (with a distinct bundle id) inside
+  /// `project.pbxproj`, and generating a shared scheme per flavor.
+  Future<void> _configureIosFlavors(ProjectConfig config) async {
+    final iosDir = Directory(path.join(config.projectName, 'ios'));
+    final pbxFile =
+        File(path.join(iosDir.path, 'Runner.xcodeproj', 'project.pbxproj'));
+    // iOS platform was not generated for this project.
+    if (!pbxFile.existsSync()) return;
+
+    var pbx = pbxFile.readAsStringSync();
+    final firstFlavor = config.flavors.first.flavorName;
+    if (pbx.contains('/* Debug-$firstFlavor */')) return; // idempotent
+
+    final appName = _humanizeName(config.projectName);
+    final baseBundleId = _iosBaseBundleId(pbx) ??
+        '${config.organizationName}.${config.projectName}';
+    const buildTypes = ['Debug', 'Release', 'Profile'];
+
+    var seed = 0;
+    String nextId() => _pbxId(seed++);
+
+    // 1) Create xcconfig files + PBXFileReference / group entries.
+    final flutterDir = Directory(path.join(iosDir.path, 'Flutter'));
+    final xcconfigRefIds = <String, String>{}; // "Debug-dev" -> fileRef id
+    final fileRefLines = <String>[];
+    final groupChildLines = <String>[];
+    for (final flavor in config.flavors) {
+      for (final buildType in buildTypes) {
+        final cfgName = '$buildType-${flavor.flavorName}';
+        File(path.join(flutterDir.path, '$cfgName.xcconfig')).writeAsStringSync(
+          _iosXcconfigContent(buildType, flavor, appName, baseBundleId),
+        );
+        final refId = nextId();
+        xcconfigRefIds[cfgName] = refId;
+        fileRefLines.add(
+          '\t\t$refId /* $cfgName.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = "$cfgName.xcconfig"; path = "Flutter/$cfgName.xcconfig"; sourceTree = "<group>"; };',
+        );
+        groupChildLines.add('\t\t\t\t$refId /* $cfgName.xcconfig */,');
+      }
+    }
+
+    pbx = pbx.replaceFirst(
+      '/* End PBXFileReference section */',
+      '${fileRefLines.join('\n')}\n/* End PBXFileReference section */',
+    );
+    pbx = pbx.replaceFirstMapped(
+      RegExp(r'\n\t\t\t\t9740EEB31CF90195004384FC /\* Generated\.xcconfig \*/,'),
+      (m) => '${m.group(0)}\n${groupChildLines.join('\n')}',
+    );
+
+    // 2) Duplicate build configurations per flavor across the config lists.
+    const lists = [
+      'Build configuration list for PBXNativeTarget "RunnerTests"',
+      'Build configuration list for PBXProject "Runner"',
+      'Build configuration list for PBXNativeTarget "Runner"',
+    ];
+    final newBlocks = <String>[];
+    for (final listComment in lists) {
+      final isRunnerTarget = listComment == lists.last;
+      final members = _configListMembers(pbx, listComment);
+      final newMemberLines = <String>[];
+      for (final memberId in members) {
+        final block = _xcBuildConfigBlock(pbx, memberId);
+        if (block.isEmpty) continue;
+        final buildType = _configName(block);
+        for (final flavor in config.flavors) {
+          final newId = nextId();
+          final cfgName = '$buildType-${flavor.flavorName}';
+          var clone = block
+              .replaceFirst(
+                '$memberId /* $buildType */',
+                '$newId /* $cfgName */',
+              )
+              .replaceFirst(
+                RegExp('name = "?$buildType"?;'),
+                'name = "$cfgName";',
+              );
+          if (isRunnerTarget) {
+            final refId = xcconfigRefIds[cfgName]!;
+            if (clone.contains('baseConfigurationReference')) {
+              clone = clone.replaceFirst(
+                RegExp(r'baseConfigurationReference = [0-9A-F]{24} /\* [^*]+\.xcconfig \*/;'),
+                'baseConfigurationReference = $refId /* $cfgName.xcconfig */;',
+              );
+            } else {
+              clone = clone.replaceFirst(
+                'isa = XCBuildConfiguration;',
+                'isa = XCBuildConfiguration;\n\t\t\tbaseConfigurationReference = $refId /* $cfgName.xcconfig */;',
+              );
+            }
+            clone = clone.replaceFirst(
+              RegExp(r'PRODUCT_BUNDLE_IDENTIFIER = "?[^";]+"?;'),
+              'PRODUCT_BUNDLE_IDENTIFIER = "${flavor.bundleId(baseBundleId)}";',
+            );
+          }
+          newBlocks.add(clone);
+          newMemberLines.add('\t\t\t\t$newId /* $cfgName */,');
+        }
+      }
+      pbx = _appendToConfigList(pbx, listComment, newMemberLines.join('\n'));
+    }
+
+    pbx = pbx.replaceFirst(
+      '/* End XCBuildConfiguration section */',
+      '${newBlocks.join('\n')}\n/* End XCBuildConfiguration section */',
+    );
+
+    pbxFile.writeAsStringSync(pbx);
+
+    // 3) Generate a shared scheme per flavor.
+    final schemesDir = Directory(
+      path.join(iosDir.path, 'Runner.xcodeproj', 'xcshareddata', 'xcschemes'),
+    );
+    schemesDir.createSync(recursive: true);
+    for (final flavor in config.flavors) {
+      File(path.join(schemesDir.path, '${flavor.flavorName}.xcscheme'))
+          .writeAsStringSync(_iosSchemeContent(flavor.flavorName));
+    }
+  }
+
+  /// Generates a deterministic, collision-free 24-char pbxproj object id.
+  /// The `FF` prefix guarantees no clash with `flutter create`'s ids.
+  String _pbxId(int seed) =>
+      'FF${seed.toRadixString(16).toUpperCase().padLeft(22, '0')}';
+
+  /// Reads the base (production) bundle id from the Runner target settings,
+  /// ignoring the RunnerTests identifier.
+  String? _iosBaseBundleId(String pbx) {
+    for (final m
+        in RegExp(r'PRODUCT_BUNDLE_IDENTIFIER = "?([^";]+)"?;').allMatches(pbx)) {
+      final value = m.group(1)!;
+      if (!value.contains('RunnerTests')) return value;
+    }
+    return null;
+  }
+
+  /// Returns the ordered member config ids of an XCConfigurationList block.
+  List<String> _configListMembers(String pbx, String listComment) {
+    final idx = pbx.indexOf('/* $listComment */ = {');
+    if (idx == -1) return const [];
+    final bcStart = pbx.indexOf('buildConfigurations = (', idx);
+    final bcEnd = pbx.indexOf(');', bcStart);
+    final arr = pbx.substring(bcStart, bcEnd);
+    return RegExp(r'([0-9A-F]{24}) /\*')
+        .allMatches(arr)
+        .map((m) => m.group(1)!)
+        .toList();
+  }
+
+  /// Extracts a full XCBuildConfiguration block (including the closing `};`).
+  String _xcBuildConfigBlock(String pbx, String id) {
+    final start = pbx.indexOf('\t\t$id /* ');
+    if (start == -1) return '';
+    final end = pbx.indexOf('\n\t\t};', start);
+    if (end == -1) return '';
+    return '${pbx.substring(start, end)}\n\t\t};';
+  }
+
+  /// Reads the `name = ...;` of an XCBuildConfiguration block.
+  String _configName(String block) =>
+      RegExp(r'\bname = "?([A-Za-z]+)"?;').firstMatch(block)?.group(1) ?? '';
+
+  /// Appends member id lines before the closing of a config list array.
+  String _appendToConfigList(String pbx, String listComment, String lines) {
+    if (lines.isEmpty) return pbx;
+    final idx = pbx.indexOf('/* $listComment */ = {');
+    if (idx == -1) return pbx;
+    final bcStart = pbx.indexOf('buildConfigurations = (', idx);
+    final closeIdx = pbx.indexOf('\t\t\t);', bcStart);
+    if (closeIdx == -1) return pbx;
+    return '${pbx.substring(0, closeIdx)}$lines\n${pbx.substring(closeIdx)}';
+  }
+
+  String _iosXcconfigContent(
+    String buildType,
+    Flavor flavor,
+    String appName,
+    String baseBundleId,
+  ) {
+    final lower = buildType.toLowerCase();
+    return '#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.$lower-${flavor.flavorName}.xcconfig"\n'
+        '#include "Generated.xcconfig"\n'
+        'FLUTTER_TARGET=lib/main_${flavor.entryPoint}.dart\n'
+        'ASSETCATALOG_COMPILER_APPICON_NAME=AppIcon\n'
+        'PRODUCT_BUNDLE_IDENTIFIER=${flavor.bundleId(baseBundleId)}\n'
+        'BUNDLE_DISPLAY_NAME=$appName${flavor.appNameSuffix}\n';
+  }
+
+  /// Builds a shared scheme for [flavorName] based on the default Runner
+  /// scheme, binding each action to the `<BuildType>-<flavor>` configuration.
+  String _iosSchemeContent(String flavorName) {
+    const template = r'''<?xml version="1.0" encoding="UTF-8"?>
+<Scheme
+   LastUpgradeVersion = "1510"
+   version = "1.3">
+   <BuildAction
+      parallelizeBuildables = "YES"
+      buildImplicitDependencies = "YES">
+      <PreActions>
+         <ExecutionAction
+            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
+            <ActionContent
+               title = "Run Prepare Flutter Framework Script"
+               scriptText = "/bin/sh &quot;$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh&quot; prepare&#10;">
+               <EnvironmentBuildable>
+                  <BuildableReference
+                     BuildableIdentifier = "primary"
+                     BlueprintIdentifier = "97C146ED1CF9000F007C117D"
+                     BuildableName = "Runner.app"
+                     BlueprintName = "Runner"
+                     ReferencedContainer = "container:Runner.xcodeproj">
+                  </BuildableReference>
+               </EnvironmentBuildable>
+            </ActionContent>
+         </ExecutionAction>
+      </PreActions>
+      <BuildActionEntries>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "97C146ED1CF9000F007C117D"
+               BuildableName = "Runner.app"
+               BlueprintName = "Runner"
+               ReferencedContainer = "container:Runner.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+   <TestAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      customLLDBInitFile = "$(SRCROOT)/Flutter/ephemeral/flutter_lldbinit"
+      shouldUseLaunchSchemeArgsEnv = "YES">
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "97C146ED1CF9000F007C117D"
+            BuildableName = "Runner.app"
+            BlueprintName = "Runner"
+            ReferencedContainer = "container:Runner.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
+      <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "331C8080294A63A400263BE5"
+               BuildableName = "RunnerTests.xctest"
+               BlueprintName = "RunnerTests"
+               ReferencedContainer = "container:Runner.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
+   </TestAction>
+   <LaunchAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      customLLDBInitFile = "$(SRCROOT)/Flutter/ephemeral/flutter_lldbinit"
+      launchStyle = "0"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO"
+      debugDocumentVersioning = "YES"
+      debugServiceExtension = "internal"
+      enableGPUValidationMode = "1"
+      allowLocationSimulation = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "97C146ED1CF9000F007C117D"
+            BuildableName = "Runner.app"
+            BlueprintName = "Runner"
+            ReferencedContainer = "container:Runner.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </LaunchAction>
+   <ProfileAction
+      buildConfiguration = "Profile"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      savedToolIdentifier = ""
+      useCustomWorkingDirectory = "NO"
+      debugDocumentVersioning = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "97C146ED1CF9000F007C117D"
+            BuildableName = "Runner.app"
+            BlueprintName = "Runner"
+            ReferencedContainer = "container:Runner.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </ProfileAction>
+   <AnalyzeAction
+      buildConfiguration = "Debug">
+   </AnalyzeAction>
+   <ArchiveAction
+      buildConfiguration = "Release"
+      revealArchiveInOrganizer = "YES">
+   </ArchiveAction>
+</Scheme>
+''';
+    return template
+        .replaceAll(
+          'buildConfiguration = "Debug"',
+          'buildConfiguration = "Debug-$flavorName"',
+        )
+        .replaceAll(
+          'buildConfiguration = "Profile"',
+          'buildConfiguration = "Profile-$flavorName"',
+        )
+        .replaceAll(
+          'buildConfiguration = "Release"',
+          'buildConfiguration = "Release-$flavorName"',
+        );
   }
 
 

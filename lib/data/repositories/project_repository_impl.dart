@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import '../../domain/entities/project_config.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../datasources/file_system_datasource.dart';
@@ -15,7 +17,18 @@ class ProjectRepositoryImpl implements ProjectRepository {
         _flutterCommandDataSource = flutterCommandDataSource;
 
   @override
-  Future<void> createProject(ProjectConfig config) async {
+  Future<List<String>> createProject(ProjectConfig config) async {
+    final warnings = <String>[];
+    // Honor --output: generate inside the requested directory. All downstream
+    // steps use paths relative to the current directory, so switching it here
+    // places the whole project under the chosen output directory.
+    final outputDir = config.outputDirectory;
+    if (outputDir != null && outputDir.trim().isNotEmpty) {
+      final dir = Directory(outputDir);
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      Directory.current = dir;
+    }
+
     await _flutterCommandDataSource.createFlutterProject(
       projectName: config.projectName,
       organizationName: config.organizationName,
@@ -24,6 +37,10 @@ class ProjectRepositoryImpl implements ProjectRepository {
       desktopPlatform: config.desktopPlatform,
       customDesktopPlatforms: config.customDesktopPlatforms,
     );
+
+    // Configure native flavors (Android product flavors + iOS build
+    // configs/schemes) right after the native folders are generated.
+    await _fileSystemDataSource.configureFlavors(config);
 
     await _fileSystemDataSource.addDependencies(
       config.projectName, 
@@ -55,7 +72,11 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
     await _fileSystemDataSource.createBuildYaml(config.projectName);
 
-    await _fileSystemDataSource.createVSCodeLaunchConfig(config.projectName);
+    await _fileSystemDataSource.createVSCodeLaunchConfig(
+      config.projectName,
+      config.flavors,
+      nativeFlavors: config.usesNativeFlavors,
+    );
 
     await _fileSystemDataSource.createGitIgnore(config.projectName);
 
@@ -72,13 +93,32 @@ class ProjectRepositoryImpl implements ProjectRepository {
     await _flutterCommandDataSource.cleanBuildCache(config.projectName);
 
     // Generar archivos de localización (requiere intl_utils instalado)
-    await _flutterCommandDataSource.generateLocalizationFiles(config.projectName);
+    final l10nOk =
+        await _flutterCommandDataSource.generateLocalizationFiles(config.projectName);
+    if (!l10nOk) {
+      warnings.add(
+        'Localization generation failed. Run: dart run intl_utils:generate',
+      );
+    }
 
     // Generar archivos de Freezed y Drift (requiere build_runner instalado)
-    await _flutterCommandDataSource.runBuildRunner(config.projectName);
+    final buildRunnerOk =
+        await _flutterCommandDataSource.runBuildRunner(config.projectName);
+    if (!buildRunnerOk) {
+      warnings.add(
+        'Code generation failed. Run: dart run build_runner build -d',
+      );
+    }
 
     // Setup CocoaPods for iOS/macOS platforms
     await _flutterCommandDataSource.setupCocoaPods(config.projectName, config.platforms);
+
+    // Initialize git unless the user opted out with --no-git.
+    if (!config.skipGitInit) {
+      await _flutterCommandDataSource.initializeGit(config.projectName);
+    }
+
+    return warnings;
   }
 
   @override
