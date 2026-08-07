@@ -17,7 +17,8 @@ class ProjectRepositoryImpl implements ProjectRepository {
         _flutterCommandDataSource = flutterCommandDataSource;
 
   @override
-  Future<void> createProject(ProjectConfig config) async {
+  Future<List<String>> createProject(ProjectConfig config) async {
+    final warnings = <String>[];
     // Honor --output: generate inside the requested directory. All downstream
     // steps use paths relative to the current directory, so switching it here
     // places the whole project under the chosen output directory.
@@ -92,10 +93,22 @@ class ProjectRepositoryImpl implements ProjectRepository {
     await _flutterCommandDataSource.cleanBuildCache(config.projectName);
 
     // Generar archivos de localización (requiere intl_utils instalado)
-    await _flutterCommandDataSource.generateLocalizationFiles(config.projectName);
+    final l10nOk =
+        await _flutterCommandDataSource.generateLocalizationFiles(config.projectName);
+    if (!l10nOk) {
+      warnings.add(
+        'Localization generation failed. Run: dart run intl_utils:generate',
+      );
+    }
 
     // Generar archivos de Freezed y Drift (requiere build_runner instalado)
-    await _flutterCommandDataSource.runBuildRunner(config.projectName);
+    final buildRunnerOk =
+        await _flutterCommandDataSource.runBuildRunner(config.projectName);
+    if (!buildRunnerOk) {
+      warnings.add(
+        'Code generation failed. Run: dart run build_runner build -d',
+      );
+    }
 
     // Setup CocoaPods for iOS/macOS platforms
     await _flutterCommandDataSource.setupCocoaPods(config.projectName, config.platforms);
@@ -104,6 +117,8 @@ class ProjectRepositoryImpl implements ProjectRepository {
     if (!config.skipGitInit) {
       await _flutterCommandDataSource.initializeGit(config.projectName);
     }
+
+    return warnings;
   }
 
   @override

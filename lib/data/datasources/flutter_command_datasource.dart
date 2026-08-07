@@ -17,11 +17,13 @@ abstract class FlutterCommandDataSource {
 
   Future<void> initializeGit(String projectName);
 
-  Future<void> generateLocalizationFiles(String projectName);
+  /// Returns true if localization generation succeeded.
+  Future<bool> generateLocalizationFiles(String projectName);
 
   Future<void> cleanBuildCache(String projectName);
 
-  Future<void> runBuildRunner(String projectName);
+  /// Returns true if code generation (build_runner) succeeded.
+  Future<bool> runBuildRunner(String projectName);
 
   Future<void> setupCocoaPods(String projectName, List<PlatformType> platforms);
 }
@@ -145,7 +147,7 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
   }
 
   @override
-  Future<void> generateLocalizationFiles(String projectName) async {
+  Future<bool> generateLocalizationFiles(String projectName) async {
     try {
       final result = await Process.run(
         'dart',
@@ -153,14 +155,10 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
         workingDirectory: projectName,
         runInShell: true,
       );
-
-      if (result.exitCode != 0) {
-        // Silent: runs during spinner animation
-      }
-
       await _fixAppLocalizationsImport(projectName);
+      return result.exitCode == 0;
     } catch (_) {
-      // Silent: runs during spinner animation
+      return false;
     }
   }
 
@@ -206,7 +204,7 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
   }
 
   @override
-  Future<void> runBuildRunner(String projectName) async {
+  Future<bool> runBuildRunner(String projectName) async {
     try {
       final result = await Process.run(
         'dart',
@@ -214,12 +212,9 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
         workingDirectory: projectName,
         runInShell: true,
       );
-
-      if (result.exitCode != 0) {
-        // Silent: runs during spinner animation
-      }
+      return result.exitCode == 0;
     } catch (_) {
-      // Silent: runs during spinner animation
+      return false;
     }
   }
 

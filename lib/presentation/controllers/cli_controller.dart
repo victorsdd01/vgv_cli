@@ -385,11 +385,22 @@ class CliController {
   Future<void> _createProject(ProjectConfig config) async {
     _logger.info('');
 
+    if (!await _projectRepository.isFlutterInstalled()) {
+      _logger
+        ..err('Flutter is not installed or not on your PATH.')
+        ..detail('Install Flutter, verify with `flutter doctor`, then retry.');
+      return;
+    }
+
     final progress = _logger.progress('Creating Flutter project...');
 
     try {
-      await _projectRepository.createProject(config);
-      progress.complete('Project created successfully');
+      final warnings = await _projectRepository.createProject(config);
+      progress.complete(
+        warnings.isEmpty
+            ? 'Project created successfully'
+            : 'Project created with ${warnings.length} warning(s)',
+      );
 
       final firstFlavor = config.flavors.first;
       final native = config.usesNativeFlavors;
@@ -411,6 +422,15 @@ class CliController {
         );
       }
       _logger.info('');
+
+      if (warnings.isNotEmpty) {
+        _logger.warn('Some post-generation steps need your attention:');
+        for (final warning in warnings) {
+          _logger.info('    - $warning');
+        }
+        _logger.info(styleDim.wrap('  The project was created; finish these steps manually.'));
+        _logger.info('');
+      }
     } catch (e) {
       progress.fail('Failed to create project');
       _logger
