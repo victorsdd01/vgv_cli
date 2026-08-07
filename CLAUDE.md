@@ -138,7 +138,14 @@ Análisis exhaustivo del CLI (2026-08-07). Arreglados:
 - **P2** Android `resValues` (ver Parte 5).
 - **P3** regex de org aceptaba puntos consecutivos (`com..x`) → corregida; `compareVersions` podía lanzar `FormatException` → parseo defensivo; `getLatestCLIVersion` sin timeout → timeout 10s.
 
-Pendientes (menor prioridad, ver #9): reporte de éxito engañoso cuando build_runner/l10n/pods fallan en silencio (P2); use cases de dominio (`CreateProjectUseCase`/`ValidateProjectConfigUseCase`) nunca se invocan → sin pre-check limpio de "flutter no instalado" (P2); barra de progreso de update falsa (cosmético); exit code 0 en fallos de validación; flags ignoradas fuera de flag-mode.
+También arreglados en una 2ª pasada:
+- **P2** reporte de éxito engañoso → `runBuildRunner`/`generateLocalizationFiles` ahora devuelven bool; `createProject` retorna `List<String>` de warnings y el CLI los muestra (ya no dice "success" a secas si falló codegen/l10n).
+- **P2** sin pre-check de Flutter → el controller llama `isFlutterInstalled()` antes de generar y aborta con mensaje claro.
+- **P3** barra de progreso falsa en `vgv -u` (imprimía "All steps completed" ANTES del `activate` real) → reemplazada por estado honesto.
+
+Verificado end-to-end con el CLI corregido (proyecto `verify_app` regenerado): git init OK, pubspec bien formado, `✓ app-dev-debug.apk`.
+
+Pendientes menores (para decidir con el usuario): use cases de dominio (`CreateProjectUseCase`/`ValidateProjectConfigUseCase`) siguen sin invocarse (código muerto — el pre-check se replicó en el controller); exit code 0 en fallos de validación (CI no los detecta); flags como `-o`/`--org` sueltas (sin `-n`/`-q`) se ignoran y cae a interactivo; `VersionChecker._latestVersions` hardcodeado y no usado por `addDependencies` (fuente de verdad duplicada).
 
 ### 2. Bugs al actualizar
 Al hacer `vgv -u` había bugs. Revisar el flujo de update en `lib/vgv_cli.dart` (`_updateCLI`, `_checkForUpdates`, `_showUpdateProgress`) y `version_checker.dart`.
@@ -168,4 +175,5 @@ El `[skip ci]` del fix `977bd56` (para cortar el loop infinito del bump) tambié
 
 ## Historial de sesiones
 
-- **2026-08-07**: Máquina restaurada (placa reemplazada). Repo re-clonado limpio; se confirmó pérdida de ~1 mes de cambios locales no pusheados. Último commit real del proyecto: 2026-03-08 (v1.10.49). Se creó este `CLAUDE.md`. Se decidió trabajar en `develop`. Próximo paso: mejorar UI de terminal estilo Mason/Inquirer + arreglar bugs de update.
+- **2026-08-07**: Máquina restaurada (placa reemplazada). Repo re-clonado limpio; se confirmó pérdida de ~1 mes de cambios locales no pusheados. Último commit real del proyecto: 2026-03-08 (v1.10.49). Se creó este `CLAUDE.md`. Se decidió trabajar en `develop`.
+- **2026-08-07 (sesión larga)**: Trabajo en `develop`, **commits locales sin push** (el usuario revisa el diff `develop` vs `main` al volver). Logrado: (1) UI migrada a `mason_logger`; (2) **flavors nativos completos** dev/staging/prod (Android productFlavors + iOS pbxproj/schemes/xcconfig + entry points + launch.json), prompt para elegir cuáles, preview de bundle IDs, verificado con builds reales Android+iOS; (3) **fix de update/versión** (fuente única horneada + canal git); (4) **bug hunt** con ~10 fixes P1/P2/P3. Todo con `analyze` limpio y 31 tests pasando. Commits `26495a0`..`b01c2a4`. Identidad git local: `victorsdd`.
