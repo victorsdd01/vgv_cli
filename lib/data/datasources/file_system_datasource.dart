@@ -2233,6 +2233,12 @@ key.properties
               RegExp(r'PRODUCT_BUNDLE_IDENTIFIER = "?[^";]+"?;'),
               'PRODUCT_BUNDLE_IDENTIFIER = "${flavor.bundleId(baseBundleId)}";',
             );
+            // The pbxproj build setting overrides the xcconfig, so set the
+            // per-flavor app icon here too (else iOS uses the default AppIcon).
+            clone = clone.replaceFirst(
+              RegExp(r'ASSETCATALOG_COMPILER_APPICON_NAME = "?[^";]+"?;'),
+              'ASSETCATALOG_COMPILER_APPICON_NAME = ${FlavorIconGenerator.iosAppIconName(flavor)};',
+            );
           }
           newBlocks.add(clone);
           newMemberLines.add('\t\t\t\t$newId /* $cfgName */,');

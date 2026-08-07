@@ -2857,7 +2857,10 @@ class _TalkerOverlay extends StatefulWidget {
 }
 
 class _TalkerOverlayState extends State<_TalkerOverlay> {
+  static const double _buttonSize = 48;
+
   bool _isOpen = false;
+  Offset? _position; // top-left of the button; null => default corner
 
   Future<void> _openLogs() async {
     setState(() => _isOpen = true);
@@ -2871,24 +2874,40 @@ class _TalkerOverlayState extends State<_TalkerOverlay> {
   }
 
   @override
-  Widget build(BuildContext context) => Stack(
-    children: <Widget>[
-      widget.child,
-      if (!_isOpen)
-        Positioned(
-          left: 16,
-          bottom: 24,
-          child: SafeArea(
-            child: FloatingActionButton.small(
-              heroTag: 'talkerLogsButton',
-              backgroundColor: Colors.black87,
-              onPressed: _openLogs,
-              child: const Icon(Icons.bug_report, color: Colors.white),
+  Widget build(BuildContext context) {
+    final MediaQueryData mq = MediaQuery.of(context);
+    final Offset position = _position ??
+        Offset(16, mq.size.height - mq.padding.bottom - _buttonSize - 24);
+
+    return Stack(
+      children: <Widget>[
+        widget.child,
+        if (!_isOpen)
+          Positioned(
+            left: position.dx,
+            top: position.dy,
+            // Tap opens the logs; long-press and drag moves the button anywhere.
+            child: GestureDetector(
+              onLongPressMoveUpdate: (LongPressMoveUpdateDetails details) {
+                setState(() {
+                  final double dx = (details.globalPosition.dx - _buttonSize / 2)
+                      .clamp(0.0, mq.size.width - _buttonSize);
+                  final double dy = (details.globalPosition.dy - _buttonSize / 2)
+                      .clamp(mq.padding.top, mq.size.height - _buttonSize);
+                  _position = Offset(dx, dy);
+                });
+              },
+              child: FloatingActionButton.small(
+                heroTag: 'talkerLogsButton',
+                backgroundColor: Colors.black87,
+                onPressed: _openLogs,
+                child: const Icon(Icons.bug_report, color: Colors.white),
+              ),
             ),
           ),
-        ),
-    ],
-  );
+      ],
+    );
+  }
 }
 ''';
   static const String _main_dev_dart = r'''import 'application/config/config.dart';
