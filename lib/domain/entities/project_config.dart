@@ -14,6 +14,10 @@ class ProjectConfig {
   final String? outputDirectory;
   final bool skipGitInit;
 
+  /// Native flavors to generate (dev, staging, production).
+  /// Each flavor gets its own applicationId/bundleId, app name and entry point.
+  final List<Flavor> flavors;
+
   const ProjectConfig({
     required this.projectName,
     required this.organizationName,
@@ -28,6 +32,7 @@ class ProjectConfig {
     this.customDesktopPlatforms,
     this.outputDirectory,
     this.skipGitInit = false,
+    this.flavors = const [Flavor.dev, Flavor.staging, Flavor.production],
   });
 
   /// Validates the project configuration
@@ -48,7 +53,7 @@ class ProjectConfig {
 
   @override
   String toString() {
-    return 'ProjectConfig(projectName: $projectName, organizationName: $organizationName, stateManagement: $stateManagement, architecture: $architecture, includeGoRouter: $includeGoRouter, includeLinterRules: $includeLinterRules, includeFreezed: $includeFreezed, platforms: $platforms, mobilePlatform: $mobilePlatform, desktopPlatform: $desktopPlatform, customDesktopPlatforms: $customDesktopPlatforms, outputDirectory: $outputDirectory, skipGitInit: $skipGitInit)';
+    return 'ProjectConfig(projectName: $projectName, organizationName: $organizationName, stateManagement: $stateManagement, architecture: $architecture, includeGoRouter: $includeGoRouter, includeLinterRules: $includeLinterRules, includeFreezed: $includeFreezed, platforms: $platforms, mobilePlatform: $mobilePlatform, desktopPlatform: $desktopPlatform, customDesktopPlatforms: $customDesktopPlatforms, outputDirectory: $outputDirectory, skipGitInit: $skipGitInit, flavors: $flavors)';
   }
 
   @override
@@ -67,7 +72,8 @@ class ProjectConfig {
         other.desktopPlatform == desktopPlatform &&
         other.customDesktopPlatforms == customDesktopPlatforms &&
         other.outputDirectory == outputDirectory &&
-        other.skipGitInit == skipGitInit;
+        other.skipGitInit == skipGitInit &&
+        other.flavors == flavors;
   }
 
   @override
@@ -84,7 +90,8 @@ class ProjectConfig {
         desktopPlatform.hashCode ^
         customDesktopPlatforms.hashCode ^
         outputDirectory.hashCode ^
-        skipGitInit.hashCode;
+        skipGitInit.hashCode ^
+        flavors.hashCode;
   }
 }
 
@@ -194,6 +201,78 @@ class CustomDesktopPlatforms {
     if (macos) platforms.add('macos');
     if (linux) platforms.add('linux');
     return platforms;
+  }
+}
+
+/// Enum representing the native build flavors of the generated project.
+///
+/// Each flavor maps to an Android product flavor + iOS build configuration,
+/// a dedicated entry point (`main_<shortName>.dart`) and a distinct
+/// applicationId/bundleId so the flavors can be installed side by side.
+enum Flavor {
+  dev,
+  staging,
+  production;
+
+  /// Human readable name shown in prompts/summaries.
+  String get displayName {
+    switch (this) {
+      case Flavor.dev:
+        return 'Development';
+      case Flavor.staging:
+        return 'Staging';
+      case Flavor.production:
+        return 'Production';
+    }
+  }
+
+  /// Identifier used for entry points, schemes and gradle flavor names.
+  String get shortName {
+    switch (this) {
+      case Flavor.dev:
+        return 'dev';
+      case Flavor.staging:
+        return 'staging';
+      case Flavor.production:
+        return 'production';
+    }
+  }
+
+  /// Suffix appended to the base applicationId/bundleId.
+  /// Production keeps the base id (no suffix) so store builds stay clean.
+  String get applicationIdSuffix {
+    switch (this) {
+      case Flavor.dev:
+        return '.dev';
+      case Flavor.staging:
+        return '.stg';
+      case Flavor.production:
+        return '';
+    }
+  }
+
+  /// Suffix appended to the visible app name (empty for production).
+  String get appNameSuffix {
+    switch (this) {
+      case Flavor.dev:
+        return ' Dev';
+      case Flavor.staging:
+        return ' Stg';
+      case Flavor.production:
+        return '';
+    }
+  }
+
+  /// Suffix appended to the versionName on Android (empty for production).
+  String get versionNameSuffix {
+    switch (this) {
+      case Flavor.dev:
+        return '-dev';
+      case Flavor.staging:
+        return '-stg';
+      case Flavor.production:
+        return '';
+    }
   }
 }
 

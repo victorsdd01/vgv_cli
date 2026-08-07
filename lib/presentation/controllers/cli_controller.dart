@@ -15,6 +15,7 @@ class CliController {
     final projectName = _getProjectName();
     final organization = _getOrganization(projectName);
     final platforms = _getPlatforms();
+    final flavors = _getFlavors();
     final includeLinterRules = _getLinterRulesChoice();
 
     final config = ProjectConfig(
@@ -31,6 +32,7 @@ class CliController {
           ? DesktopPlatform.custom
           : DesktopPlatform.all,
       customDesktopPlatforms: _selectedDesktopPlatforms,
+      flavors: flavors,
     );
 
     _printConfigurationSummary(config);
@@ -282,6 +284,26 @@ class CliController {
     return platforms;
   }
 
+  List<Flavor> _getFlavors() {
+    final selected = _logger.chooseAny<Flavor>(
+      '${lightCyan.wrap('?')} Which flavors do you want to generate? '
+      '${styleDim.wrap('(space to toggle, enter to confirm)')}',
+      choices: Flavor.values,
+      defaultValues: Flavor.values,
+      display: (flavor) => flavor.displayName,
+    );
+
+    if (selected.isEmpty) {
+      _logger.warn(
+        'No flavors selected. Defaulting to all (dev, staging, production).',
+      );
+      return const [Flavor.dev, Flavor.staging, Flavor.production];
+    }
+
+    // Preserve canonical order (dev, staging, production).
+    return Flavor.values.where(selected.contains).toList();
+  }
+
   bool _getLinterRulesChoice() {
     return _logger.confirm(
       '${lightCyan.wrap('?')} Include custom linter rules?',
@@ -305,7 +327,7 @@ class CliController {
       ..info('  ${label('Navigation:')}    ${value('Go Router')}')
       ..info('  ${label('Architecture:')}  ${value('Clean Architecture')}')
       ..info('  ${label('Code Gen:')}      ${value('Freezed')}')
-      ..info('  ${label('Environments:')}  ${value('Dev, Staging, Production')}');
+      ..info('  ${label('Flavors:')}       ${value(config.flavors.map((f) => f.displayName).join(', '))}');
     if (config.includeLinterRules) {
       _logger.info('  ${label('Linter:')}        ${value('Custom Rules')}');
     }

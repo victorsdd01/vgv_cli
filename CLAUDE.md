@@ -111,6 +111,15 @@ Configurar **flavors nativos reales** (Android `productFlavors` en `build.gradle
 ### 2. Bugs al actualizar
 Al hacer `vgv -u` había bugs. Revisar el flujo de update en `lib/vgv_cli.dart` (`_updateCLI`, `_checkForUpdates`, `_showUpdateProgress`) y `version_checker.dart`.
 
+**Causa raíz (con evidencia, 2026-08-07):** no hay una fuente única de verdad de versión y discrepan entre sí:
+- `main` pubspec → **1.10.49** (bump `d8dfebb`, 2026-03-08, **sin tag ni release**)
+- último git tag / GitHub Release → **v1.10.48** (2026-03-07)
+- pub.dev → **1.10.41** (muy atrasado)
+
+El `[skip ci]` del fix `977bd56` (para cortar el loop infinito del bump) también evitó que se tagueara/publicara el bump final → por eso 1.10.49 quedó sin tag/release. `getLatestCLIVersion()` lee releases (1.10.48) y `getLatestCLIVersionFromGit()` lee main pubspec (1.10.49) → inconsistencia. Además `getCurrentVersion()` lee primero `~/.vgv_version` (caché que queda viejo y tapa la versión real) y su fallback "dev mode" lee el pubspec del **CWD** (no el del CLI). Al actualizar, guarda la versión *esperada del remoto*, no la *realmente instalada*.
+
+**Fix pendiente (2 frentes):** (a) código — elegir canal canónico único + versión horneada (constante Dart generada, estilo Mason) y eliminar el `~/.vgv_version` frágil; (b) CI — que el bump final sí genere su tag/release sin reactivar el loop.
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Limpiar artefactos de build versionados en `templates/blocs/build/`.
