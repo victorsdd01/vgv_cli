@@ -2,6 +2,7 @@
 
 import 'dart:io';
 import 'package:args/args.dart';
+import 'package:mason_logger/mason_logger.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/utils/ansi_colors.dart';
 import 'core/utils/version_checker.dart';
@@ -150,14 +151,6 @@ class VgvCli {
     }
   }
 
-  Future<void> _showCompletionCelebration() async {
-    print('');
-    print('${AnsiColors.brightMagenta}${AnsiColors.bold}╔══════════════════════════════════════════════════════════════╗${AnsiColors.reset}');
-    print('${AnsiColors.brightMagenta}${AnsiColors.bold}║${AnsiColors.reset}${AnsiColors.brightGreen}${AnsiColors.bold}                       UPDATE COMPLETE                        ${AnsiColors.reset}${AnsiColors.brightMagenta}${AnsiColors.bold}║${AnsiColors.reset}');
-    print('${AnsiColors.brightMagenta}${AnsiColors.bold}╚══════════════════════════════════════════════════════════════╝${AnsiColors.reset}');
-    print('');
-  }
-
   Future<void> _checkForUpdates() async {
     try {
       final currentVersion = _version;
@@ -258,71 +251,70 @@ class VgvCli {
   }
 
   Future<void> _updateCLI() async {
-    print('');
-    print('${AnsiColors.brightCyan}${AnsiColors.bold}╔══════════════════════════════════════════════════════════════╗${AnsiColors.reset}');
-    print('${AnsiColors.brightCyan}${AnsiColors.bold}║${AnsiColors.reset}${AnsiColors.bold}                          VGV UPDATE                          ${AnsiColors.reset}${AnsiColors.brightCyan}${AnsiColors.bold}║${AnsiColors.reset}');
-    print('${AnsiColors.brightCyan}${AnsiColors.bold}╚══════════════════════════════════════════════════════════════╝${AnsiColors.reset}');
-    print('');
+    final logger = Logger();
+
+    logger
+      ..info('')
+      ..info(styleBold.wrap(lightCyan.wrap('  ⬆  VGV UPDATE')))
+      ..info('');
 
     final currentVersion = _version;
-    print('${AnsiColors.brightGreen}${AnsiColors.bold}Current:${AnsiColors.reset} ${AnsiColors.brightYellow}$currentVersion${AnsiColors.reset}');
-
     final latestVersion = await VersionChecker.getLatestCLIVersionAny();
-    if (latestVersion != null) {
-      print('${AnsiColors.brightGreen}${AnsiColors.bold}Latest:${AnsiColors.reset}  ${AnsiColors.brightYellow}$latestVersion${AnsiColors.reset}');
 
+    logger.info('  ${styleDim.wrap('Current')}   ${lightYellow.wrap(currentVersion)}');
+    if (latestVersion != null) {
+      logger.info('  ${styleDim.wrap('Latest ')}   ${lightYellow.wrap(latestVersion)}');
       if (latestVersion == currentVersion) {
-        print('');
-        print('${AnsiColors.brightGreen}${AnsiColors.bold}You already have the latest version${AnsiColors.reset}');
-        print('');
+        logger
+          ..info('')
+          ..info(green.wrap('  ✓ You already have the latest version'))
+          ..info('');
         return;
       }
     } else {
-      print('${AnsiColors.brightYellow}Could not check for latest version${AnsiColors.reset}');
-      print('${AnsiColors.dim}Proceeding with update from main branch...${AnsiColors.reset}');
+      logger.warn('Could not check the latest version; updating from main…');
     }
+    logger.info('');
 
-    print('');
+    // Real, honest progress: an animated spinner that runs while the async
+    // install is in flight and resolves to ✓/✗ based on the actual result.
+    final target = latestVersion != null ? 'v$latestVersion' : 'the latest version';
+    final progress = logger.progress('Downloading and installing $target');
 
     try {
-      print('${AnsiColors.brightYellow}${AnsiColors.bold}Updating VGV CLI...${AnsiColors.reset}');
-      print('${AnsiColors.dim}   Downloading and installing from git (this can take a minute)...${AnsiColors.reset}');
-      print('');
-
-      final result = Process.runSync('dart', [
-        'pub',
-        'global',
-        'activate',
-        '--source',
-        'git',
-        'https://github.com/victorsdd01/vgv_cli.git'
-      ], runInShell: true);
+      final result = await Process.run(
+        'dart',
+        <String>[
+          'pub',
+          'global',
+          'activate',
+          '--source',
+          'git',
+          'https://github.com/victorsdd01/vgv_cli.git',
+        ],
+        runInShell: true,
+      );
 
       if (result.exitCode == 0) {
-        // The freshly activated package carries its own baked version, so
-        // there is nothing to persist locally.
-        await _showCompletionCelebration();
-        print('${AnsiColors.brightGreen}${AnsiColors.bold}VGV CLI updated successfully${AnsiColors.reset}');
-        print('');
-        print('${AnsiColors.brightCyan}${AnsiColors.bold}What\'s new:${AnsiColors.reset}');
-        print('${AnsiColors.dim}   - Latest features and improvements${AnsiColors.reset}');
-        print('${AnsiColors.dim}   - Bug fixes and performance enhancements${AnsiColors.reset}');
-        print('${AnsiColors.dim}   - Updated dependencies and templates${AnsiColors.reset}');
-        print('');
-        print('${AnsiColors.brightGreen}Ready to create Flutter projects${AnsiColors.reset}');
-        print('');
+        progress.complete('Updated to $target');
+        logger
+          ..info('')
+          ..info(styleBold.wrap(lightGreen.wrap('  🎉 VGV CLI updated successfully')))
+          ..info(styleDim.wrap('  Verify with `vgv -v`, then run `vgv` to create a project.'))
+          ..info('');
       } else {
-        print('${AnsiColors.brightRed}${AnsiColors.bold}Update failed${AnsiColors.reset}');
-        print('${AnsiColors.red}${result.stderr}${AnsiColors.reset}');
-        print('');
-        print('${AnsiColors.brightYellow}Try: vgv -u${AnsiColors.reset}');
-        print('');
+        progress.fail('Update failed');
+        logger
+          ..err('  ${result.stderr}')
+          ..info(styleDim.wrap('  Retry with: vgv -u'))
+          ..info('');
       }
     } catch (e) {
-      print('${AnsiColors.brightRed}${AnsiColors.bold}Update failed:${AnsiColors.reset} ${AnsiColors.red}$e${AnsiColors.reset}');
-      print('');
-      print('${AnsiColors.brightYellow}Try: vgv -u${AnsiColors.reset}');
-      print('');
+      progress.fail('Update failed');
+      logger
+        ..err('  $e')
+        ..info(styleDim.wrap('  Retry with: vgv -u'))
+        ..info('');
     }
   }
 
