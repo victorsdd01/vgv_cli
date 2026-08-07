@@ -2827,29 +2827,7 @@ class MyApp extends StatelessWidget {
         // Talker log viewer: available in every flavor except production.
         if (AppConfiguration.isProduction) return withBanner;
 
-        return Stack(
-          children: <Widget>[
-            withBanner,
-            Positioned(
-              left: 16,
-              bottom: 24,
-              child: SafeArea(
-                child: FloatingActionButton.small(
-                  heroTag: 'talkerLogsButton',
-                  backgroundColor: Colors.black87,
-                  tooltip: 'Logs (Talker)',
-                  onPressed: () => AppRoutes.navigator?.push(
-                    MaterialPageRoute<void>(
-                      builder: (BuildContext _) =>
-                          TalkerScreen(talker: TalkerService.instance),
-                    ),
-                  ),
-                  child: const Icon(Icons.bug_report, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        );
+        return _TalkerOverlay(child: withBanner);
       },
     ),
   );
@@ -2865,6 +2843,52 @@ class MyApp extends StatelessWidget {
     if (AppConfiguration.isStaging) return const Color(0xFFFF9800);
     return const Color(0xFFF44336);
   }
+}
+
+/// Floating button (non-production only) that opens the Talker log screen.
+/// The button hides itself while the log screen is open.
+class _TalkerOverlay extends StatefulWidget {
+  const _TalkerOverlay({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_TalkerOverlay> createState() => _TalkerOverlayState();
+}
+
+class _TalkerOverlayState extends State<_TalkerOverlay> {
+  bool _isOpen = false;
+
+  Future<void> _openLogs() async {
+    setState(() => _isOpen = true);
+    await AppRoutes.navigator?.push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext _) =>
+            TalkerScreen(talker: TalkerService.instance),
+      ),
+    );
+    if (mounted) setState(() => _isOpen = false);
+  }
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: <Widget>[
+      widget.child,
+      if (!_isOpen)
+        Positioned(
+          left: 16,
+          bottom: 24,
+          child: SafeArea(
+            child: FloatingActionButton.small(
+              heroTag: 'talkerLogsButton',
+              backgroundColor: Colors.black87,
+              onPressed: _openLogs,
+              child: const Icon(Icons.bug_report, color: Colors.white),
+            ),
+          ),
+        ),
+    ],
+  );
 }
 ''';
   static const String _main_dev_dart = r'''import 'application/config/config.dart';
