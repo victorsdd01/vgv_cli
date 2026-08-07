@@ -132,6 +132,11 @@ Configurar **flavors nativos reales** (Android `productFlavors` en `build.gradle
     - iOS: `✓ Runner.app`, bundle `com.flavortest.flavorTest.dev` (flavor dev aplicado).
     - Chequeos confirmados en el proyecto generado: auth state con **freezed** (igual que JornaDay), build_runner generó `*.freezed.dart`/`*.g.dart`, capas de datos completas (data/domain/presentation en auth+home), states custom `core/states/tstateless.dart` + `tstatefull.dart`.
 
+### 1.b.2 Pulido de flavors (2026-08-08, sobre feedback del usuario probando en iOS)
+- **Fix display name iOS**: `flutter create` hardcodea `CFBundleDisplayName` → las 3 apps mostraban el mismo nombre. `configureFlavors` ahora parchea `Info.plist` a `$(BUNDLE_DISPLAY_NAME)` (lo controla el xcconfig por flavor). Android ya estaba bien (`resValue app_name`).
+- **Iconos con banner diagonal por flavor** (`lib/core/utils/flavor_icon_generator.dart`, paquete `image`): dev/staging obtienen un ícono con **banner diagonal en la esquina inferior-derecha** ("DEV" rojo / "STAGING" ámbar); prod queda limpio. iOS: `AppIcon-<flavor>.appiconset` + `ASSETCATALOG_COMPILER_APPICON_NAME` por flavor. Android: `src/<flavor>/res/mipmap-*/ic_launcher.png` (merge por gradle). Se compone desde el master 1024 y se reescala.
+- **Talker visible salvo en prod**: no había UI para ver logs. Se agregó un botón flotante (bug icon, abajo-izquierda) que abre `TalkerScreen` vía `AppRoutes.navigator`, mostrado solo si `!AppConfiguration.isProduction`. `TalkerService.instance` hace lazy-init (no crashea). En el template (`_main_dart` builder + `AppRoutes.navigator`).
+
 ### 1.c Bug hunt del CLI (feature #9) — hallazgos y estado
 Análisis exhaustivo del CLI (2026-08-07). Arreglados:
 - **P1** `-o/--output` se ignoraba (proyecto siempre en CWD) → `createProject` ahora hace `Directory.current = outputDir`.
