@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.49] - 2026-03-08
+
+### Changes
+- Merge pull request #60 from victorsdd01/develop
+
+## [1.10.48] - 2026-03-07
+
+### Changes
+- Merge pull request #51 from victorsdd01/chore/bump-version-1.10.47
+
+## [1.10.47] - 2026-03-07
+
+### Changes
+- Merge pull request #50 from victorsdd01/chore/bump-version-1.10.46
+
+## [1.10.46] - 2026-03-07
+
+### Changes
+- Merge pull request #48 from victorsdd01/chore/bump-version-1.10.45
+
+## [1.10.45] - 2026-03-07
+
+### Changes
+- Merge pull request #47 from victorsdd01/chore/bump-version-1.10.44
+
+## [1.10.44] - 2026-03-07
+
+### Changes
+- Merge pull request #46 from victorsdd01/develop
+
+## [1.10.43] - 2026-01-28
+
+### Changes
+- Merge pull request #36 from victorsdd01/docs/contributing-guide
+
+## [1.10.42] - 2026-01-28
+
+### Changes
+- docs: add contributing guide and issue/PR templates
+
+## [1.10.41] - 2026-01-28
+
+### Changes
+- Add demo GIF and example for pub.dev documentation
+
+## [1.10.40] - 2026-01-28
+
+### Changes
+- Merge pull request #35 from victorsdd01/develop
+
 ## [1.10.39] - 2026-01-24
 
 ### Changes

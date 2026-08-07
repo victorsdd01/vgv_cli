@@ -6,7 +6,7 @@ VGV CLI creates projects following Clean Architecture principles, with BLoC for 
 
 ## 🎬 Demo
 
-https://github.com/victorsdd01/vgv_cli/raw/main/demo.mp4
+![VGV CLI Demo](demo.gif)
 
 > **30 seconds** from zero to a production-ready Flutter project
 
