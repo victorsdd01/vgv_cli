@@ -82,27 +82,9 @@ class VgvCli {
     _cliController = DependencyInjection.instance.cliController;
   }
 
-  /// Initialize version file if it doesn't exist
-  void _initializeVersionFile() {
-    try {
-      // Only initialize if the file doesn't exist
-      if (VersionChecker.getInstalledVersionFromFile() == null) {
-        final currentVersion = VersionChecker.getCurrentVersion();
-        if (currentVersion != '1.0.0') {
-          VersionChecker.saveInstalledVersion(currentVersion);
-        }
-      }
-    } catch (e) {
-      stderr.writeln('Warning: Could not initialize version file: $e');
-    }
-  }
-
   Future<void> run(List<String> arguments) async {
     try {
       _argResults = _argParser.parse(arguments);
-
-      // Initialize version file if it doesn't exist (first run)
-      _initializeVersionFile();
 
       if (_argResults['help']) {
         _printUsage();
@@ -284,13 +266,7 @@ class VgvCli {
     print('${AnsiColors.brightCyan}${AnsiColors.bold}╚══════════════════════════════════════════════════════════════╝${AnsiColors.reset}');
     print('');
 
-    String currentVersion = _version;
-    if (currentVersion == '1.0.0') {
-      final gitCurrentVersion = await VersionChecker.getLatestCLIVersionFromGit();
-      if (gitCurrentVersion != null) {
-        currentVersion = gitCurrentVersion;
-      }
-    }
+    final currentVersion = _version;
     print('${AnsiColors.brightGreen}${AnsiColors.bold}Current:${AnsiColors.reset} ${AnsiColors.brightYellow}$currentVersion${AnsiColors.reset}');
 
     final latestVersion = await VersionChecker.getLatestCLIVersionAny();
@@ -326,16 +302,8 @@ class VgvCli {
       ], runInShell: true);
 
       if (result.exitCode == 0) {
-        final newVersion = await VersionChecker.getLatestCLIVersionAny();
-        if (newVersion != null) {
-          VersionChecker.saveInstalledVersion(newVersion);
-        } else {
-          final currentVersion = VersionChecker.getCurrentVersion();
-          if (currentVersion != '1.0.0') {
-            VersionChecker.saveInstalledVersion(currentVersion);
-          }
-        }
-
+        // The freshly activated package carries its own baked version, so
+        // there is nothing to persist locally.
         await _showCompletionCelebration();
         print('${AnsiColors.brightGreen}${AnsiColors.bold}VGV CLI updated successfully${AnsiColors.reset}');
         print('');

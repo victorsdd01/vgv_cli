@@ -136,7 +136,14 @@ Al hacer `vgv -u` había bugs. Revisar el flujo de update en `lib/vgv_cli.dart` 
 
 El `[skip ci]` del fix `977bd56` (para cortar el loop infinito del bump) también evitó que se tagueara/publicara el bump final → por eso 1.10.49 quedó sin tag/release. `getLatestCLIVersion()` lee releases (1.10.48) y `getLatestCLIVersionFromGit()` lee main pubspec (1.10.49) → inconsistencia. Además `getCurrentVersion()` lee primero `~/.vgv_version` (caché que queda viejo y tapa la versión real) y su fallback "dev mode" lee el pubspec del **CWD** (no el del CLI). Al actualizar, guarda la versión *esperada del remoto*, no la *realmente instalada*.
 
-**Fix pendiente (2 frentes):** (a) código — elegir canal canónico único + versión horneada (constante Dart generada, estilo Mason) y eliminar el `~/.vgv_version` frágil; (b) CI — que el bump final sí genere su tag/release sin reactivar el loop.
+**Fix aplicado (✅):**
+- **Versión horneada como fuente única**: `lib/src/version.dart` con `const packageVersion` (generado por `tool/generate_version.dart` desde pubspec). `VersionChecker.getCurrentVersion()` ahora devuelve esa constante. Eliminado el frágil `~/.vgv_version` (que quedaba viejo y tapaba la versión real) y el fallback al pubspec del CWD.
+- **Canal canónico único**: `getLatestCLIVersionAny()` lee el `pubspec` de `main` (lo que instala `vgv -u`); GitHub Releases queda solo como fallback. Se acabó la discrepancia releases vs main.
+- **CI**: el workflow `auto-version-bump.yml` ahora sincroniza `lib/src/version.dart` (via sed) al hacer bump y lo incluye en el commit del bump.
+- Limpieza en `vgv_cli.dart`: quitado `_initializeVersionFile`, los `saveInstalledVersion` y el fallback muerto `1.0.0`.
+- Verificado: `vgv -v` → current 1.10.39 (horneada) / latest 1.10.49 (git main). 31 tests pasan.
+
+**Nota (lag de tag/release, no crítico):** el job de release taguea la versión actual del pubspec en el siguiente push que NO sea de bump; por eso el último tag/release (v1.10.48) va una versión detrás del pubspec de main (1.10.49). Ya no afecta al CLI porque "latest" se lee de main, no de releases. `develop` (1.10.39) está detrás de `main` (1.10.49) — otro efecto del auto-bump en main sin merge-back a develop.
 
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).

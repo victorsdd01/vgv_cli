@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as path;
+import '../../src/version.dart';
 
 /// Utility class to check for the latest versions of Flutter packages
 class VersionChecker {
@@ -20,84 +20,12 @@ class VersionChecker {
 
   static const String _githubApiUrl = 'https://api.github.com/repos/victorsdd01/vgv_cli/releases/latest';
   
-  /// Get the path to the version file
-  static String _getVersionFilePath() {
-    final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
-    if (homeDir.isNotEmpty) {
-      return path.join(homeDir, '.vgv_version');
-    }
-    // Fallback to current directory
-    return path.join(Directory.current.path, '.vgv_version');
-  }
-  
-  /// Save the installed version to a file
-  static void saveInstalledVersion(String version) {
-    try {
-      final versionFile = File(_getVersionFilePath());
-      versionFile.writeAsStringSync(version);
-    } catch (e) {
-      // Silently fail - not critical
-    }
-  }
-  
-  /// Get the installed version from the version file
-  static String? getInstalledVersionFromFile() {
-    try {
-      final versionFile = File(_getVersionFilePath());
-      if (versionFile.existsSync()) {
-        final version = versionFile.readAsStringSync().trim();
-        if (version.isNotEmpty && RegExp(r'^\d+\.\d+\.\d+$').hasMatch(version)) {
-          return version;
-        }
-      }
-    } catch (e) {
-      // Silently fail
-    }
-    return null;
-  }
-  
-  /// Get current version from saved file or dart pub global list
-  static String getCurrentVersion() {
-    // 1. Try saved version file (most reliable for installed CLI)
-    final savedVersion = getInstalledVersionFromFile();
-    if (savedVersion != null) {
-      return savedVersion;
-    }
-
-    // 2. Try dart pub global list
-    try {
-      final result = Process.runSync(
-        'dart',
-        ['pub', 'global', 'list'],
-        runInShell: true,
-      );
-      if (result.exitCode == 0) {
-        final versionMatch = RegExp(r'vgv_cli\s+(\d+\.\d+\.\d+)')
-            .firstMatch(result.stdout.toString());
-        if (versionMatch != null) {
-          final version = versionMatch.group(1)!;
-          saveInstalledVersion(version);
-          return version;
-        }
-      }
-    } catch (_) {}
-
-    // 3. Try local pubspec.yaml (development mode)
-    try {
-      final localPubspec = File(path.join(Directory.current.path, 'pubspec.yaml'));
-      if (localPubspec.existsSync()) {
-        final content = localPubspec.readAsStringSync();
-        if (content.contains('name: vgv_cli')) {
-          final versionMatch = RegExp(r'version:\s*(\d+\.\d+\.\d+)').firstMatch(content);
-          if (versionMatch != null) {
-            return versionMatch.group(1)!;
-          }
-        }
-      }
-    } catch (_) {}
-
-    return '1.0.0';
-  }
+  /// The current CLI version — the single source of truth, baked at build
+  /// time from `pubspec.yaml` (see `tool/generate_version.dart`).
+  ///
+  /// Reading `pubspec.yaml` at runtime is unreliable for a globally activated
+  /// package, so we rely on the generated [packageVersion] constant instead.
+  static String getCurrentVersion() => packageVersion;
   
   /// Get version from Git synchronously (for fallback when pubspec.yaml not found locally)
   static String? getLatestCLIVersionFromGitSync() {
@@ -219,20 +147,17 @@ class VersionChecker {
     return null;
   }
   
-  /// Get the latest CLI version (tries releases first, then Git, returns the newest)
+  /// Get the latest CLI version.
+  ///
+  /// Canonical source is the `main` branch `pubspec.yaml` — that is exactly
+  /// what `vgv --update` installs (`dart pub global activate --source git`),
+  /// so current-vs-latest comparisons stay consistent. GitHub Releases are
+  /// only a fallback when `main` cannot be reached, since the release/tag
+  /// pipeline can lag one version behind `main`.
   static Future<String?> getLatestCLIVersionAny() async {
-    final releaseVersion = await getLatestCLIVersion();
     final gitVersion = await getLatestCLIVersionFromGit();
-    
-    // If we have both versions, return the newest one
-    if (releaseVersion != null && gitVersion != null) {
-      return compareVersions(releaseVersion, gitVersion) >= 0 
-          ? releaseVersion 
-          : gitVersion;
-    }
-    
-    // If we only have one, return it
-    return releaseVersion ?? gitVersion;
+    if (gitVersion != null) return gitVersion;
+    return getLatestCLIVersion();
   }
   
   /// Check if an update is available

@@ -167,6 +167,16 @@ jobs:
           fi
           echo "Updated pubspec.yaml to $NEW_VERSION"
 
+      - name: Sync baked version constant
+        if: steps.check_version_bump.outputs.already_done == 'false'
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          # Keep lib/src/version.dart (the runtime source of truth) in sync
+          # with pubspec.yaml. No Dart toolchain needed in CI — just sed.
+          sed -i "s/const String packageVersion = '.*';/const String packageVersion = '$NEW_VERSION';/" lib/src/version.dart
+          echo "Synced lib/src/version.dart to $NEW_VERSION"
+          grep "packageVersion" lib/src/version.dart
+
       - name: Update CHANGELOG.md
         if: steps.check_version_bump.outputs.already_done == 'false'
         env:
@@ -233,7 +243,7 @@ jobs:
 
           # Create a new branch for the version bump
           git checkout -b "$BUMP_BRANCH"
-          git add pubspec.yaml CHANGELOG.md
+          git add pubspec.yaml CHANGELOG.md lib/src/version.dart
           git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
           git push origin "$BUMP_BRANCH"
 
