@@ -2069,6 +2069,11 @@ key.properties
     if (content.contains('productFlavors')) return; // idempotent
 
     final block = StringBuffer()
+      // resValue(...) requires the resValues build feature, which AGP 8+
+      // disables by default.
+      ..writeln('    buildFeatures {')
+      ..writeln('        resValues = true')
+      ..writeln('    }')
       ..writeln('    flavorDimensions += "environment"')
       ..writeln('    productFlavors {');
     for (final flavor in flavors) {
@@ -2116,6 +2121,11 @@ key.properties
     if (content.contains('productFlavors')) return; // idempotent
 
     final block = StringBuffer()
+      // resValue(...) requires the resValues build feature, which AGP 8+
+      // disables by default.
+      ..writeln('    buildFeatures {')
+      ..writeln('        resValues true')
+      ..writeln('    }')
       ..writeln('    flavorDimensions "environment"')
       ..writeln('    productFlavors {');
     for (final flavor in flavors) {
