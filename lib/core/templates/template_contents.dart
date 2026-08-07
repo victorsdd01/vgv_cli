@@ -473,7 +473,7 @@ class ToastUtil {
       length <= maxLength ? this : '${substring(0, maxLength)}$suffix';
 }
 ''';
-  static const String _core_states_tstateless_dart = r'''import 'package:bloc/bloc.dart';
+  static const String _core_states_tstateless_dart = r'''import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/material.dart';
 import '../../application/generated/l10n.dart';
 
@@ -497,7 +497,7 @@ abstract class TStateless<Bloc extends BlocBase<dynamic>?>
   );
 }
 ''';
-  static const String _core_states_tstatefull_dart = r'''import 'package:bloc/bloc.dart';
+  static const String _core_states_tstatefull_dart = r'''import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/material.dart';
 import '../../application/generated/l10n.dart';
 
@@ -658,7 +658,8 @@ class SettingsBloc extends HydratedBloc<SettingsEvent, SettingsState> {
   Map<String, dynamic>? toJson(SettingsState state) => state.toJson();
 }
 ''';
-  static const String _features_settings_presentation_blocs_settings_bloc_settings_state_dart = r'''part of 'settings_bloc.dart';
+  static const String _features_settings_presentation_blocs_settings_bloc_settings_state_dart = r'''// ignore_for_file: invalid_annotation_target
+part of 'settings_bloc.dart';
 
 @freezed
 abstract class SettingsStatus with _$SettingsStatus {
@@ -1195,7 +1196,8 @@ abstract class HomeEntity with _$HomeEntity {
 }
 
 ''';
-  static const String _features_home_presentation_blocs_home_bloc_home_state_dart = r'''part of 'home_bloc.dart';
+  static const String _features_home_presentation_blocs_home_bloc_home_state_dart = r'''// ignore_for_file: invalid_annotation_target
+part of 'home_bloc.dart';
 
 @freezed
 abstract class HomeStatus with _$HomeStatus {
@@ -2046,7 +2048,8 @@ class AuthBloc extends HydratedBloc<AuthEvent, AuthState> {
   Map<String, dynamic>? toJson(AuthState state) => null;
 }
 ''';
-  static const String _features_auth_presentation_blocs_auth_bloc_auth_state_dart = r'''part of 'auth_bloc.dart';
+  static const String _features_auth_presentation_blocs_auth_bloc_auth_state_dart = r'''// ignore_for_file: invalid_annotation_target
+part of 'auth_bloc.dart';
 
 @freezed
 abstract class AuthStatus with _$AuthStatus {
@@ -2733,6 +2736,7 @@ import 'package:nested/nested.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:talker_flutter/talker_flutter.dart';
 
 import 'application/application.dart';
 import 'application/config/config.dart';
@@ -2804,19 +2808,47 @@ class MyApp extends StatelessWidget {
       supportedLocales: AppLocalizationsSetup.supportedLocales,
       debugShowCheckedModeBanner: false,
       builder: (BuildContext context, Widget? child) {
-        if (kReleaseMode) return child ?? const SizedBox.shrink();
-        
-        return Banner(
-          message: _getBannerText(),
-          location: BannerLocation.topEnd,
-          color: _getBannerColor(),
-          textStyle: const TextStyle(
-            color: Colors.white,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
-          ),
-          child: child ?? const SizedBox.shrink(),
+        final Widget content = child ?? const SizedBox.shrink();
+        final Widget withBanner = kReleaseMode
+            ? content
+            : Banner(
+                message: _getBannerText(),
+                location: BannerLocation.topEnd,
+                color: _getBannerColor(),
+                textStyle: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+                child: content,
+              );
+
+        // Talker log viewer: available in every flavor except production.
+        if (AppConfiguration.isProduction) return withBanner;
+
+        return Stack(
+          children: <Widget>[
+            withBanner,
+            Positioned(
+              left: 16,
+              bottom: 24,
+              child: SafeArea(
+                child: FloatingActionButton.small(
+                  heroTag: 'talkerLogsButton',
+                  backgroundColor: Colors.black87,
+                  tooltip: 'Logs (Talker)',
+                  onPressed: () => AppRoutes.navigator?.push(
+                    MaterialPageRoute<void>(
+                      builder: (BuildContext _) =>
+                          TalkerScreen(talker: TalkerService.instance),
+                    ),
+                  ),
+                  child: const Icon(Icons.bug_report, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
         );
       },
     ),
@@ -3504,6 +3536,9 @@ class AppRoutes {
   static final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   static BuildContext? get globalContext => _navigatorKey.currentContext;
+
+  /// Root navigator, used e.g. to open the Talker log screen in non-prod.
+  static NavigatorState? get navigator => _navigatorKey.currentState;
 
   static final GoRouter router = GoRouter(
     errorBuilder: (BuildContext context, GoRouterState state) {

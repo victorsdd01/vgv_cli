@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:vgv_cli/core/templates/template_generator.dart';
+import 'package:vgv_cli/core/utils/flavor_icon_generator.dart';
 import 'package:path/path.dart' as path;
 import '../../domain/entities/project_config.dart';
 
@@ -1974,6 +1975,11 @@ key.properties
     if (config.flavors.isEmpty) return;
     await _configureAndroidFlavors(config);
     await _configureIosFlavors(config);
+    // Per-flavor launcher icons with a diagonal banner (dev/staging).
+    await const FlavorIconGenerator().generate(
+      projectName: config.projectName,
+      flavors: config.flavors,
+    );
   }
 
   /// Converts a package name into a human friendly app name.
@@ -2138,6 +2144,10 @@ key.properties
     // iOS platform was not generated for this project.
     if (!pbxFile.existsSync()) return;
 
+    // Wire the display name to the per-flavor xcconfig value so each flavor
+    // shows its own name (flutter create hardcodes CFBundleDisplayName).
+    _patchIosInfoPlistDisplayName(iosDir);
+
     var pbx = pbxFile.readAsStringSync();
     final firstFlavor = config.flavors.first.flavorName;
     if (pbx.contains('/* Debug-$firstFlavor */')) return; // idempotent
@@ -2254,6 +2264,20 @@ key.properties
   String _pbxId(int seed) =>
       'FF${seed.toRadixString(16).toUpperCase().padLeft(22, '0')}';
 
+  /// Points `CFBundleDisplayName` at `$(BUNDLE_DISPLAY_NAME)` so each flavor's
+  /// xcconfig controls the visible app name (default is a hardcoded literal).
+  void _patchIosInfoPlistDisplayName(Directory iosDir) {
+    final plist = File(path.join(iosDir.path, 'Runner', 'Info.plist'));
+    if (!plist.existsSync()) return;
+    var content = plist.readAsStringSync();
+    if (content.contains(r'$(BUNDLE_DISPLAY_NAME)')) return; // idempotent
+    content = content.replaceFirstMapped(
+      RegExp(r'(<key>CFBundleDisplayName</key>\s*<string>)[^<]*(</string>)'),
+      (m) => '${m.group(1)}\$(BUNDLE_DISPLAY_NAME)${m.group(2)}',
+    );
+    plist.writeAsStringSync(content);
+  }
+
   /// Reads the base (production) bundle id from the Runner target settings,
   /// ignoring the RunnerTests identifier.
   String? _iosBaseBundleId(String pbx) {
@@ -2312,7 +2336,7 @@ key.properties
     return '#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.$lower-${flavor.flavorName}.xcconfig"\n'
         '#include "Generated.xcconfig"\n'
         'FLUTTER_TARGET=lib/main_${flavor.entryPoint}.dart\n'
-        'ASSETCATALOG_COMPILER_APPICON_NAME=AppIcon\n'
+        'ASSETCATALOG_COMPILER_APPICON_NAME=${FlavorIconGenerator.iosAppIconName(flavor)}\n'
         'PRODUCT_BUNDLE_IDENTIFIER=${flavor.bundleId(baseBundleId)}\n'
         'BUNDLE_DISPLAY_NAME=$appName${flavor.appNameSuffix}\n';
   }
