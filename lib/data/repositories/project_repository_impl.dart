@@ -59,7 +59,7 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
     await _fileSystemDataSource.createBuildYaml(config.projectName);
 
-    await _fileSystemDataSource.createVSCodeLaunchConfig(config.projectName);
+    await _fileSystemDataSource.createVSCodeLaunchConfig(config.projectName, config.flavors);
 
     await _fileSystemDataSource.createGitIgnore(config.projectName);
 

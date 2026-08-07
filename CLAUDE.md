@@ -123,7 +123,8 @@ Configurar **flavors nativos reales** (Android `productFlavors` en `build.gradle
 - Hoy (antes de esto) solo había "entornos por código" (entry points + `AppEnvironment`), sin flavors nativos. Flutter local: 3.44.8, Android Kotlin DSL.
 - Implementado: entidad `Flavor` (`project_config.dart`), prompt (`cli_controller.dart`), preview de bundle IDs en el resumen, inyección Android + **iOS** (`configureFlavors` en `file_system_datasource.dart`, llamado desde `project_repository_impl.dart` tras `flutter create`).
   - iOS: genera xcconfig `<BuildType>-<flavor>.xcconfig` (con `FLUTTER_TARGET`, `PRODUCT_BUNDLE_IDENTIFIER`, `BUNDLE_DISPLAY_NAME`), duplica las build configs Debug/Release/Profile → `-<flavor>` en las 3 config lists del `pbxproj` (bundle id por flavor solo en el target Runner), y crea schemes `<flavor>.xcscheme`. Ids de pbxproj generados con prefijo `FF` (sin colisión con flutter). **Validado con `xcodebuild -list`** (reconoce configs y schemes).
-  - **Pendiente: entry points/launch.json/run wiring (Parte 4) + verificación build real (Parte 5).**
+  - Parte 4 (✅): `launch.json` flavor-aware (una config por flavor×modo con `"args":["--flavor",...]`), poda de entry points `main_<f>.dart` no seleccionados, y "Next steps" del CLI con `flutter run --flavor`.
+  - **Pendiente: verificación build real (Parte 5).**
 
 ### 2. Bugs al actualizar
 Al hacer `vgv -u` había bugs. Revisar el flujo de update en `lib/vgv_cli.dart` (`_updateCLI`, `_checkForUpdates`, `_showUpdateProgress`) y `version_checker.dart`.

@@ -391,19 +391,23 @@ class CliController {
       await _projectRepository.createProject(config);
       progress.complete('Project created successfully');
 
+      final firstFlavor = config.flavors.first;
       _logger
         ..info('')
         ..info(styleBold.wrap(green.wrap('  Done!')))
         ..info('')
         ..info(styleDim.wrap('  Next steps:'))
         ..info('    cd ${config.projectName}')
-        ..info('    flutter run -t lib/main_dev.dart')
+        ..info('    flutter run --flavor ${firstFlavor.flavorName} -t lib/main_${firstFlavor.entryPoint}.dart')
         ..info('')
-        ..info(styleDim.wrap('  Run environments:'))
-        ..info('    flutter run -t lib/main_dev.dart        ${styleDim.wrap('# Development')}')
-        ..info('    flutter run -t lib/main_staging.dart    ${styleDim.wrap('# Staging')}')
-        ..info('    flutter run -t lib/main_production.dart ${styleDim.wrap('# Production')}')
-        ..info('');
+        ..info(styleDim.wrap('  Run flavors:'));
+      for (final flavor in config.flavors) {
+        _logger.info(
+          '    flutter run --flavor ${flavor.flavorName} -t lib/main_${flavor.entryPoint}.dart'
+          '  ${styleDim.wrap('# ${flavor.displayName}')}',
+        );
+      }
+      _logger.info('');
     } catch (e) {
       progress.fail('Failed to create project');
       _logger
