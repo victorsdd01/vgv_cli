@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import '../../domain/entities/project_config.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../datasources/file_system_datasource.dart';
@@ -16,6 +18,16 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
   @override
   Future<void> createProject(ProjectConfig config) async {
+    // Honor --output: generate inside the requested directory. All downstream
+    // steps use paths relative to the current directory, so switching it here
+    // places the whole project under the chosen output directory.
+    final outputDir = config.outputDirectory;
+    if (outputDir != null && outputDir.trim().isNotEmpty) {
+      final dir = Directory(outputDir);
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      Directory.current = dir;
+    }
+
     await _flutterCommandDataSource.createFlutterProject(
       projectName: config.projectName,
       organizationName: config.organizationName,
@@ -59,7 +71,11 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
     await _fileSystemDataSource.createBuildYaml(config.projectName);
 
-    await _fileSystemDataSource.createVSCodeLaunchConfig(config.projectName, config.flavors);
+    await _fileSystemDataSource.createVSCodeLaunchConfig(
+      config.projectName,
+      config.flavors,
+      nativeFlavors: config.usesNativeFlavors,
+    );
 
     await _fileSystemDataSource.createGitIgnore(config.projectName);
 
@@ -83,6 +99,11 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
     // Setup CocoaPods for iOS/macOS platforms
     await _flutterCommandDataSource.setupCocoaPods(config.projectName, config.platforms);
+
+    // Initialize git unless the user opted out with --no-git.
+    if (!config.skipGitInit) {
+      await _flutterCommandDataSource.initializeGit(config.projectName);
+    }
   }
 
   @override

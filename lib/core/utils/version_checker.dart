@@ -102,7 +102,9 @@ class VersionChecker {
   /// Get the latest CLI version from GitHub releases
   static Future<String?> getLatestCLIVersion() async {
     try {
-      final response = await http.get(Uri.parse(_githubApiUrl));
+      final response = await http
+          .get(Uri.parse(_githubApiUrl))
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final dynamic data;
@@ -171,8 +173,18 @@ class VersionChecker {
   /// Compare two version strings
   /// Returns: -1 if version1 < version2, 0 if equal, 1 if version1 > version2
   static int compareVersions(String version1, String version2) {
-    final parts1 = version1.split('.').map(int.parse).toList();
-    final parts2 = version2.split('.').map(int.parse).toList();
+    // Strip any pre-release/build metadata (e.g. 1.2.3-beta+1) and parse
+    // defensively so a malformed tag never throws a FormatException.
+    List<int> parse(String v) => v
+        .split('+')
+        .first
+        .split('-')
+        .first
+        .split('.')
+        .map((p) => int.tryParse(p) ?? 0)
+        .toList();
+    final parts1 = parse(version1);
+    final parts2 = parse(version2);
     
     // Pad with zeros if needed
     while (parts1.length < parts2.length) {

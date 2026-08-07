@@ -124,7 +124,21 @@ Configurar **flavors nativos reales** (Android `productFlavors` en `build.gradle
 - Implementado: entidad `Flavor` (`project_config.dart`), prompt (`cli_controller.dart`), preview de bundle IDs en el resumen, inyección Android + **iOS** (`configureFlavors` en `file_system_datasource.dart`, llamado desde `project_repository_impl.dart` tras `flutter create`).
   - iOS: genera xcconfig `<BuildType>-<flavor>.xcconfig` (con `FLUTTER_TARGET`, `PRODUCT_BUNDLE_IDENTIFIER`, `BUNDLE_DISPLAY_NAME`), duplica las build configs Debug/Release/Profile → `-<flavor>` en las 3 config lists del `pbxproj` (bundle id por flavor solo en el target Runner), y crea schemes `<flavor>.xcscheme`. Ids de pbxproj generados con prefijo `FF` (sin colisión con flutter). **Validado con `xcodebuild -list`** (reconoce configs y schemes).
   - Parte 4 (✅): `launch.json` flavor-aware (una config por flavor×modo con `"args":["--flavor",...]`), poda de entry points `main_<f>.dart` no seleccionados, y "Next steps" del CLI con `flutter run --flavor`.
-  - **Pendiente: verificación build real (Parte 5).**
+  - Parte 5 (✅) **verificación end-to-end con builds reales**: se generó `flavor_test` con el CLI (147s) y se compilaron ambas plataformas:
+    - Android: `✓ app-dev-debug.apk` (flavor dev). **Requirió fix**: AGP 8+ necesita `buildFeatures { resValues = true }` para `resValue app_name` (sin eso el build falla). Ya inyectado.
+    - iOS: `✓ Runner.app`, bundle `com.flavortest.flavorTest.dev` (flavor dev aplicado).
+    - Chequeos confirmados en el proyecto generado: auth state con **freezed** (igual que JornaDay), build_runner generó `*.freezed.dart`/`*.g.dart`, capas de datos completas (data/domain/presentation en auth+home), states custom `core/states/tstateless.dart` + `tstatefull.dart`.
+
+### 1.c Bug hunt del CLI (feature #9) — hallazgos y estado
+Análisis exhaustivo del CLI (2026-08-07). Arreglados:
+- **P1** `-o/--output` se ignoraba (proyecto siempre en CWD) → `createProject` ahora hace `Directory.current = outputDir`.
+- **P1** `--no-git` no hacía nada y además `flutter create` no inicializa git → nuevo `initializeGit` (git init + add) que corre salvo `--no-git`.
+- **P2** flavors en proyectos web/desktop-only rompían (`--flavor` no soportado) → `launch.json` y hints omiten `--flavor` si no hay mobile (`ProjectConfig.usesNativeFlavors`).
+- **P2** `addDependencies` corrompía el pubspec (metía el SDK de flutter y `cupertino_icons` bajo `dev_dependencies`) → reescrito para insertar tras cada header de sección preservando lo existente.
+- **P2** Android `resValues` (ver Parte 5).
+- **P3** regex de org aceptaba puntos consecutivos (`com..x`) → corregida; `compareVersions` podía lanzar `FormatException` → parseo defensivo; `getLatestCLIVersion` sin timeout → timeout 10s.
+
+Pendientes (menor prioridad, ver #9): reporte de éxito engañoso cuando build_runner/l10n/pods fallan en silencio (P2); use cases de dominio (`CreateProjectUseCase`/`ValidateProjectConfigUseCase`) nunca se invocan → sin pre-check limpio de "flutter no instalado" (P2); barra de progreso de update falsa (cosmético); exit code 0 en fallos de validación; flags ignoradas fuera de flag-mode.
 
 ### 2. Bugs al actualizar
 Al hacer `vgv -u` había bugs. Revisar el flujo de update en `lib/vgv_cli.dart` (`_updateCLI`, `_checkForUpdates`, `_showUpdateProgress`) y `version_checker.dart`.

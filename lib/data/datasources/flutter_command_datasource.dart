@@ -15,6 +15,8 @@ abstract class FlutterCommandDataSource {
 
   Future<bool> isFlutterInstalled();
 
+  Future<void> initializeGit(String projectName);
+
   Future<void> generateLocalizationFiles(String projectName);
 
   Future<void> cleanBuildCache(String projectName);
@@ -117,6 +119,28 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
       return result.exitCode == 0;
     } catch (e) {
       return false;
+    }
+  }
+
+  @override
+  Future<void> initializeGit(String projectName) async {
+    // `flutter create` does not initialize a git repository, so do it here
+    // (unless the user passed --no-git). Best-effort: never fail generation.
+    try {
+      final projectDir = Directory(projectName);
+      if (Directory(p.join(projectName, '.git')).existsSync()) return;
+      final init = await Process.run(
+        'git',
+        ['init'],
+        workingDirectory: projectDir.path,
+        runInShell: true,
+      );
+      if (init.exitCode == 0) {
+        await Process.run('git', ['add', '.'],
+            workingDirectory: projectDir.path, runInShell: true);
+      }
+    } catch (_) {
+      // Silent: git may not be installed; not critical to generation.
     }
   }
 

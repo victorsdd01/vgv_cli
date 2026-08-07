@@ -17,7 +17,7 @@ abstract class FileSystemDataSource {
   Future<void> createBuildYaml(String projectName);
   Future<void> createInternationalization(String projectName);
   Future<void> ensureCleanArchitectureFiles(String projectName);
-  Future<void> createVSCodeLaunchConfig(String projectName, List<Flavor> flavors);
+  Future<void> createVSCodeLaunchConfig(String projectName, List<Flavor> flavors, {bool nativeFlavors = true});
   Future<void> createGitIgnore(String projectName);
 
   /// Configures native build flavors (Android product flavors + iOS build
@@ -148,95 +148,39 @@ class FileSystemDataSourceImpl implements FileSystemDataSource {
       'intl_utils: ^2.8.7',
     ]);
 
+    // Insert our dependencies right after each section header, preserving the
+    // entries `flutter create` already wrote (flutter sdk, cupertino_icons,
+    // flutter_test, flutter_lints). The previous approach mis-detected the
+    // `flutter:` SDK dependency as the top-level `flutter:` section and pushed
+    // the SDK + cupertino_icons under dev_dependencies.
     final lines = pubspecContent.split('\n');
     final newLines = <String>[];
-    bool skipUntilNextSection = false;
     bool dependenciesAdded = false;
     bool devDependenciesAdded = false;
-    
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i];
-      final trimmedLine = line.trim();
-      
-      if (trimmedLine == 'dependencies:') {
-        skipUntilNextSection = true;
-        if (!dependenciesAdded) {
-          newLines.add('dependencies:');
-          for (final dep in dependencies) {
-            newLines.add('  $dep');
-          }
-          newLines.add('');
-          dependenciesAdded = true;
-        }
-        continue;
-      }
-      
-      if (trimmedLine == 'dev_dependencies:') {
-        skipUntilNextSection = true;
-        if (!devDependenciesAdded) {
-          newLines.add('dev_dependencies:');
-          for (final dep in devDependencies) {
-            newLines.add('  $dep');
-          }
-          newLines.add('');
-          devDependenciesAdded = true;
-        }
-        continue;
-      }
-      
-      if (skipUntilNextSection) {
-        if (trimmedLine.isEmpty || trimmedLine.startsWith('  ') || trimmedLine.startsWith('    ') || trimmedLine.startsWith('#')) {
-          continue;
-        } else {
-          skipUntilNextSection = false;
-        }
-      }
-      
-      if (trimmedLine == 'flutter:' && !dependenciesAdded) {
-        newLines.add('dependencies:');
-        for (final dep in dependencies) {
-          newLines.add('  $dep');
-        }
-        newLines.add('');
-        dependenciesAdded = true;
-      }
-      
-      if (trimmedLine == 'flutter:' && dependenciesAdded && !devDependenciesAdded) {
-        newLines.add('dev_dependencies:');
-        for (final dep in devDependencies) {
-          newLines.add('  $dep');
-        }
-        newLines.add('');
-        devDependenciesAdded = true;
-      }
-      
+
+    for (final line in lines) {
       newLines.add(line);
-    }
-    
-    if (!dependenciesAdded) {
-      final flutterIndex = newLines.indexWhere((line) => line.trim() == 'flutter:');
-      if (flutterIndex != -1) {
-        newLines.insert(flutterIndex, '');
-        for (int i = dependencies.length - 1; i >= 0; i--) {
-          newLines.insert(flutterIndex, '  ${dependencies[i]}');
-        }
-        newLines.insert(flutterIndex, 'dependencies:');
+      if (line.trim() == 'dependencies:' && !dependenciesAdded) {
+        newLines.addAll(dependencies.map((dep) => '  $dep'));
         dependenciesAdded = true;
-      }
-    }
-    
-    if (!devDependenciesAdded && dependenciesAdded) {
-      final flutterIndex = newLines.indexWhere((line) => line.trim() == 'flutter:');
-      if (flutterIndex != -1) {
-        newLines.insert(flutterIndex, '');
-        for (int i = devDependencies.length - 1; i >= 0; i--) {
-          newLines.insert(flutterIndex, '  ${devDependencies[i]}');
-        }
-        newLines.insert(flutterIndex, 'dev_dependencies:');
+      } else if (line.trim() == 'dev_dependencies:' && !devDependenciesAdded) {
+        newLines.addAll(devDependencies.map((dep) => '  $dep'));
         devDependenciesAdded = true;
       }
     }
-    
+
+    // Fallbacks if a section was missing (unusual for `flutter create` output).
+    if (!dependenciesAdded) {
+      newLines
+        ..add('dependencies:')
+        ..addAll(dependencies.map((dep) => '  $dep'));
+    }
+    if (!devDependenciesAdded) {
+      newLines
+        ..add('dev_dependencies:')
+        ..addAll(devDependencies.map((dep) => '  $dep'));
+    }
+
     pubspecContent = newLines.join('\n');
 
     pubspecFile.writeAsStringSync(pubspecContent);
@@ -1851,7 +1795,7 @@ class AppLocalizationsSetup {
   }
 
   @override
-  Future<void> createVSCodeLaunchConfig(String projectName, List<Flavor> flavors) async {
+  Future<void> createVSCodeLaunchConfig(String projectName, List<Flavor> flavors, {bool nativeFlavors = true}) async {
     // Prune entry points for flavors that were NOT selected.
     for (final flavor in Flavor.values) {
       if (!flavors.contains(flavor)) {
@@ -1898,12 +1842,16 @@ class AppLocalizationsSetup {
             ? ''
             : ' - ${mode[0].toUpperCase()}${mode.substring(1)}';
         final name = '$projectName (${flavor.displayName})$suffix';
+        // `--flavor` only applies to native mobile targets; web and
+        // Windows/Linux desktop reject it, so omit the arg there.
+        final argsLine = nativeFlavors
+            ? '\n      "args": ["--flavor", "${flavor.flavorName}"],'
+            : '';
         entries.add('''    {
       "name": "$name",
       "request": "launch",
       "type": "dart",
-      "program": "lib/main_${flavor.entryPoint}.dart",
-      "args": ["--flavor", "${flavor.flavorName}"],
+      "program": "lib/main_${flavor.entryPoint}.dart",$argsLine
       "flutterMode": "$mode"
     }''');
       }

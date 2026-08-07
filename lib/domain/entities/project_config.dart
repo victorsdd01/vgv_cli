@@ -37,18 +37,26 @@ class ProjectConfig {
 
   /// Validates the project configuration
   bool get isValid {
-    return isValidProjectName(projectName) && 
+    return isValidProjectName(projectName) &&
            isValidOrganizationName(organizationName);
   }
+
+  /// Whether native flavors (Android product flavors / iOS schemes) apply.
+  /// Flavors are only wired natively for mobile; web and (Windows/Linux)
+  /// desktop do not support `flutter run --flavor`.
+  bool get usesNativeFlavors => platforms.contains(PlatformType.mobile);
 
   /// Validates project name format
   static bool isValidProjectName(String name) {
     return RegExp(r'^[a-z][a-z0-9_]*$').hasMatch(name);
   }
 
-  /// Validates organization name format (allows underscores for project name compatibility)
+  /// Validates organization name format: dot-separated segments, each starting
+  /// with a letter (e.g. `com.example`). Rejects consecutive/trailing dots,
+  /// which would produce an invalid applicationId/bundleId.
   static bool isValidOrganizationName(String name) {
-    return RegExp(r'^[a-z][a-z0-9._]*[a-z0-9]$').hasMatch(name);
+    if (name.length < 2) return false;
+    return RegExp(r'^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$').hasMatch(name);
   }
 
   @override

@@ -392,19 +392,22 @@ class CliController {
       progress.complete('Project created successfully');
 
       final firstFlavor = config.flavors.first;
+      final native = config.usesNativeFlavors;
+      String runCmd(Flavor f) => native
+          ? 'flutter run --flavor ${f.flavorName} -t lib/main_${f.entryPoint}.dart'
+          : 'flutter run -t lib/main_${f.entryPoint}.dart';
       _logger
         ..info('')
         ..info(styleBold.wrap(green.wrap('  Done!')))
         ..info('')
         ..info(styleDim.wrap('  Next steps:'))
         ..info('    cd ${config.projectName}')
-        ..info('    flutter run --flavor ${firstFlavor.flavorName} -t lib/main_${firstFlavor.entryPoint}.dart')
+        ..info('    ${runCmd(firstFlavor)}')
         ..info('')
         ..info(styleDim.wrap('  Run flavors:'));
       for (final flavor in config.flavors) {
         _logger.info(
-          '    flutter run --flavor ${flavor.flavorName} -t lib/main_${flavor.entryPoint}.dart'
-          '  ${styleDim.wrap('# ${flavor.displayName}')}',
+          '    ${runCmd(flavor)}  ${styleDim.wrap('# ${flavor.displayName}')}',
         );
       }
       _logger.info('');
