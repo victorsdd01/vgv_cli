@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:vgv_cli/core/templates/template_generator.dart';
+import 'package:vgv_cli/core/utils/flavor_icon_generator.dart';
 import 'package:path/path.dart' as path;
 import '../../domain/entities/project_config.dart';
 
@@ -1974,6 +1975,11 @@ key.properties
     if (config.flavors.isEmpty) return;
     await _configureAndroidFlavors(config);
     await _configureIosFlavors(config);
+    // Per-flavor launcher icons with a diagonal banner (dev/staging).
+    await const FlavorIconGenerator().generate(
+      projectName: config.projectName,
+      flavors: config.flavors,
+    );
   }
 
   /// Converts a package name into a human friendly app name.
@@ -2330,7 +2336,7 @@ key.properties
     return '#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.$lower-${flavor.flavorName}.xcconfig"\n'
         '#include "Generated.xcconfig"\n'
         'FLUTTER_TARGET=lib/main_${flavor.entryPoint}.dart\n'
-        'ASSETCATALOG_COMPILER_APPICON_NAME=AppIcon\n'
+        'ASSETCATALOG_COMPILER_APPICON_NAME=${FlavorIconGenerator.iosAppIconName(flavor)}\n'
         'PRODUCT_BUNDLE_IDENTIFIER=${flavor.bundleId(baseBundleId)}\n'
         'BUNDLE_DISPLAY_NAME=$appName${flavor.appNameSuffix}\n';
   }
