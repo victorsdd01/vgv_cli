@@ -92,8 +92,9 @@ Flags: `--help/-h`, `--version/-v`, `--update/-u`, `--quick/-q`, `--name/-n`, `-
 ## Stack del CLI
 
 - Dart SDK `>=3.7.0 <4.0.0`
-- Deps: `args`, `path`, `http`, `interact`
+- Deps: `args`, `path`, `http`, `mason_logger` (UI de terminal estilo Mason)
 - Dev: `lints`, `test`
+- **UI interactiva**: `cli_controller.dart` usa `mason_logger` (`prompt`, `confirm`, `chooseOne`, `chooseAny` multi-select ◉/◯, `progress`). Los prompts requieren un TTY real (no se pueden verificar con stdout redirigido).
 - Tests en `test/` (3 archivos: validate config, version checker, project config)
 - CI: `.github/workflows/auto-version-bump.yml` (bump automático de versión con `[skip ci]` para evitar loops)
 
@@ -101,8 +102,11 @@ Flags: `--help/-h`, `--version/-v`, `--update/-u`, `--quick/-q`, `--name/-n`, `-
 
 ## Roadmap / trabajo en curso
 
-### 1. Mejorar la UI de terminal (EN CURSO — primer paso)
-Objetivo: interfaz estilo **Mason CLI** / **Inquirer.js** — selecciones múltiples más bonitas, prompts más pulidos. Hoy se usa el paquete `interact` en `cli_controller.dart` (`Select`, `MultiSelect`, `Confirm`, `Spinner`, `Input`). Evaluar mejoras dentro de `interact` o alternativas.
+### 1. Mejorar la UI de terminal (✅ HECHO)
+Migrado de `interact` a **`mason_logger`** (el logger de Mason CLI, hecho por Very Good Ventures — mismo ecosistema que VGV). `cli_controller.dart` ahora usa `chooseOne`/`chooseAny` (multi-select estilo inquirer), `prompt`, `confirm` y `progress`. `interact` removido.
+
+### 1.b Flavors nativos + entry points (EN CURSO — feature grande)
+Configurar **flavors nativos reales** (Android `productFlavors` en `build.gradle.kts` + iOS build configs/schemes en `pbxproj`) con **bundleID distinto por entorno** (dev/staging/production), app name por flavor, y entry points cableados con `--flavor`. **Preguntar en la creación qué flavors quiere** (los 3 o un subconjunto). Hoy solo hay "entornos por código" (entry points main_dev/staging/production + `AppEnvironment`), NO flavors nativos. Flutter local: 3.44.8, Android usa Kotlin DSL (`build.gradle.kts`).
 
 ### 2. Bugs al actualizar
 Al hacer `vgv -u` había bugs. Revisar el flujo de update en `lib/vgv_cli.dart` (`_updateCLI`, `_checkForUpdates`, `_showUpdateProgress`) y `version_checker.dart`.
