@@ -206,9 +206,15 @@ class CustomDesktopPlatforms {
 
 /// Enum representing the native build flavors of the generated project.
 ///
-/// Each flavor maps to an Android product flavor + iOS build configuration,
-/// a dedicated entry point (`main_<shortName>.dart`) and a distinct
-/// applicationId/bundleId so the flavors can be installed side by side.
+/// Each flavor maps to an Android product flavor + iOS build configuration and
+/// scheme, a dedicated Dart entry point (`main_<entryPoint>.dart`) and a
+/// distinct bundleId so the flavors can be installed side by side.
+///
+/// The bundleId the user enters is treated as **production** (the clean base);
+/// dev/staging derive their id by appending a suffix. e.g. base `com.test.app`:
+///   production -> com.test.app        (no suffix)
+///   dev        -> com.test.app.dev
+///   staging    -> com.test.app.stage
 enum Flavor {
   dev,
   staging,
@@ -226,8 +232,21 @@ enum Flavor {
     }
   }
 
-  /// Identifier used for entry points, schemes and gradle flavor names.
-  String get shortName {
+  /// Name used for `flutter --flavor`, the Android product flavor and the iOS
+  /// scheme / build configuration (matches the JornaDay reference: dev/prod).
+  String get flavorName {
+    switch (this) {
+      case Flavor.dev:
+        return 'dev';
+      case Flavor.staging:
+        return 'staging';
+      case Flavor.production:
+        return 'prod';
+    }
+  }
+
+  /// Dart entry point file name: `lib/main_<entryPoint>.dart`.
+  String get entryPoint {
     switch (this) {
       case Flavor.dev:
         return 'dev';
@@ -238,14 +257,26 @@ enum Flavor {
     }
   }
 
-  /// Suffix appended to the base applicationId/bundleId.
-  /// Production keeps the base id (no suffix) so store builds stay clean.
-  String get applicationIdSuffix {
+  /// `AppEnvironment.<environment>` used inside the entry point.
+  String get environment {
+    switch (this) {
+      case Flavor.dev:
+        return 'dev';
+      case Flavor.staging:
+        return 'staging';
+      case Flavor.production:
+        return 'production';
+    }
+  }
+
+  /// Suffix appended to the base bundleId/applicationId.
+  /// Production keeps the base id the user typed (no suffix).
+  String get bundleIdSuffix {
     switch (this) {
       case Flavor.dev:
         return '.dev';
       case Flavor.staging:
-        return '.stg';
+        return '.stage';
       case Flavor.production:
         return '';
     }
@@ -257,23 +288,15 @@ enum Flavor {
       case Flavor.dev:
         return ' Dev';
       case Flavor.staging:
-        return ' Stg';
+        return ' Stage';
       case Flavor.production:
         return '';
     }
   }
 
-  /// Suffix appended to the versionName on Android (empty for production).
-  String get versionNameSuffix {
-    switch (this) {
-      case Flavor.dev:
-        return '-dev';
-      case Flavor.staging:
-        return '-stg';
-      case Flavor.production:
-        return '';
-    }
-  }
+  /// Full bundleId for this flavor given the [baseId] the user entered
+  /// (the base id is the production id).
+  String bundleId(String baseId) => '$baseId$bundleIdSuffix';
 }
 
 /// Enum representing different state management types

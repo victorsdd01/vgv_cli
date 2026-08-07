@@ -106,7 +106,22 @@ Flags: `--help/-h`, `--version/-v`, `--update/-u`, `--quick/-q`, `--name/-n`, `-
 Migrado de `interact` a **`mason_logger`** (el logger de Mason CLI, hecho por Very Good Ventures — mismo ecosistema que VGV). `cli_controller.dart` ahora usa `chooseOne`/`chooseAny` (multi-select estilo inquirer), `prompt`, `confirm` y `progress`. `interact` removido.
 
 ### 1.b Flavors nativos + entry points (EN CURSO — feature grande)
-Configurar **flavors nativos reales** (Android `productFlavors` en `build.gradle.kts` + iOS build configs/schemes en `pbxproj`) con **bundleID distinto por entorno** (dev/staging/production), app name por flavor, y entry points cableados con `--flavor`. **Preguntar en la creación qué flavors quiere** (los 3 o un subconjunto). Hoy solo hay "entornos por código" (entry points main_dev/staging/production + `AppEnvironment`), NO flavors nativos. Flutter local: 3.44.8, Android usa Kotlin DSL (`build.gradle.kts`).
+Configurar **flavors nativos reales** (Android `productFlavors` en `build.gradle.kts` + iOS build configs/schemes en `pbxproj`) con **bundleID distinto por flavor**, app name por flavor, y entry points cableados con `--flavor`. El prompt (`chooseAny`) permite elegir 3, 2 o 1 flavor. Referencia de la convención: **el proyecto JornaDay** (`/Users/victorsdd/Desktop/JornaDay`), creado con la versión buena del CLI que se perdió.
+
+**Convención de flavors confirmada** (el bundleID que escribe el usuario ES production/base; los demás derivan sufijo). Base `com.test.app`:
+
+| Flavor | flavorName (`--flavor`, gradle, iOS scheme) | entry point | bundleId | app name |
+|--------|------|------|------|------|
+| production | `prod` | `main_production.dart` | `com.test.app` (limpio) | Test App |
+| dev | `dev` | `main_dev.dart` | `com.test.app.dev` | Test App Dev |
+| staging | `staging` | `main_staging.dart` | `com.test.app.stage` | Test App Stage |
+
+- Base id real = `${organizationName}.${projectName}` (así lo arma `flutter create --org`).
+- Android: `flavorDimensions += "environment"`, `applicationIdSuffix` por flavor (prod sin sufijo), `resValue("string","app_name",...)`, y `AndroidManifest` con `android:label="@string/app_name"`.
+- iOS: xcconfig `Debug/Release/Profile-<flavorName>.xcconfig` con `FLUTTER_TARGET`, `PRODUCT_BUNDLE_IDENTIFIER`, `BUNDLE_DISPLAY_NAME`; build configs en `pbxproj`; schemes `<flavorName>.xcscheme`.
+- ⚠️ JornaDay tiene el Android editado a mano para **compartir** id (Firebase único) — eso NO es la base; la base usa sufijo por flavor.
+- Hoy (antes de esto) solo había "entornos por código" (entry points + `AppEnvironment`), sin flavors nativos. Flutter local: 3.44.8, Android Kotlin DSL.
+- Implementado: entidad `Flavor` (`project_config.dart`), prompt (`cli_controller.dart`), preview de bundle IDs en el resumen, inyección Android (`configureFlavors` en `file_system_datasource.dart`, llamado desde `project_repository_impl.dart` tras `flutter create`). **Pendiente: iOS + entry points/launch.json + verificación.**
 
 ### 2. Bugs al actualizar
 Al hacer `vgv -u` había bugs. Revisar el flujo de update en `lib/vgv_cli.dart` (`_updateCLI`, `_checkForUpdates`, `_showUpdateProgress`) y `version_checker.dart`.

@@ -19,6 +19,11 @@ abstract class FileSystemDataSource {
   Future<void> ensureCleanArchitectureFiles(String projectName);
   Future<void> createVSCodeLaunchConfig(String projectName);
   Future<void> createGitIgnore(String projectName);
+
+  /// Configures native build flavors (Android product flavors + iOS build
+  /// configurations/schemes) for the selected [ProjectConfig.flavors].
+  /// Must run after `flutter create` (native folders must already exist).
+  Future<void> configureFlavors(ProjectConfig config);
 }
 
 /// Implementation of FileSystemDataSource
@@ -2045,6 +2050,156 @@ key.properties
 ''';
     
     gitignoreFile.writeAsStringSync(content);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Native flavors (Android product flavors + iOS build configs/schemes)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  @override
+  Future<void> configureFlavors(ProjectConfig config) async {
+    if (config.flavors.isEmpty) return;
+    await _configureAndroidFlavors(config);
+    // iOS flavor configuration is added in a later step.
+  }
+
+  /// Converts a package name into a human friendly app name.
+  /// e.g. `my_awesome_app` -> `My Awesome App`
+  String _humanizeName(String projectName) {
+    return path
+        .basename(projectName)
+        .split(RegExp(r'[_\s]+'))
+        .where((word) => word.isNotEmpty)
+        .map((word) => word[0].toUpperCase() + word.substring(1))
+        .join(' ');
+  }
+
+  Future<void> _configureAndroidFlavors(ProjectConfig config) async {
+    final androidAppDir =
+        Directory(path.join(config.projectName, 'android', 'app'));
+    // Android platform was not generated for this project.
+    if (!androidAppDir.existsSync()) return;
+
+    final appName = _humanizeName(config.projectName);
+    final gradleKts = File(path.join(androidAppDir.path, 'build.gradle.kts'));
+    final gradleGroovy = File(path.join(androidAppDir.path, 'build.gradle'));
+
+    if (gradleKts.existsSync()) {
+      _injectKotlinFlavors(gradleKts, config.flavors, appName);
+    } else if (gradleGroovy.existsSync()) {
+      _injectGroovyFlavors(gradleGroovy, config.flavors, appName);
+    }
+
+    _patchAndroidManifestLabel(config.projectName);
+  }
+
+  /// Injects `flavorDimensions` + `productFlavors` into a Kotlin DSL
+  /// (`build.gradle.kts`) `android { }` block, right before `buildTypes`.
+  void _injectKotlinFlavors(
+    File gradle,
+    List<Flavor> flavors,
+    String appName,
+  ) {
+    var content = gradle.readAsStringSync();
+    if (content.contains('productFlavors')) return; // idempotent
+
+    final block = StringBuffer()
+      ..writeln('    flavorDimensions += "environment"')
+      ..writeln('    productFlavors {');
+    for (final flavor in flavors) {
+      block.writeln('        create("${flavor.flavorName}") {');
+      block.writeln('            dimension = "environment"');
+      if (flavor.bundleIdSuffix.isNotEmpty) {
+        block.writeln(
+          '            applicationIdSuffix = "${flavor.bundleIdSuffix}"',
+        );
+      }
+      block.writeln(
+        '            resValue("string", "app_name", "$appName${flavor.appNameSuffix}")',
+      );
+      block.writeln('        }');
+    }
+    block
+      ..writeln('    }')
+      ..writeln();
+
+    final flavorBlock = block.toString();
+    final anchor = RegExp(r'\n([ \t]*)buildTypes');
+    if (anchor.hasMatch(content)) {
+      content = content.replaceFirstMapped(
+        anchor,
+        (m) => '\n$flavorBlock${m.group(1)}buildTypes',
+      );
+    } else {
+      // Fallback: insert before the final closing brace of the file.
+      final lastBrace = content.lastIndexOf('}');
+      if (lastBrace != -1) {
+        content =
+            '${content.substring(0, lastBrace)}$flavorBlock${content.substring(lastBrace)}';
+      }
+    }
+    gradle.writeAsStringSync(content);
+  }
+
+  /// Injects flavors into a Groovy (`build.gradle`) `android { }` block.
+  void _injectGroovyFlavors(
+    File gradle,
+    List<Flavor> flavors,
+    String appName,
+  ) {
+    var content = gradle.readAsStringSync();
+    if (content.contains('productFlavors')) return; // idempotent
+
+    final block = StringBuffer()
+      ..writeln('    flavorDimensions "environment"')
+      ..writeln('    productFlavors {');
+    for (final flavor in flavors) {
+      block.writeln('        ${flavor.flavorName} {');
+      block.writeln('            dimension "environment"');
+      if (flavor.bundleIdSuffix.isNotEmpty) {
+        block.writeln(
+          '            applicationIdSuffix "${flavor.bundleIdSuffix}"',
+        );
+      }
+      block.writeln(
+        '            resValue "string", "app_name", "$appName${flavor.appNameSuffix}"',
+      );
+      block.writeln('        }');
+    }
+    block
+      ..writeln('    }')
+      ..writeln();
+
+    final flavorBlock = block.toString();
+    final anchor = RegExp(r'\n([ \t]*)buildTypes');
+    if (anchor.hasMatch(content)) {
+      content = content.replaceFirstMapped(
+        anchor,
+        (m) => '\n$flavorBlock${m.group(1)}buildTypes',
+      );
+    } else {
+      final lastBrace = content.lastIndexOf('}');
+      if (lastBrace != -1) {
+        content =
+            '${content.substring(0, lastBrace)}$flavorBlock${content.substring(lastBrace)}';
+      }
+    }
+    gradle.writeAsStringSync(content);
+  }
+
+  /// Points the AndroidManifest label to the per-flavor `app_name` resource.
+  void _patchAndroidManifestLabel(String projectName) {
+    final manifest = File(
+      path.join(projectName, 'android', 'app', 'src', 'main', 'AndroidManifest.xml'),
+    );
+    if (!manifest.existsSync()) return;
+    var content = manifest.readAsStringSync();
+    if (content.contains('android:label="@string/app_name"')) return;
+    content = content.replaceFirst(
+      RegExp(r'android:label="[^"]*"'),
+      'android:label="@string/app_name"',
+    );
+    manifest.writeAsStringSync(content);
   }
 
 

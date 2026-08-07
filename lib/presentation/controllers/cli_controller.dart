@@ -331,6 +331,16 @@ class CliController {
     if (config.includeLinterRules) {
       _logger.info('  ${label('Linter:')}        ${value('Custom Rules')}');
     }
+
+    // Bundle ID preview: the entered id is production; others derive a suffix.
+    final baseId = '${config.organizationName}.${config.projectName}';
+    _logger
+      ..info('')
+      ..info('  ${label('Bundle IDs')}');
+    for (final flavor in config.flavors) {
+      final name = flavor.displayName.padRight(12);
+      _logger.info('    ${styleDim.wrap(name)} ${value(flavor.bundleId(baseId))}');
+    }
     _logger.info('');
   }
 

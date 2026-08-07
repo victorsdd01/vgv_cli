@@ -25,6 +25,10 @@ class ProjectRepositoryImpl implements ProjectRepository {
       customDesktopPlatforms: config.customDesktopPlatforms,
     );
 
+    // Configure native flavors (Android product flavors + iOS build
+    // configs/schemes) right after the native folders are generated.
+    await _fileSystemDataSource.configureFlavors(config);
+
     await _fileSystemDataSource.addDependencies(
       config.projectName, 
       StateManagementType.bloc, 
