@@ -5,6 +5,7 @@ import 'package:args/args.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/utils/ansi_colors.dart';
 import 'core/utils/version_checker.dart';
+import 'domain/entities/project_config.dart';
 import 'presentation/controllers/cli_controller.dart';
 
 // Short alias for AnsiColors to keep print statements readable
@@ -65,6 +66,10 @@ class VgvCli {
         abbr: 'o',
         help: 'Output directory (defaults to current directory)',
       )
+      ..addOption(
+        'flavors',
+        help: 'Comma-separated flavors to generate: dev,staging,prod (default: all)',
+      )
       ..addFlag(
         'no-git',
         help: 'Skip git initialization',
@@ -111,6 +116,7 @@ class VgvCli {
       final noGit = _argResults['no-git'] as bool;
       final dryRun = _argResults['dry-run'] as bool;
       final quickMode = _argResults['quick'] as bool;
+      final flavors = _parseFlavors(_argResults['flavors'] as String?);
 
       if (dryRun) {
         await _runDryRun(projectName, organization, outputDir);
@@ -124,16 +130,18 @@ class VgvCli {
           outputDir: outputDir,
           noGit: noGit,
           quickMode: quickMode,
+          flavors: flavors,
         );
         return;
       }
 
       // Run in interactive mode, honoring any flags the user did pass
-      // (org / output / no-git) instead of silently ignoring them.
+      // (org / output / no-git / flavors) instead of silently ignoring them.
       await _runInteractiveMode(
         organization: organization,
         outputDir: outputDir,
         noGit: noGit,
+        flavors: flavors,
       );
     } catch (e) {
       print('Error: $e');
@@ -172,15 +180,38 @@ class VgvCli {
     }
   }
 
+  /// Parses `--flavors dev,staging,prod` into a canonical, de-duplicated list.
+  /// Returns null when the flag is absent (callers then use the default set).
+  /// Exits with code 1 on an unknown token.
+  List<Flavor>? _parseFlavors(String? arg) {
+    if (arg == null || arg.trim().isEmpty) return null;
+    final selected = <Flavor>{};
+    for (final token in arg.split(',')) {
+      if (token.trim().isEmpty) continue;
+      final flavor = Flavor.tryParse(token);
+      if (flavor == null) {
+        print('${AnsiColors.brightRed}${AnsiColors.bold}Error:${AnsiColors.reset} '
+            'unknown flavor "${token.trim()}". Valid values: dev, staging, prod.');
+        exit(1);
+      }
+      selected.add(flavor);
+    }
+    if (selected.isEmpty) return null;
+    // Preserve canonical order (dev, staging, production).
+    return Flavor.values.where(selected.contains).toList();
+  }
+
   Future<void> _runInteractiveMode({
     String? organization,
     String? outputDir,
     bool noGit = false,
+    List<Flavor>? flavors,
   }) async {
     await _cliController.runInteractiveMode(
       organization: organization,
       outputDir: outputDir,
       noGit: noGit,
+      flavors: flavors,
     );
   }
 
@@ -214,6 +245,7 @@ class VgvCli {
     String? outputDir,
     bool noGit = false,
     bool quickMode = false,
+    List<Flavor>? flavors,
   }) async {
     await _cliController.runWithFlags(
       projectName: projectName,
@@ -221,6 +253,7 @@ class VgvCli {
       outputDir: outputDir,
       noGit: noGit,
       quickMode: quickMode,
+      flavors: flavors,
     );
   }
 
@@ -355,6 +388,7 @@ class VgvCli {
     print('  ${AnsiColors.brightCyan}-n, --name${AnsiColors.reset} <name>            ${AnsiColors.dim}Project name${AnsiColors.reset}');
     print('  ${AnsiColors.brightCyan}    --org${AnsiColors.reset} <org>              ${AnsiColors.dim}Organization (com.example)${AnsiColors.reset}');
     print('  ${AnsiColors.brightCyan}-o, --output${AnsiColors.reset} <dir>           ${AnsiColors.dim}Output directory${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}    --flavors${AnsiColors.reset} <list>          ${AnsiColors.dim}Flavors: dev,staging,prod (default all)${AnsiColors.reset}');
     print('  ${AnsiColors.brightCyan}    --no-git${AnsiColors.reset}                 ${AnsiColors.dim}Skip git initialization${AnsiColors.reset}');
     print('  ${AnsiColors.brightCyan}    --dry-run${AnsiColors.reset}                ${AnsiColors.dim}Preview without creating${AnsiColors.reset}');
     print('');

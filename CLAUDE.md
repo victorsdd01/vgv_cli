@@ -79,13 +79,16 @@ vgv -q -n my_app            # quick mode con defaults
 vgv -n my_app --org com.x   # con organización
 vgv -n my_app -o ~/proj     # directorio de salida
 vgv -n my_app --no-git      # sin git init
+vgv -q -n my_app --flavors dev,prod   # elegir flavors sin interactivo
 vgv --dry-run -n my_app     # preview sin crear archivos
 vgv -h                      # help
 vgv -v                      # versión + check de updates
 vgv -u                      # auto-update (reinstala desde git)
 ```
 
-Flags: `--help/-h`, `--version/-v`, `--update/-u`, `--quick/-q`, `--name/-n`, `--org`, `--output/-o`, `--no-git`, `--dry-run`.
+Flags: `--help/-h`, `--version/-v`, `--update/-u`, `--quick/-q`, `--name/-n`, `--org`, `--output/-o`, `--flavors`, `--no-git`, `--dry-run`.
+
+`--flavors <lista>` (ej. `dev,staging,prod`) permite elegir flavors **sin** modo interactivo (por defecto los 3); tokens tolerantes (`dev/development`, `stg/stage/staging`, `prod/production`); token inválido → error + `exit(1)`. También sirve como pre-selección en modo interactivo (salta el prompt de flavors). Además `--org/-o/--no-git` ahora se honran aunque caigas a interactivo (antes se ignoraban).
 
 ---
 

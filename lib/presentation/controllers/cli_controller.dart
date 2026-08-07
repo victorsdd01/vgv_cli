@@ -13,13 +13,15 @@ class CliController {
     String? organization,
     String? outputDir,
     bool noGit = false,
+    List<Flavor>? flavors,
   }) async {
     _printWelcomeMessage();
 
     final projectName = _getProjectName();
     final org = _getOrganization(projectName, organization);
     final platforms = _getPlatforms();
-    final flavors = _getFlavors();
+    // If flavors were passed via --flavors, honor them and skip the prompt.
+    final selectedFlavors = flavors ?? _getFlavors();
     final includeLinterRules = _getLinterRulesChoice();
 
     final config = ProjectConfig(
@@ -38,7 +40,7 @@ class CliController {
       customDesktopPlatforms: _selectedDesktopPlatforms,
       outputDirectory: outputDir,
       skipGitInit: noGit,
-      flavors: flavors,
+      flavors: selectedFlavors,
     );
 
     _printConfigurationSummary(config);
@@ -56,6 +58,7 @@ class CliController {
     String? outputDir,
     bool noGit = false,
     bool quickMode = false,
+    List<Flavor>? flavors,
   }) async {
     _printWelcomeMessage();
 
@@ -109,6 +112,7 @@ class CliController {
       customDesktopPlatforms: null,
       outputDirectory: outputDir,
       skipGitInit: noGit,
+      flavors: flavors ?? const [Flavor.dev, Flavor.staging, Flavor.production],
     );
 
     _printConfigurationSummary(config);

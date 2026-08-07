@@ -305,6 +305,26 @@ enum Flavor {
   /// Full bundleId for this flavor given the [baseId] the user entered
   /// (the base id is the production id).
   String bundleId(String baseId) => '$baseId$bundleIdSuffix';
+
+  /// Parses a user-supplied flavor token (case-insensitive, lenient aliases).
+  /// Returns null if it doesn't match any flavor.
+  static Flavor? tryParse(String value) {
+    switch (value.trim().toLowerCase()) {
+      case 'dev':
+      case 'develop':
+      case 'development':
+        return Flavor.dev;
+      case 'stg':
+      case 'stage':
+      case 'staging':
+        return Flavor.staging;
+      case 'prod':
+      case 'production':
+        return Flavor.production;
+      default:
+        return null;
+    }
+  }
 }
 
 /// Enum representing different state management types
