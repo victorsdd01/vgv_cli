@@ -128,8 +128,13 @@ class VgvCli {
         return;
       }
 
-      // Run in interactive mode
-      await _runInteractiveMode();
+      // Run in interactive mode, honoring any flags the user did pass
+      // (org / output / no-git) instead of silently ignoring them.
+      await _runInteractiveMode(
+        organization: organization,
+        outputDir: outputDir,
+        noGit: noGit,
+      );
     } catch (e) {
       print('Error: $e');
       _printUsage();
@@ -167,8 +172,16 @@ class VgvCli {
     }
   }
 
-  Future<void> _runInteractiveMode() async {
-    await _cliController.runInteractiveMode();
+  Future<void> _runInteractiveMode({
+    String? organization,
+    String? outputDir,
+    bool noGit = false,
+  }) async {
+    await _cliController.runInteractiveMode(
+      organization: organization,
+      outputDir: outputDir,
+      noGit: noGit,
+    );
   }
 
   Future<void> _runDryRun(String? projectName, String? organization, String? outputDir) async {

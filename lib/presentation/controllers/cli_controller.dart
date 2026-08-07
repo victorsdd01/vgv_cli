@@ -9,18 +9,22 @@ class CliController {
   CliController(this._projectRepository, {Logger? logger})
       : _logger = logger ?? Logger();
 
-  Future<void> runInteractiveMode() async {
+  Future<void> runInteractiveMode({
+    String? organization,
+    String? outputDir,
+    bool noGit = false,
+  }) async {
     _printWelcomeMessage();
 
     final projectName = _getProjectName();
-    final organization = _getOrganization(projectName);
+    final org = _getOrganization(projectName, organization);
     final platforms = _getPlatforms();
     final flavors = _getFlavors();
     final includeLinterRules = _getLinterRulesChoice();
 
     final config = ProjectConfig(
       projectName: projectName,
-      organizationName: organization,
+      organizationName: org,
       platforms: platforms,
       stateManagement: StateManagementType.bloc,
       architecture: ArchitectureType.cleanArchitecture,
@@ -32,6 +36,8 @@ class CliController {
           ? DesktopPlatform.custom
           : DesktopPlatform.all,
       customDesktopPlatforms: _selectedDesktopPlatforms,
+      outputDirectory: outputDir,
+      skipGitInit: noGit,
       flavors: flavors,
     );
 
@@ -151,8 +157,13 @@ class CliController {
     }
   }
 
-  String _getOrganization(String projectName) {
-    final defaultOrg = 'com.$projectName';
+  String _getOrganization(String projectName, [String? provided]) {
+    // If --org was passed and is valid, use it as the default (the user can
+    // still confirm or change it); otherwise fall back to com.<projectName>.
+    final defaultOrg =
+        (provided != null && ProjectConfig.isValidOrganizationName(provided))
+            ? provided
+            : 'com.$projectName';
 
     while (true) {
       final org = _logger.prompt(
