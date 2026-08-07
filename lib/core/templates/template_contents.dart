@@ -473,7 +473,7 @@ class ToastUtil {
       length <= maxLength ? this : '${substring(0, maxLength)}$suffix';
 }
 ''';
-  static const String _core_states_tstateless_dart = r'''import 'package:bloc/bloc.dart';
+  static const String _core_states_tstateless_dart = r'''import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/material.dart';
 import '../../application/generated/l10n.dart';
 
@@ -497,7 +497,7 @@ abstract class TStateless<Bloc extends BlocBase<dynamic>?>
   );
 }
 ''';
-  static const String _core_states_tstatefull_dart = r'''import 'package:bloc/bloc.dart';
+  static const String _core_states_tstatefull_dart = r'''import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/material.dart';
 import '../../application/generated/l10n.dart';
 
@@ -658,7 +658,8 @@ class SettingsBloc extends HydratedBloc<SettingsEvent, SettingsState> {
   Map<String, dynamic>? toJson(SettingsState state) => state.toJson();
 }
 ''';
-  static const String _features_settings_presentation_blocs_settings_bloc_settings_state_dart = r'''part of 'settings_bloc.dart';
+  static const String _features_settings_presentation_blocs_settings_bloc_settings_state_dart = r'''// ignore_for_file: invalid_annotation_target
+part of 'settings_bloc.dart';
 
 @freezed
 abstract class SettingsStatus with _$SettingsStatus {
@@ -1195,7 +1196,8 @@ abstract class HomeEntity with _$HomeEntity {
 }
 
 ''';
-  static const String _features_home_presentation_blocs_home_bloc_home_state_dart = r'''part of 'home_bloc.dart';
+  static const String _features_home_presentation_blocs_home_bloc_home_state_dart = r'''// ignore_for_file: invalid_annotation_target
+part of 'home_bloc.dart';
 
 @freezed
 abstract class HomeStatus with _$HomeStatus {
@@ -2046,7 +2048,8 @@ class AuthBloc extends HydratedBloc<AuthEvent, AuthState> {
   Map<String, dynamic>? toJson(AuthState state) => null;
 }
 ''';
-  static const String _features_auth_presentation_blocs_auth_bloc_auth_state_dart = r'''part of 'auth_bloc.dart';
+  static const String _features_auth_presentation_blocs_auth_bloc_auth_state_dart = r'''// ignore_for_file: invalid_annotation_target
+part of 'auth_bloc.dart';
 
 @freezed
 abstract class AuthStatus with _$AuthStatus {
