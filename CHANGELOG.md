@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Optional lefthook git hooks** (prompted): scaffolds `lefthook.yml` with a
+  `pre-commit` (dart format + `dart analyze --fatal-infos` on staged files) and
+  `pre-push` (`flutter test`). After creation the CLI detects `lefthook` and
+  prints how to install + `lefthook install` (no auto-install).
 - **Presets / config file** (`vgv.yaml` project-local, `~/.vgvrc` global): set
   defaults for `org`, `output`, `flavors` and `git` so you stop re-typing flags.
   Precedence: CLI flags > `vgv.yaml` > `~/.vgvrc`. `vgv config init [--global]`

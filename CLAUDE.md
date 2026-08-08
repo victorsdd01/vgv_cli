@@ -233,6 +233,9 @@ Para no re-tipear flags. `VgvConfig.load()` (`core/utils/vgv_config.dart`, dep `
 - Verificado: `config init/show` + `--dry-run -n test_app` toma `org` del preset. 42 tests (incluye `test/vgv_config_test.dart`), `analyze` limpio.
 - **Futuro**: extender presets a fastlane/aiAgents (hoy son prompts interactivos en el controller).
 
+### 7. lefthook git hooks (✅ HECHO)
+Prompt opcional (platform-agnostic): "¿Add lefthook git hooks?". Genera `lefthook.yml` en la raíz del proyecto: `pre-commit` (`dart format --set-exit-if-changed {staged_files}` con `stage_fixed`, `dart analyze --fatal-infos`) + `pre-push` (`flutter test`). Tras crear, el CLI detecta `lefthook` e imprime cómo instalarlo (`brew install lefthook` / `dart pub global activate lefthook`) + `lefthook install` (no auto-instala). Código: `ProjectConfig.includeLefthook`, prompt `_getLefthookChoice` + `_reportLefthookTooling` en `cli_controller.dart`, `core/utils/lefthook_generator.dart`, llamado en `project_repository_impl.dart`.
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Limpiar artefactos de build versionados en `templates/blocs/build/`.

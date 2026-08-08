@@ -22,6 +22,9 @@ class ProjectConfig {
   /// store metadata + fastlane-config.md).
   final bool includeFastlane;
 
+  /// Whether to scaffold lefthook git hooks (pre-commit: format/analyze/test).
+  final bool includeLefthook;
+
   /// AI agents to generate a coding-rules file for (BLoC+freezed,
   /// TStateless/TStatefull, no setState, Clean Architecture…). Empty = none.
   final List<AiAgent> aiAgents;
@@ -42,6 +45,7 @@ class ProjectConfig {
     this.skipGitInit = false,
     this.flavors = const [Flavor.dev, Flavor.staging, Flavor.production],
     this.includeFastlane = false,
+    this.includeLefthook = false,
     this.aiAgents = const [],
   });
 
@@ -85,7 +89,7 @@ class ProjectConfig {
 
   @override
   String toString() {
-    return 'ProjectConfig(projectName: $projectName, organizationName: $organizationName, stateManagement: $stateManagement, architecture: $architecture, includeGoRouter: $includeGoRouter, includeLinterRules: $includeLinterRules, includeFreezed: $includeFreezed, platforms: $platforms, mobilePlatform: $mobilePlatform, desktopPlatform: $desktopPlatform, customDesktopPlatforms: $customDesktopPlatforms, outputDirectory: $outputDirectory, skipGitInit: $skipGitInit, flavors: $flavors, includeFastlane: $includeFastlane, aiAgents: $aiAgents)';
+    return 'ProjectConfig(projectName: $projectName, organizationName: $organizationName, stateManagement: $stateManagement, architecture: $architecture, includeGoRouter: $includeGoRouter, includeLinterRules: $includeLinterRules, includeFreezed: $includeFreezed, platforms: $platforms, mobilePlatform: $mobilePlatform, desktopPlatform: $desktopPlatform, customDesktopPlatforms: $customDesktopPlatforms, outputDirectory: $outputDirectory, skipGitInit: $skipGitInit, flavors: $flavors, includeFastlane: $includeFastlane, includeLefthook: $includeLefthook, aiAgents: $aiAgents)';
   }
 
   @override
@@ -107,6 +111,7 @@ class ProjectConfig {
         other.skipGitInit == skipGitInit &&
         other.flavors == flavors &&
         other.includeFastlane == includeFastlane &&
+        other.includeLefthook == includeLefthook &&
         other.aiAgents == aiAgents;
   }
 
@@ -127,6 +132,7 @@ class ProjectConfig {
         skipGitInit.hashCode ^
         flavors.hashCode ^
         includeFastlane.hashCode ^
+        includeLefthook.hashCode ^
         aiAgents.hashCode;
   }
 }
