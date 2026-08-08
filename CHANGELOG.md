@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Native flavors** (dev/staging/production): Android `productFlavors`
+  (`build.gradle.kts`), iOS build configs + schemes + xcconfig (`pbxproj`),
+  per-flavor bundle id, app name and entry points, flavor-aware VS Code
+  `launch.json`, and `flutter run --flavor` wiring.
+- Interactive flavor selection and a non-interactive `--flavors dev,staging,prod`
+  flag (default: all).
+- **Per-flavor launcher icons** with a diagonal corner banner (green **DEV** /
+  amber **STAGING**); production stays clean. Android + iOS.
+- **In-app Talker log viewer** for non-production flavors: a draggable floating
+  button (long-press to move) that opens `TalkerScreen`; hidden while open and
+  in production.
+- Optional **Fastlane** scaffolding (prompted, mobile only): `Gemfile`,
+  Android/iOS lanes (`deploy_dev`/`deploy_prod` with 10% rollout, TestFlight),
+  store metadata + Play Store image slots, and a `fastlane-config.md` guide.
+- Optional **AI-agent rules files** (prompted): `CLAUDE.md`, `.cursorrules`,
+  `.github/copilot-instructions.md`, `GEMINI.md`, `.windsurfrules`, `AGENTS.md`
+  — encoding the project's conventions (Clean Architecture, BLoC+freezed,
+  TStateless/TStatefull, no `setState`, intl_utils, GoRouter).
+
+### Changed
+- Interactive UI migrated from `interact` to **`mason_logger`** (Mason-style
+  prompts + progress spinners).
+- `vgv -u` now shows a **real** animated progress spinner tied to the actual
+  install.
+- CLI version is baked as a single source of truth (`lib/src/version.dart`
+  via `tool/generate_version.dart`); "latest" reads the `main` `pubspec.yaml`.
+
+### Fixed
+- `-o/--output` and `--no-git` are now honored (+ `git init`); `--org/-o/--no-git`
+  are respected even when falling back to interactive mode.
+- `addDependencies` no longer places the Flutter SDK and `cupertino_icons`
+  under `dev_dependencies`.
+- Android `resValues` build feature enabled so per-flavor `app_name` builds on
+  AGP 8+.
+- iOS per-flavor app name (`CFBundleDisplayName` → `$(BUNDLE_DISPLAY_NAME)`)
+  and per-flavor app icon (`ASSETCATALOG_COMPILER_APPICON_NAME` set in pbxproj).
+- Bundle id no longer doubled when the org already ends with the project name
+  (`com.test2` + `test2` → `com.test2`, not `com.test2.test2`).
+- Post-generation failures (build_runner / intl_utils) are surfaced as
+  warnings instead of always reporting success; Flutter install is pre-checked.
+- Organization validation rejects consecutive dots; `compareVersions` parses
+  defensively; version checks have a network timeout.
+
+### Removed
+- Dead code (unused domain use cases, `VersionChecker` recommendation helpers,
+  unused `AnsiColors` constants, the fake update progress bar), versioned build
+  artifacts under `templates/blocs/build/`, and stale root dev scripts.
+
 ## [1.10.52] - 2026-08-07
 
 ### Changes

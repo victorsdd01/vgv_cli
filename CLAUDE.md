@@ -28,6 +28,7 @@ Publicado en pub.dev como `vgv_cli`. Comando: `vgv`.
 - **Rama de trabajo: `develop`.** Trabajamos y commiteamos aquí.
 - **Commitear seguido** para no perder cambios (regla nacida de perder trabajo local).
 - **Mantener este `CLAUDE.md` actualizado**: cada vez que agregamos algo o arreglamos un bug, actualizamos la sección correspondiente y commiteamos.
+- **Mantener el `CHANGELOG.md` actualizado** (sección `## [Unreleased]`) con cada feature/fix, para que al re-publicar el CLI el changelog sea real (no solo "Merge pull request" del auto-bump).
 - Idioma de trabajo con el autor: **español**.
 
 ---
@@ -190,6 +191,9 @@ Prompt opcional en interactivo (solo si hay mobile): "¿Configurar Fastlane?". G
 - Tras crear, el CLI **detecta** ruby/bundler/brew e imprime estado + próximos comandos (`bundle install`, `bundle exec fastlane deploy_dev`). **No** auto-instala Homebrew (necesita sudo) — instruye.
 - Código: `ProjectConfig.includeFastlane`, prompt en `cli_controller.dart`, `core/utils/fastlane_generator.dart`, llamado desde `project_repository_impl.dart` antes del git init.
 - Verificado: genera estructura correcta con bundle ids por flavor. **Pendiente**: opcional `--fastlane` flag no-interactivo; verificación con `bundle install`/`fastlane` real.
+
+### 1.e Reglas para agentes de IA (✅ HECHO, 2026-08-08)
+Prompt: "¿Usás un agente de IA?" → si sí, multi-select de agentes → genera un archivo de reglas por agente (mismo contenido) con las convenciones del CLI: Clean Architecture, BLoC+freezed, `TStateless`/`TStatefull` (nada de `setState` — BLoC para estado compartido, `ValueNotifier` para local), freezed en modelos/entidades, intl_utils, GoRouter, get_it. Archivos: `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`, `GEMINI.md`, `.windsurfrules`, `AGENTS.md`. Código: enum `AiAgent` + `ProjectConfig.aiAgents` + `core/utils/agent_rules_generator.dart`.
 
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
