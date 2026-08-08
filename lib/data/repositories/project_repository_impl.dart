@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../../core/utils/fastlane_generator.dart';
 import '../../domain/entities/project_config.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../datasources/file_system_datasource.dart';
@@ -114,6 +115,9 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
     // Setup CocoaPods for iOS/macOS platforms
     await _flutterCommandDataSource.setupCocoaPods(config.projectName, config.platforms);
+
+    // Scaffold Fastlane (Gemfile + android/ios lanes + metadata + guide).
+    await const FastlaneGenerator().generate(config);
 
     // Initialize git unless the user opted out with --no-git.
     if (!config.skipGitInit) {

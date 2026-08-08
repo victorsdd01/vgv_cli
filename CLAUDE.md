@@ -180,6 +180,17 @@ El `[skip ci]` del fix `977bd56` (para cortar el loop infinito del bump) tambié
 
 **Nota (lag de tag/release, no crítico):** el job de release taguea la versión actual del pubspec en el siguiente push que NO sea de bump; por eso el último tag/release (v1.10.48) va una versión detrás del pubspec de main (1.10.49). Ya no afecta al CLI porque "latest" se lee de main, no de releases. `develop` (1.10.39) está detrás de `main` (1.10.49) — otro efecto del auto-bump en main sin merge-back a develop.
 
+### 1.d Fastlane full-configurado (✅ HECHO, 2026-08-08)
+Prompt opcional en interactivo (solo si hay mobile): "¿Configurar Fastlane?". Genera (estilo JornaDay, con el **bundleId que escribió el usuario** = `baseBundleId` + sufijos por flavor):
+- `Gemfile` (fastlane vía Bundler — sin install global).
+- `android/fastlane/`: `Appfile` (package_name = prod id), `Fastfile` (lanes `deploy_<flavor>` → track internal/production con rollout 10% en prod, `next_build_info`), `Pluginfile`, `metadata/android/{en-US,es-ES}/` (title/short/full/changelogs) + `images/` (phone/tablet/feature/icon + README).
+- `ios/fastlane/`: `Appfile` (app_identifier), `Fastfile` (lane `beta` → TestFlight), `metadata/en-US/`.
+- `fastlane-config.md` en la raíz: pasos claros y específicos (prerequisitos ruby/bundler, service account de Play, signing, API key de App Store, dónde poner screenshots).
+- `.gitignore`: ignora secretos (`google-play-service-account.json`, `*.p8/.p12`, `vendor/`).
+- Tras crear, el CLI **detecta** ruby/bundler/brew e imprime estado + próximos comandos (`bundle install`, `bundle exec fastlane deploy_dev`). **No** auto-instala Homebrew (necesita sudo) — instruye.
+- Código: `ProjectConfig.includeFastlane`, prompt en `cli_controller.dart`, `core/utils/fastlane_generator.dart`, llamado desde `project_repository_impl.dart` antes del git init.
+- Verificado: genera estructura correcta con bundle ids por flavor. **Pendiente**: opcional `--fastlane` flag no-interactivo; verificación con `bundle install`/`fastlane` real.
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Limpiar artefactos de build versionados en `templates/blocs/build/`.

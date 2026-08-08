@@ -18,6 +18,10 @@ class ProjectConfig {
   /// Each flavor gets its own applicationId/bundleId, app name and entry point.
   final List<Flavor> flavors;
 
+  /// Whether to scaffold a full Fastlane setup (Gemfile + android/ios lanes +
+  /// store metadata + fastlane-config.md).
+  final bool includeFastlane;
+
   const ProjectConfig({
     required this.projectName,
     required this.organizationName,
@@ -33,6 +37,7 @@ class ProjectConfig {
     this.outputDirectory,
     this.skipGitInit = false,
     this.flavors = const [Flavor.dev, Flavor.staging, Flavor.production],
+    this.includeFastlane = false,
   });
 
   /// Validates the project configuration
@@ -75,7 +80,7 @@ class ProjectConfig {
 
   @override
   String toString() {
-    return 'ProjectConfig(projectName: $projectName, organizationName: $organizationName, stateManagement: $stateManagement, architecture: $architecture, includeGoRouter: $includeGoRouter, includeLinterRules: $includeLinterRules, includeFreezed: $includeFreezed, platforms: $platforms, mobilePlatform: $mobilePlatform, desktopPlatform: $desktopPlatform, customDesktopPlatforms: $customDesktopPlatforms, outputDirectory: $outputDirectory, skipGitInit: $skipGitInit, flavors: $flavors)';
+    return 'ProjectConfig(projectName: $projectName, organizationName: $organizationName, stateManagement: $stateManagement, architecture: $architecture, includeGoRouter: $includeGoRouter, includeLinterRules: $includeLinterRules, includeFreezed: $includeFreezed, platforms: $platforms, mobilePlatform: $mobilePlatform, desktopPlatform: $desktopPlatform, customDesktopPlatforms: $customDesktopPlatforms, outputDirectory: $outputDirectory, skipGitInit: $skipGitInit, flavors: $flavors, includeFastlane: $includeFastlane)';
   }
 
   @override
@@ -95,7 +100,8 @@ class ProjectConfig {
         other.customDesktopPlatforms == customDesktopPlatforms &&
         other.outputDirectory == outputDirectory &&
         other.skipGitInit == skipGitInit &&
-        other.flavors == flavors;
+        other.flavors == flavors &&
+        other.includeFastlane == includeFastlane;
   }
 
   @override
@@ -113,7 +119,8 @@ class ProjectConfig {
         customDesktopPlatforms.hashCode ^
         outputDirectory.hashCode ^
         skipGitInit.hashCode ^
-        flavors.hashCode;
+        flavors.hashCode ^
+        includeFastlane.hashCode;
   }
 }
 
