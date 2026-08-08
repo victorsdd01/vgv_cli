@@ -67,10 +67,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TStateless/TStatefull, no `setState`, intl_utils, GoRouter).
 
 ### Changed
-- **Responsive login/register** in the generated project: a new
-  `ResponsiveCenter` widget (`shared/widgets/`) constrains + centers the forms
-  on wide viewports (desktop / web) and fills the width on phones, adapting live
-  as the window is resized. No more edge-to-edge forms on desktop.
+- **Responsive UI on desktop/web** in the generated project: a new
+  `ResponsiveCenter` widget (`shared/widgets/`) constrains + centers content on
+  wide viewports and fills the width on phones, adapting live as the window is
+  resized. Applied to login/register (max 460) and settings (max 640); no more
+  edge-to-edge forms/lists on desktop. Home is already a centered column.
 - Interactive UI migrated from `interact` to **`mason_logger`** (Mason-style
   prompts + progress spinners).
 - `vgv -u` now shows a **real** animated progress spinner tied to the actual
