@@ -2107,6 +2107,7 @@ import '../../../../application/injector.dart';
 import '../../../../application/routes/routes.dart';
 import '../../../../application/generated/l10n.dart';
 import '../../../../core/states/tstatefull.dart';
+import '../../../../shared/widgets/responsive_center.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -2135,7 +2136,7 @@ class _RegisterPageState extends TStateful<RegisterPage, AuthBloc> {
       bloc: bloc,
       listener: _handleStateChanges,
       builder: (BuildContext context, AuthState state) => SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        child: ResponsiveCenter(
         child: FormBuilder(
           key: _formKey,
           child: Column(
@@ -2250,6 +2251,7 @@ class _RegisterPageState extends TStateful<RegisterPage, AuthBloc> {
             ],
           ),
         ),
+        ),
       ),
     ),
   );
@@ -2300,6 +2302,7 @@ import '../../../../application/injector.dart';
 import '../../../../application/routes/routes.dart';
 import '../../../../application/generated/l10n.dart';
 import '../../../../core/states/tstatefull.dart';
+import '../../../../shared/widgets/responsive_center.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -2353,7 +2356,7 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
         }
         
         return SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        child: ResponsiveCenter(
         child: FormBuilder(
           key: _formKey,
           child: Column(
@@ -2435,6 +2438,7 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
             ],
           ),
         ),
+        ),
       );
       },
     ),
@@ -2480,6 +2484,35 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
 ''';
   static const String _shared_widgets_widgets_dart = r'''export 'app_header.dart';
 export 'dialogs/app_dialogs.dart';
+export 'responsive_center.dart';
+''';
+  static const String _shared_widgets_responsive_center_dart = r'''import 'package:flutter/material.dart';
+
+/// Constrains and centers content within a max width on wide viewports
+/// (desktop, web, large tablets) while letting it fill the width on phones.
+/// Because it keys off the available width it also adapts live as a
+/// desktop/web window is resized.
+class ResponsiveCenter extends StatelessWidget {
+  const ResponsiveCenter({
+    super.key,
+    required this.child,
+    this.maxWidth = 460,
+    this.padding = const EdgeInsets.all(16),
+  });
+
+  final Widget child;
+  final double maxWidth;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.topCenter,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Padding(padding: padding, child: child),
+    ),
+  );
+}
 ''';
   static const String _shared_widgets_app_header_dart = r'''import 'package:flutter/material.dart';
 
@@ -3666,6 +3699,7 @@ void main() {
     'features/auth/presentation/pages/login_page.dart': _features_auth_presentation_pages_login_page_dart,
     'shared/shared.dart': _shared_shared_dart,
     'shared/widgets/widgets.dart': _shared_widgets_widgets_dart,
+    'shared/widgets/responsive_center.dart': _shared_widgets_responsive_center_dart,
     'shared/widgets/app_header.dart': _shared_widgets_app_header_dart,
     'shared/widgets/dialogs/app_dialogs.dart': _shared_widgets_dialogs_app_dialogs_dart,
     'main.dart': _main_dart,
