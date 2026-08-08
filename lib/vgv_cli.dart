@@ -5,6 +5,7 @@ import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/utils/ansi_colors.dart';
+import 'core/utils/doctor_runner.dart';
 import 'core/utils/gen_runner.dart';
 import 'core/utils/screenshot_runner.dart';
 import 'core/utils/version_checker.dart';
@@ -103,6 +104,10 @@ class VgvCli {
     }
     if (arguments.isNotEmpty && arguments.first == 'config') {
       exit(_runConfig(arguments.sublist(1)));
+    }
+    if ((arguments.isNotEmpty && arguments.first == 'doctor') ||
+        arguments.contains('--doctor')) {
+      exit(await DoctorRunner().run());
     }
 
     try {
@@ -434,6 +439,7 @@ class VgvCli {
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots --init${AnsiColors.reset}   ${AnsiColors.dim}Scaffold a store-screenshots manifest${AnsiColors.reset}');
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots${AnsiColors.reset} <manifest> ${AnsiColors.dim}Render framed store screenshots${AnsiColors.reset}');
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}config init${AnsiColors.reset}          ${AnsiColors.dim}Write a presets file (vgv.yaml / ~/.vgvrc)${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}doctor${AnsiColors.reset}               ${AnsiColors.dim}Check your environment (Flutter, Python, …)${AnsiColors.reset}');
     print('');
     print('${AnsiColors.brightGreen}${AnsiColors.bold}Flags:${AnsiColors.reset}');
     print('  ${AnsiColors.brightCyan}-h, --help${AnsiColors.reset}                   ${AnsiColors.dim}Show this help message${AnsiColors.reset}');

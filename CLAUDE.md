@@ -236,6 +236,9 @@ Para no re-tipear flags. `VgvConfig.load()` (`core/utils/vgv_config.dart`, dep `
 ### 7. lefthook git hooks (✅ HECHO)
 Prompt opcional (platform-agnostic): "¿Add lefthook git hooks?". Genera `lefthook.yml` en la raíz del proyecto: `pre-commit` (`dart format --set-exit-if-changed {staged_files}` con `stage_fixed`, `dart analyze --fatal-infos`) + `pre-push` (`flutter test`). Tras crear, el CLI detecta `lefthook` e imprime cómo instalarlo (`brew install lefthook` / `dart pub global activate lefthook`) + `lefthook install` (no auto-instala). Código: `ProjectConfig.includeLefthook`, prompt `_getLefthookChoice` + `_reportLefthookTooling` en `cli_controller.dart`, `core/utils/lefthook_generator.dart`, llamado en `project_repository_impl.dart`.
 
+### 8. `vgv doctor` (✅ HECHO)
+Chequeo read-only del toolchain: **Core** (flutter/dart/git) + **Optional** por feature (python3+Pillow → screenshots, ruby+bundler → fastlane, lefthook → hooks, cocoapods en macOS → iOS/macOS). Imprime ✓/• + versión o hint de instalación. Sale 1 si falta Flutter. `vgv doctor` o `vgv --doctor`. Código: `core/utils/doctor_runner.dart`, ruteado en `vgv_cli.dart`. Verificado en la máquina del autor (detecta Flutter 3.44.8, Dart 3.12.2, Pillow 11.3.0, lefthook, cocoapods, etc.).
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Limpiar artefactos de build versionados en `templates/blocs/build/`.

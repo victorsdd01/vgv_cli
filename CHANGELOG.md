@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`vgv doctor`** — checks the local toolchain (Flutter, Dart, git; and the
+  optional Python+Pillow, Ruby+bundler, lefthook, CocoaPods) and prints versions
+  with install hints for whatever's missing. Also available as `vgv --doctor`.
 - **Optional lefthook git hooks** (prompted): scaffolds `lefthook.yml` with a
   `pre-commit` (dart format + `dart analyze --fatal-infos` on staged files) and
   `pre-push` (`flutter test`). After creation the CLI detects `lefthook` and
