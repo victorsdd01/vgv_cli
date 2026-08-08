@@ -56,6 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unused `AnsiColors` constants, the fake update progress bar), versioned build
   artifacts under `templates/blocs/build/`, and stale root dev scripts.
 
+## [1.10.54] - 2026-08-07
+
+### Changes
+- Merge pull request #66 from victorsdd01/develop
+
 ## [1.10.52] - 2026-08-07
 
 ### Changes
