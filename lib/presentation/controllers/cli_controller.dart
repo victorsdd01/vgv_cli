@@ -26,6 +26,7 @@ class CliController {
     final selectedFlavors = flavors ?? _getFlavors();
     final includeFastlane = _getFastlaneChoice(platforms);
     final includeLefthook = _getLefthookChoice();
+    final seedColorHex = _getSeedColor();
     final aiAgents = _getAiAgents();
     final includeLinterRules = _getLinterRulesChoice();
 
@@ -48,6 +49,7 @@ class CliController {
       flavors: selectedFlavors,
       includeFastlane: includeFastlane,
       includeLefthook: includeLefthook,
+      seedColorHex: seedColorHex,
       aiAgents: aiAgents,
     );
 
@@ -343,6 +345,26 @@ class CliController {
     );
   }
 
+  /// Asks for an optional brand (seed) color for the Material 3 theme.
+  /// Returns a 6-digit hex (no #) or null to keep the default.
+  String? _getSeedColor() {
+    final useCustom = _logger.confirm(
+      '${lightCyan.wrap('?')} Set a brand (seed) color for the theme?',
+      defaultValue: false,
+    );
+    if (!useCustom) return null;
+    final re = RegExp(r'^[0-9A-Fa-f]{6}$');
+    while (true) {
+      final input = _logger
+          .prompt('${lightCyan.wrap('?')} Brand color hex (e.g. 4B60AA):',
+              defaultValue: '2196F3')
+          .replaceAll('#', '')
+          .trim();
+      if (re.hasMatch(input)) return input.toUpperCase();
+      _logger.err('  Enter a 6-digit hex like 4B60AA.');
+    }
+  }
+
   /// Asks whether to scaffold lefthook git hooks (format/analyze on commit,
   /// tests on push). Platform-agnostic.
   bool _getLefthookChoice() {
@@ -396,6 +418,9 @@ class CliController {
     }
     if (config.includeLefthook) {
       _logger.info('  ${label('Lefthook:')}      ${value('pre-commit / pre-push hooks')}');
+    }
+    if (config.seedColorHex != null) {
+      _logger.info('  ${label('Brand color:')}   ${value('#${config.seedColorHex}')}');
     }
     if (config.aiAgents.isNotEmpty) {
       _logger.info('  ${label('AI rules:')}      ${value(config.aiAgents.map((a) => a.name).join(', '))}');

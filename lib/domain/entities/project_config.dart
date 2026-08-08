@@ -25,6 +25,22 @@ class ProjectConfig {
   /// Whether to scaffold lefthook git hooks (pre-commit: format/analyze/test).
   final bool includeLefthook;
 
+  /// Brand seed color as a 6-digit hex (no leading #), e.g. `4B60AA`. When set,
+  /// the generated Material 3 theme uses `ColorScheme.fromSeed` with it. Null =
+  /// keep the default blue.
+  final String? seedColorHex;
+
+  /// Path to a 1024×1024 master app icon. When set, a full launcher icon set is
+  /// generated for the selected platforms. Null = keep the default Flutter icon.
+  final String? iconMasterPath;
+
+  /// Whether to configure a native splash screen (flutter_native_splash).
+  final bool includeSplash;
+
+  /// Whether to set a sensible min window size + title on desktop
+  /// (window_manager). Only meaningful for desktop targets.
+  final bool desktopWindow;
+
   /// AI agents to generate a coding-rules file for (BLoC+freezed,
   /// TStateless/TStatefull, no setState, Clean Architecture…). Empty = none.
   final List<AiAgent> aiAgents;
@@ -46,6 +62,10 @@ class ProjectConfig {
     this.flavors = const [Flavor.dev, Flavor.staging, Flavor.production],
     this.includeFastlane = false,
     this.includeLefthook = false,
+    this.seedColorHex,
+    this.iconMasterPath,
+    this.includeSplash = false,
+    this.desktopWindow = false,
     this.aiAgents = const [],
   });
 
@@ -89,7 +109,7 @@ class ProjectConfig {
 
   @override
   String toString() {
-    return 'ProjectConfig(projectName: $projectName, organizationName: $organizationName, stateManagement: $stateManagement, architecture: $architecture, includeGoRouter: $includeGoRouter, includeLinterRules: $includeLinterRules, includeFreezed: $includeFreezed, platforms: $platforms, mobilePlatform: $mobilePlatform, desktopPlatform: $desktopPlatform, customDesktopPlatforms: $customDesktopPlatforms, outputDirectory: $outputDirectory, skipGitInit: $skipGitInit, flavors: $flavors, includeFastlane: $includeFastlane, includeLefthook: $includeLefthook, aiAgents: $aiAgents)';
+    return 'ProjectConfig(projectName: $projectName, organizationName: $organizationName, stateManagement: $stateManagement, architecture: $architecture, includeGoRouter: $includeGoRouter, includeLinterRules: $includeLinterRules, includeFreezed: $includeFreezed, platforms: $platforms, mobilePlatform: $mobilePlatform, desktopPlatform: $desktopPlatform, customDesktopPlatforms: $customDesktopPlatforms, outputDirectory: $outputDirectory, skipGitInit: $skipGitInit, flavors: $flavors, includeFastlane: $includeFastlane, includeLefthook: $includeLefthook, seedColorHex: $seedColorHex, iconMasterPath: $iconMasterPath, includeSplash: $includeSplash, desktopWindow: $desktopWindow, aiAgents: $aiAgents)';
   }
 
   @override
@@ -112,6 +132,10 @@ class ProjectConfig {
         other.flavors == flavors &&
         other.includeFastlane == includeFastlane &&
         other.includeLefthook == includeLefthook &&
+        other.seedColorHex == seedColorHex &&
+        other.iconMasterPath == iconMasterPath &&
+        other.includeSplash == includeSplash &&
+        other.desktopWindow == desktopWindow &&
         other.aiAgents == aiAgents;
   }
 
@@ -133,6 +157,10 @@ class ProjectConfig {
         flavors.hashCode ^
         includeFastlane.hashCode ^
         includeLefthook.hashCode ^
+        seedColorHex.hashCode ^
+        iconMasterPath.hashCode ^
+        includeSplash.hashCode ^
+        desktopWindow.hashCode ^
         aiAgents.hashCode;
   }
 }

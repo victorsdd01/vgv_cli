@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Brand seed color** (prompted at creation): pick a hex and the generated
+  Material 3 theme seeds its light+dark `ColorScheme` from it
+  (`ColorScheme.fromSeed`).
 - **`vgv screenshots capture`** — auto-capture raw screens instead of taking
   them by hand: `capture --init` scaffolds a golden-test harness that renders
   your screens at exact device sizes, and `capture <test>` runs it

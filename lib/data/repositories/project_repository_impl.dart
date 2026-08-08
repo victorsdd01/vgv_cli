@@ -3,6 +3,7 @@ import 'dart:io';
 import '../../core/utils/agent_rules_generator.dart';
 import '../../core/utils/fastlane_generator.dart';
 import '../../core/utils/lefthook_generator.dart';
+import '../../core/utils/theme_seed_generator.dart';
 import '../../domain/entities/project_config.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../datasources/file_system_datasource.dart';
@@ -126,6 +127,9 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
     // Scaffold lefthook git hooks (format/analyze on commit) if requested.
     await const LefthookGenerator().generate(config);
+
+    // Apply the brand seed color to the Material 3 theme, if chosen.
+    await const ThemeSeedGenerator().generate(config);
 
     // Initialize git unless the user opted out with --no-git.
     if (!config.skipGitInit) {
