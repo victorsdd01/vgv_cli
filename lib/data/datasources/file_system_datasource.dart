@@ -7,7 +7,6 @@ import '../../domain/entities/project_config.dart';
 /// Data source for file system operations
 abstract class FileSystemDataSource {
   Future<void> addDependencies(String projectName, StateManagementType stateManagement, bool includeGoRouter, bool includeCleanArchitecture, bool includeFreezed);
-  Future<void> createDirectoryStructure(String projectName, StateManagementType stateManagement, bool includeGoRouter);
   Future<void> createStateManagementTemplates(String projectName, StateManagementType stateManagement, bool includeFreezed);
   Future<void> createGoRouterTemplates(String projectName);
   Future<void> createDefaultNavigationTemplates(String projectName);
@@ -230,23 +229,6 @@ flutter_intl:
     }
     
     pubspecFile.writeAsStringSync(pubspecContent);
-  }
-
-  @override
-  Future<void> createDirectoryStructure(String projectName, StateManagementType stateManagement, bool includeGoRouter) async {
-    final directories = <String>[];
-
-    // Add Go Router directories if requested
-    if (includeGoRouter) {
-      directories.addAll([
-        'lib/routes',
-        'lib/pages',
-      ]);
-    }
-
-    for (final dir in directories) {
-      Directory(path.join(projectName, dir)).createSync(recursive: true);
-    }
   }
 
   @override
