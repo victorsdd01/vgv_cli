@@ -98,68 +98,70 @@ class FlavorIconGenerator {
     'xxxhdpi': 192,
   };
 
-  /// Banner color per flavor.
+  /// Banner color per flavor (solid, for a clear high-contrast ribbon).
   img.Color _bandColor(Flavor flavor) {
     switch (flavor) {
       case Flavor.dev:
-        return img.ColorRgba8(0xE5, 0x3E, 0x3E, 0xF2); // red
+        return img.ColorRgb8(0x43, 0xA0, 0x47); // green
       case Flavor.staging:
-        return img.ColorRgba8(0xF2, 0x9D, 0x1B, 0xF2); // amber
+        return img.ColorRgb8(0xEF, 0x6C, 0x00); // amber
       case Flavor.production:
-        return img.ColorRgba8(0x2E, 0x7D, 0x32, 0xF2); // (unused; prod = clean)
+        return img.ColorRgb8(0x2E, 0x7D, 0x32); // (unused; prod = clean)
     }
   }
 
-  /// Composites a diagonal bottom-left banner with the flavor label onto a
-  /// square [base] icon and returns the new image.
+  /// Composites a bold diagonal bottom-right corner ribbon with the flavor
+  /// label onto a square [base] icon and returns the new image.
   img.Image buildBannerIcon(img.Image base, Flavor flavor) {
     final size = base.width;
     final icon = base.clone();
     final label = flavor.flavorName.toUpperCase();
 
-    // Build the ribbon at an internal resolution where the 48px font is
-    // prominent, then scale it to the icon. Thickness is preserved by rotation.
-    const bandHeight = 110;
-    final textWidth = label.length * 28; // arial48 approximation
-    final ribbonLen = (textWidth + 220).clamp(420, 2200).toInt();
+    // Build the ribbon at its FINAL pixel size so thickness and length are
+    // independent (scaling a small ribbon coupled the two and either shrank
+    // the text or made the band span the whole icon).
+    final thickness = (size * 0.20).round();
+    final length = (size * 0.72).round(); // just spans the corner (ends clipped)
+    final ribbon = img.Image(width: length, height: thickness, numChannels: 4)
+      ..clear(_bandColor(flavor));
 
-    final ribbon = img.Image(width: ribbonLen, height: bandHeight, numChannels: 4);
-    img.fillRect(
+    // Render the label bold on a tight canvas, then scale it to ~60% of the
+    // band thickness and composite it centered on the ribbon.
+    final white = img.ColorRgb8(255, 255, 255);
+    final textCanvasW = (label.length * 30) + 8;
+    const textCanvasH = 56;
+    final textImg = img.Image(width: textCanvasW, height: textCanvasH, numChannels: 4);
+    for (var ox = 0; ox <= 2; ox++) {
+      for (var oy = 0; oy <= 1; oy++) {
+        img.drawString(textImg, label,
+            font: img.arial48, x: 4 + ox, y: 4 + oy, color: white);
+      }
+    }
+    final targetH = (thickness * 0.6).round();
+    final targetW = (textCanvasW * targetH / textCanvasH).round();
+    final textScaled = img.copyResize(textImg,
+        width: targetW, height: targetH, interpolation: img.Interpolation.cubic);
+    img.compositeImage(
       ribbon,
-      x1: 0,
-      y1: 0,
-      x2: ribbonLen - 1,
-      y2: bandHeight - 1,
-      color: _bandColor(flavor),
-    );
-    img.drawString(
-      ribbon,
-      label,
-      font: img.arial48,
-      x: ((ribbonLen - textWidth) / 2).round(),
-      y: ((bandHeight - 48) / 2).round(),
-      color: img.ColorRgb8(255, 255, 255),
+      textScaled,
+      dstX: ((length - targetW) / 2).round(),
+      dstY: ((thickness - targetH) / 2).round(),
     );
 
-    // Rotate for the bottom-right corner and scale to the icon.
+    // Rotate to the diagonal and center it inside the bottom-right corner so
+    // the label stays fully visible; the band ends run off the edges.
     final rotated = img.copyRotate(
       ribbon,
       angle: -45,
       interpolation: img.Interpolation.linear,
     );
-    final scale = (size * 0.16) / bandHeight;
-    final scaled = img.copyResize(
+    final center = (size * 0.80).round();
+    img.compositeImage(
+      icon,
       rotated,
-      width: (rotated.width * scale).round(),
-      height: (rotated.height * scale).round(),
-      interpolation: img.Interpolation.linear,
+      dstX: center - rotated.width ~/ 2,
+      dstY: center - rotated.height ~/ 2,
     );
-
-    // Center the band on the bottom-right corner, nudged toward the middle.
-    final nudge = (size * 0.12).round();
-    final dstX = size - (scaled.width ~/ 2) - nudge;
-    final dstY = size - (scaled.height ~/ 2) - nudge;
-    img.compositeImage(icon, scaled, dstX: dstX, dstY: dstY);
 
     return icon;
   }

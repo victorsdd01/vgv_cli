@@ -18,6 +18,14 @@ class ProjectConfig {
   /// Each flavor gets its own applicationId/bundleId, app name and entry point.
   final List<Flavor> flavors;
 
+  /// Whether to scaffold a full Fastlane setup (Gemfile + android/ios lanes +
+  /// store metadata + fastlane-config.md).
+  final bool includeFastlane;
+
+  /// AI agents to generate a coding-rules file for (BLoC+freezed,
+  /// TStateless/TStatefull, no setState, Clean Architecture…). Empty = none.
+  final List<AiAgent> aiAgents;
+
   const ProjectConfig({
     required this.projectName,
     required this.organizationName,
@@ -33,6 +41,8 @@ class ProjectConfig {
     this.outputDirectory,
     this.skipGitInit = false,
     this.flavors = const [Flavor.dev, Flavor.staging, Flavor.production],
+    this.includeFastlane = false,
+    this.aiAgents = const [],
   });
 
   /// Validates the project configuration
@@ -45,6 +55,20 @@ class ProjectConfig {
   /// Flavors are only wired natively for mobile; web and (Windows/Linux)
   /// desktop do not support `flutter run --flavor`.
   bool get usesNativeFlavors => platforms.contains(PlatformType.mobile);
+
+  /// Production base bundle id (`flutter create` appends the project name to
+  /// `--org`). If the org already ends with the project name we avoid the
+  /// duplicated tail — e.g. org `com.test2` + project `test2` → `com.test2`,
+  /// not `com.test2.test2`. Otherwise → `<org>.<projectName>`.
+  String get baseBundleId => organizationName.endsWith('.$projectName')
+      ? organizationName
+      : '$organizationName.$projectName';
+
+  /// The value to pass to `flutter create --org` so the resulting
+  /// applicationId/bundleId equals [baseBundleId] (flutter appends the project
+  /// name, so we strip the trailing `.<projectName>`).
+  String get organizationForCreate =>
+      baseBundleId.substring(0, baseBundleId.length - projectName.length - 1);
 
   /// Validates project name format
   static bool isValidProjectName(String name) {
@@ -61,7 +85,7 @@ class ProjectConfig {
 
   @override
   String toString() {
-    return 'ProjectConfig(projectName: $projectName, organizationName: $organizationName, stateManagement: $stateManagement, architecture: $architecture, includeGoRouter: $includeGoRouter, includeLinterRules: $includeLinterRules, includeFreezed: $includeFreezed, platforms: $platforms, mobilePlatform: $mobilePlatform, desktopPlatform: $desktopPlatform, customDesktopPlatforms: $customDesktopPlatforms, outputDirectory: $outputDirectory, skipGitInit: $skipGitInit, flavors: $flavors)';
+    return 'ProjectConfig(projectName: $projectName, organizationName: $organizationName, stateManagement: $stateManagement, architecture: $architecture, includeGoRouter: $includeGoRouter, includeLinterRules: $includeLinterRules, includeFreezed: $includeFreezed, platforms: $platforms, mobilePlatform: $mobilePlatform, desktopPlatform: $desktopPlatform, customDesktopPlatforms: $customDesktopPlatforms, outputDirectory: $outputDirectory, skipGitInit: $skipGitInit, flavors: $flavors, includeFastlane: $includeFastlane, aiAgents: $aiAgents)';
   }
 
   @override
@@ -81,7 +105,9 @@ class ProjectConfig {
         other.customDesktopPlatforms == customDesktopPlatforms &&
         other.outputDirectory == outputDirectory &&
         other.skipGitInit == skipGitInit &&
-        other.flavors == flavors;
+        other.flavors == flavors &&
+        other.includeFastlane == includeFastlane &&
+        other.aiAgents == aiAgents;
   }
 
   @override
@@ -99,7 +125,9 @@ class ProjectConfig {
         customDesktopPlatforms.hashCode ^
         outputDirectory.hashCode ^
         skipGitInit.hashCode ^
-        flavors.hashCode;
+        flavors.hashCode ^
+        includeFastlane.hashCode ^
+        aiAgents.hashCode;
   }
 }
 
@@ -323,6 +351,53 @@ enum Flavor {
         return Flavor.production;
       default:
         return null;
+    }
+  }
+}
+
+/// AI coding agents the CLI can generate a rules/conventions file for.
+/// The rule content is identical; only the file the tool reads differs.
+enum AiAgent {
+  claude,
+  cursor,
+  copilot,
+  gemini,
+  windsurf,
+  agentsMd;
+
+  /// Human readable name shown in the prompt.
+  String get displayName {
+    switch (this) {
+      case AiAgent.claude:
+        return 'Claude Code (CLAUDE.md)';
+      case AiAgent.cursor:
+        return 'Cursor (.cursorrules)';
+      case AiAgent.copilot:
+        return 'GitHub Copilot (.github/copilot-instructions.md)';
+      case AiAgent.gemini:
+        return 'Gemini (GEMINI.md)';
+      case AiAgent.windsurf:
+        return 'Windsurf (.windsurfrules)';
+      case AiAgent.agentsMd:
+        return 'Generic (AGENTS.md)';
+    }
+  }
+
+  /// Path (relative to the project root) of the rules file for this agent.
+  String get rulesFilePath {
+    switch (this) {
+      case AiAgent.claude:
+        return 'CLAUDE.md';
+      case AiAgent.cursor:
+        return '.cursorrules';
+      case AiAgent.copilot:
+        return '.github/copilot-instructions.md';
+      case AiAgent.gemini:
+        return 'GEMINI.md';
+      case AiAgent.windsurf:
+        return '.windsurfrules';
+      case AiAgent.agentsMd:
+        return 'AGENTS.md';
     }
   }
 }

@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import '../../core/utils/agent_rules_generator.dart';
+import '../../core/utils/fastlane_generator.dart';
 import '../../domain/entities/project_config.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../datasources/file_system_datasource.dart';
@@ -31,7 +33,9 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
     await _flutterCommandDataSource.createFlutterProject(
       projectName: config.projectName,
-      organizationName: config.organizationName,
+      // Use the de-duplicated org so the bundle id isn't doubled
+      // (e.g. com.test2 + test2 => com.test2, not com.test2.test2).
+      organizationName: config.organizationForCreate,
       platforms: config.platforms,
       mobilePlatform: config.mobilePlatform,
       desktopPlatform: config.desktopPlatform,
@@ -112,6 +116,12 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
     // Setup CocoaPods for iOS/macOS platforms
     await _flutterCommandDataSource.setupCocoaPods(config.projectName, config.platforms);
+
+    // Scaffold Fastlane (Gemfile + android/ios lanes + metadata + guide).
+    await const FastlaneGenerator().generate(config);
+
+    // Write AI-agent rules files (CLAUDE.md, .cursorrules, …) if requested.
+    await const AgentRulesGenerator().generate(config);
 
     // Initialize git unless the user opted out with --no-git.
     if (!config.skipGitInit) {

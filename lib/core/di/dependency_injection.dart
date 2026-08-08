@@ -2,8 +2,6 @@ import '../../data/datasources/file_system_datasource.dart';
 import '../../data/datasources/flutter_command_datasource.dart';
 import '../../data/repositories/project_repository_impl.dart';
 import '../../domain/repositories/project_repository.dart';
-import '../../domain/usecases/create_project_usecase.dart';
-import '../../domain/usecases/validate_project_config_usecase.dart';
 import '../../presentation/controllers/cli_controller.dart';
 
 /// Dependency injection container
@@ -34,10 +32,6 @@ class DependencyInjection {
         flutterCommandDataSource: flutterCommandDataSource,
       );
 
-  // Use Cases
-  CreateProjectUseCase get createProjectUseCase => CreateProjectUseCase(projectRepository);
-  ValidateProjectConfigUseCase get validateProjectConfigUseCase => ValidateProjectConfigUseCase();
-
   // Controllers
-    CliController get cliController => CliController(projectRepository);
+  CliController get cliController => CliController(projectRepository);
 } 

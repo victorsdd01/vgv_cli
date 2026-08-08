@@ -2827,29 +2827,7 @@ class MyApp extends StatelessWidget {
         // Talker log viewer: available in every flavor except production.
         if (AppConfiguration.isProduction) return withBanner;
 
-        return Stack(
-          children: <Widget>[
-            withBanner,
-            Positioned(
-              left: 16,
-              bottom: 24,
-              child: SafeArea(
-                child: FloatingActionButton.small(
-                  heroTag: 'talkerLogsButton',
-                  backgroundColor: Colors.black87,
-                  tooltip: 'Logs (Talker)',
-                  onPressed: () => AppRoutes.navigator?.push(
-                    MaterialPageRoute<void>(
-                      builder: (BuildContext _) =>
-                          TalkerScreen(talker: TalkerService.instance),
-                    ),
-                  ),
-                  child: const Icon(Icons.bug_report, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        );
+        return _TalkerOverlay(child: withBanner);
       },
     ),
   );
@@ -2864,6 +2842,71 @@ class MyApp extends StatelessWidget {
     if (AppConfiguration.isDevelopment) return const Color(0xFF4CAF50);
     if (AppConfiguration.isStaging) return const Color(0xFFFF9800);
     return const Color(0xFFF44336);
+  }
+}
+
+/// Floating button (non-production only) that opens the Talker log screen.
+/// The button hides itself while the log screen is open.
+class _TalkerOverlay extends StatefulWidget {
+  const _TalkerOverlay({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_TalkerOverlay> createState() => _TalkerOverlayState();
+}
+
+class _TalkerOverlayState extends State<_TalkerOverlay> {
+  static const double _buttonSize = 48;
+
+  bool _isOpen = false;
+  Offset? _position; // top-left of the button; null => default corner
+
+  Future<void> _openLogs() async {
+    setState(() => _isOpen = true);
+    await AppRoutes.navigator?.push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext _) =>
+            TalkerScreen(talker: TalkerService.instance),
+      ),
+    );
+    if (mounted) setState(() => _isOpen = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final MediaQueryData mq = MediaQuery.of(context);
+    final Offset position = _position ??
+        Offset(16, mq.size.height - mq.padding.bottom - _buttonSize - 24);
+
+    return Stack(
+      children: <Widget>[
+        widget.child,
+        if (!_isOpen)
+          Positioned(
+            left: position.dx,
+            top: position.dy,
+            // Tap opens the logs; long-press and drag moves the button anywhere.
+            child: GestureDetector(
+              onLongPressMoveUpdate: (LongPressMoveUpdateDetails details) {
+                setState(() {
+                  final double dx = (details.globalPosition.dx - _buttonSize / 2)
+                      .clamp(0.0, mq.size.width - _buttonSize);
+                  final double dy = (details.globalPosition.dy - _buttonSize / 2)
+                      .clamp(mq.padding.top, mq.size.height - _buttonSize);
+                  _position = Offset(dx, dy);
+                });
+              },
+              child: FloatingActionButton.small(
+                heroTag: 'talkerLogsButton',
+                backgroundColor: Colors.black87,
+                onPressed: _openLogs,
+                child: const Icon(Icons.bug_report, color: Colors.white),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 ''';

@@ -7,7 +7,6 @@ import '../../domain/entities/project_config.dart';
 /// Data source for file system operations
 abstract class FileSystemDataSource {
   Future<void> addDependencies(String projectName, StateManagementType stateManagement, bool includeGoRouter, bool includeCleanArchitecture, bool includeFreezed);
-  Future<void> createDirectoryStructure(String projectName, StateManagementType stateManagement, bool includeGoRouter);
   Future<void> createStateManagementTemplates(String projectName, StateManagementType stateManagement, bool includeFreezed);
   Future<void> createGoRouterTemplates(String projectName);
   Future<void> createDefaultNavigationTemplates(String projectName);
@@ -230,23 +229,6 @@ flutter_intl:
     }
     
     pubspecFile.writeAsStringSync(pubspecContent);
-  }
-
-  @override
-  Future<void> createDirectoryStructure(String projectName, StateManagementType stateManagement, bool includeGoRouter) async {
-    final directories = <String>[];
-
-    // Add Go Router directories if requested
-    if (includeGoRouter) {
-      directories.addAll([
-        'lib/routes',
-        'lib/pages',
-      ]);
-    }
-
-    for (final dir in directories) {
-      Directory(path.join(projectName, dir)).createSync(recursive: true);
-    }
   }
 
   @override
@@ -2232,6 +2214,12 @@ key.properties
             clone = clone.replaceFirst(
               RegExp(r'PRODUCT_BUNDLE_IDENTIFIER = "?[^";]+"?;'),
               'PRODUCT_BUNDLE_IDENTIFIER = "${flavor.bundleId(baseBundleId)}";',
+            );
+            // The pbxproj build setting overrides the xcconfig, so set the
+            // per-flavor app icon here too (else iOS uses the default AppIcon).
+            clone = clone.replaceFirst(
+              RegExp(r'ASSETCATALOG_COMPILER_APPICON_NAME = "?[^";]+"?;'),
+              'ASSETCATALOG_COMPILER_APPICON_NAME = ${FlavorIconGenerator.iosAppIconName(flavor)};',
             );
           }
           newBlocks.add(clone);

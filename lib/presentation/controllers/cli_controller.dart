@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:mason_logger/mason_logger.dart';
 import '../../domain/entities/project_config.dart';
 import '../../domain/repositories/project_repository.dart';
@@ -22,6 +24,8 @@ class CliController {
     final platforms = _getPlatforms();
     // If flavors were passed via --flavors, honor them and skip the prompt.
     final selectedFlavors = flavors ?? _getFlavors();
+    final includeFastlane = _getFastlaneChoice(platforms);
+    final aiAgents = _getAiAgents();
     final includeLinterRules = _getLinterRulesChoice();
 
     final config = ProjectConfig(
@@ -41,6 +45,8 @@ class CliController {
       outputDirectory: outputDir,
       skipGitInit: noGit,
       flavors: selectedFlavors,
+      includeFastlane: includeFastlane,
+      aiAgents: aiAgents,
     );
 
     _printConfigurationSummary(config);
@@ -326,6 +332,34 @@ class CliController {
     );
   }
 
+  /// Only offered for mobile projects (Fastlane targets Play Store / App Store).
+  bool _getFastlaneChoice(List<PlatformType> platforms) {
+    if (!platforms.contains(PlatformType.mobile)) return false;
+    return _logger.confirm(
+      '${lightCyan.wrap('?')} Configure Fastlane (Play Store / App Store deploy)?',
+      defaultValue: false,
+    );
+  }
+
+  /// Asks whether the user works with an AI agent and, if so, which ones to
+  /// generate a project-conventions rules file for.
+  List<AiAgent> _getAiAgents() {
+    final usesAgent = _logger.confirm(
+      '${lightCyan.wrap('?')} Do you use an AI coding agent (Claude, Cursor, Gemini…)?',
+      defaultValue: false,
+    );
+    if (!usesAgent) return const [];
+
+    final selected = _logger.chooseAny<AiAgent>(
+      '${lightCyan.wrap('?')} Generate a project-rules file for which agents? '
+      '${styleDim.wrap('(space to toggle, enter to confirm)')}',
+      choices: AiAgent.values,
+      defaultValues: const [AiAgent.claude],
+      display: (agent) => agent.displayName,
+    );
+    return AiAgent.values.where(selected.contains).toList();
+  }
+
   void _printConfigurationSummary(ProjectConfig config) {
     String label(String text) => styleDim.wrap(text)!;
     String value(String text) => lightGreen.wrap(text)!;
@@ -346,9 +380,15 @@ class CliController {
     if (config.includeLinterRules) {
       _logger.info('  ${label('Linter:')}        ${value('Custom Rules')}');
     }
+    if (config.includeFastlane) {
+      _logger.info('  ${label('Fastlane:')}      ${value('Play Store / App Store')}');
+    }
+    if (config.aiAgents.isNotEmpty) {
+      _logger.info('  ${label('AI rules:')}      ${value(config.aiAgents.map((a) => a.name).join(', '))}');
+    }
 
     // Bundle ID preview: the entered id is production; others derive a suffix.
-    final baseId = '${config.organizationName}.${config.projectName}';
+    final baseId = config.baseBundleId;
     _logger
       ..info('')
       ..info('  ${label('Bundle IDs')}');
@@ -438,6 +478,10 @@ class CliController {
       }
       _logger.info('');
 
+      if (config.includeFastlane) {
+        await _reportFastlaneTooling(config.projectName);
+      }
+
       if (warnings.isNotEmpty) {
         _logger.warn('Some post-generation steps need your attention:');
         for (final warning in warnings) {
@@ -458,6 +502,41 @@ class CliController {
         ..info('    - Try running: flutter doctor')
         ..info('');
     }
+  }
+
+  /// Detects the Fastlane toolchain and prints a concise status + next steps.
+  Future<void> _reportFastlaneTooling(String projectName) async {
+    Future<bool> has(String cmd) async {
+      try {
+        final result = await Process.run('which', [cmd], runInShell: true);
+        return result.exitCode == 0;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    final ruby = await has('ruby');
+    final bundler = await has('bundle');
+    final brew = await has('brew');
+    String mark(bool ok) => ok ? green.wrap('✓')! : yellow.wrap('•')!;
+
+    _logger
+      ..info(styleDim.wrap('  Fastlane (see fastlane-config.md for full setup):'))
+      ..info('    ${mark(ruby)} ruby${ruby ? '' : '     ${styleDim.wrap('(macOS ships Ruby; otherwise brew install ruby)')}'}')
+      ..info('    ${mark(bundler)} bundler${bundler ? '' : '  ${styleDim.wrap('(gem install bundler)')}'}');
+
+    if (!ruby && !brew) {
+      _logger.info(
+        '    ${yellow.wrap('!')} No Ruby or Homebrew found — install Homebrew, then `brew install ruby` '
+        '${styleDim.wrap('(needs your admin password; the CLI won\'t do it for you)')}',
+      );
+    }
+
+    _logger
+      ..info('')
+      ..info('    ${styleDim.wrap('Then:')} cd $projectName && ${lightCyan.wrap('bundle install')}')
+      ..info('    ${styleDim.wrap('Deploy:')} cd android && ${lightCyan.wrap('bundle exec fastlane deploy_dev')}')
+      ..info('');
   }
 
   void _printCancelledMessage() {

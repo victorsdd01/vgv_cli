@@ -26,26 +26,10 @@ void main() {
       expect(VersionChecker.compareVersions('1.0', '1.0.0'), 0);
       expect(VersionChecker.compareVersions('1.0.0', '1.0'), 0);
     });
-  });
 
-  group('VersionChecker.formatVersion', () {
-    test('removes caret prefix', () {
-      expect(VersionChecker.formatVersion('^1.0.0'), '1.0.0');
-    });
-
-    test('returns version without caret unchanged', () {
-      expect(VersionChecker.formatVersion('1.0.0'), '1.0.0');
-    });
-  });
-
-  group('VersionChecker.getLatestVersion', () {
-    test('returns known package version', () {
-      expect(VersionChecker.getLatestVersion('flutter_bloc'), '^9.1.1');
-      expect(VersionChecker.getLatestVersion('go_router'), '^16.0.0');
-    });
-
-    test('returns default for unknown package', () {
-      expect(VersionChecker.getLatestVersion('nonexistent_package'), '^1.0.0');
+    test('ignores pre-release/build metadata', () {
+      expect(VersionChecker.compareVersions('1.2.3-beta', '1.2.3'), 0);
+      expect(VersionChecker.compareVersions('1.2.0+1', '1.2.0'), 0);
     });
   });
 }

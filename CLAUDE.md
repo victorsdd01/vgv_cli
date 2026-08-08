@@ -28,6 +28,7 @@ Publicado en pub.dev como `vgv_cli`. Comando: `vgv`.
 - **Rama de trabajo: `develop`.** Trabajamos y commiteamos aquí.
 - **Commitear seguido** para no perder cambios (regla nacida de perder trabajo local).
 - **Mantener este `CLAUDE.md` actualizado**: cada vez que agregamos algo o arreglamos un bug, actualizamos la sección correspondiente y commiteamos.
+- **Mantener el `CHANGELOG.md` actualizado** (sección `## [Unreleased]`) con cada feature/fix, para que al re-publicar el CLI el changelog sea real (no solo "Merge pull request" del auto-bump).
 - Idioma de trabajo con el autor: **español**.
 
 ---
@@ -135,7 +136,13 @@ Configurar **flavors nativos reales** (Android `productFlavors` en `build.gradle
 ### 1.b.2 Pulido de flavors (2026-08-08, sobre feedback del usuario probando en iOS)
 - **Fix display name iOS**: `flutter create` hardcodea `CFBundleDisplayName` → las 3 apps mostraban el mismo nombre. `configureFlavors` ahora parchea `Info.plist` a `$(BUNDLE_DISPLAY_NAME)` (lo controla el xcconfig por flavor). Android ya estaba bien (`resValue app_name`).
 - **Iconos con banner diagonal por flavor** (`lib/core/utils/flavor_icon_generator.dart`, paquete `image`): dev/staging obtienen un ícono con **banner diagonal en la esquina inferior-derecha** ("DEV" rojo / "STAGING" ámbar); prod queda limpio. iOS: `AppIcon-<flavor>.appiconset` + `ASSETCATALOG_COMPILER_APPICON_NAME` por flavor. Android: `src/<flavor>/res/mipmap-*/ic_launcher.png` (merge por gradle). Se compone desde el master 1024 y se reescala.
-- **Talker visible salvo en prod**: no había UI para ver logs. Se agregó un botón flotante (bug icon, abajo-izquierda) que abre `TalkerScreen` vía `AppRoutes.navigator`, mostrado solo si `!AppConfiguration.isProduction`. `TalkerService.instance` hace lazy-init (no crashea). En el template (`_main_dart` builder + `AppRoutes.navigator`).
+- **Talker visible salvo en prod**: no había UI para ver logs. Se agregó un botón flotante (bug icon) que abre `TalkerScreen` vía `AppRoutes.navigator`, mostrado solo si `!AppConfiguration.isProduction`. `TalkerService.instance` hace lazy-init (no crashea). En el template (`_main_dart` builder + `AppRoutes.navigator`, widget `_TalkerOverlay`).
+  - ⚠️ El FAB va en el `builder` del `MaterialApp` (sobre el Navigator) → **sin `tooltip`** (crashea con "No Overlay widget found"); se **oculta** mientras el `TalkerScreen` está abierto; y es **arrastrable** (tap = abre, long-press + mover = reubica, `onLongPressMoveUpdate` clamp a la pantalla).
+
+**Fixes post-prueba en iOS real (2026-08-08):**
+- **Icono no mostraba banner**: `flutter create` pone `ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon` **directo en el pbxproj**, que **pisa** al xcconfig. Fix: setear el ícono por flavor (`AppIcon-<flavor>`) en las build configs del target Runner en el `pbxproj` (no solo en xcconfig).
+- **Bundle id doble** (`com.test2` → `com.test2.test2`): `flutter create --org` siempre agrega el projectName. Fix: `ProjectConfig.organizationForCreate` quita el `.<projectName>` final si la org ya termina en él → base = `com.test2`. `baseBundleId` es la fuente para el preview y los sufijos.
+- **Update con spinner real** (`vgv -u`): reemplazado el print-based por `mason_logger` `progress` animado durante el `activate` async (v1.10.53).
 
 ### 1.c Bug hunt del CLI (feature #9) — hallazgos y estado
 Análisis exhaustivo del CLI (2026-08-07). Arreglados:
@@ -173,6 +180,20 @@ El `[skip ci]` del fix `977bd56` (para cortar el loop infinito del bump) tambié
 - Verificado: `vgv -v` → current 1.10.39 (horneada) / latest 1.10.49 (git main). 31 tests pasan.
 
 **Nota (lag de tag/release, no crítico):** el job de release taguea la versión actual del pubspec en el siguiente push que NO sea de bump; por eso el último tag/release (v1.10.48) va una versión detrás del pubspec de main (1.10.49). Ya no afecta al CLI porque "latest" se lee de main, no de releases. `develop` (1.10.39) está detrás de `main` (1.10.49) — otro efecto del auto-bump en main sin merge-back a develop.
+
+### 1.d Fastlane full-configurado (✅ HECHO, 2026-08-08)
+Prompt opcional en interactivo (solo si hay mobile): "¿Configurar Fastlane?". Genera (estilo JornaDay, con el **bundleId que escribió el usuario** = `baseBundleId` + sufijos por flavor):
+- `Gemfile` (fastlane vía Bundler — sin install global).
+- `android/fastlane/`: `Appfile` (package_name = prod id), `Fastfile` (lanes `deploy_<flavor>` → track internal/production con rollout 10% en prod, `next_build_info`), `Pluginfile`, `metadata/android/{en-US,es-ES}/` (title/short/full/changelogs) + `images/` (phone/tablet/feature/icon + README).
+- `ios/fastlane/`: `Appfile` (app_identifier), `Fastfile` (lane `beta` → TestFlight), `metadata/en-US/`.
+- `fastlane-config.md` en la raíz: pasos claros y específicos (prerequisitos ruby/bundler, service account de Play, signing, API key de App Store, dónde poner screenshots).
+- `.gitignore`: ignora secretos (`google-play-service-account.json`, `*.p8/.p12`, `vendor/`).
+- Tras crear, el CLI **detecta** ruby/bundler/brew e imprime estado + próximos comandos (`bundle install`, `bundle exec fastlane deploy_dev`). **No** auto-instala Homebrew (necesita sudo) — instruye.
+- Código: `ProjectConfig.includeFastlane`, prompt en `cli_controller.dart`, `core/utils/fastlane_generator.dart`, llamado desde `project_repository_impl.dart` antes del git init.
+- Verificado: genera estructura correcta con bundle ids por flavor. **Pendiente**: opcional `--fastlane` flag no-interactivo; verificación con `bundle install`/`fastlane` real.
+
+### 1.e Reglas para agentes de IA (✅ HECHO, 2026-08-08)
+Prompt: "¿Usás un agente de IA?" → si sí, multi-select de agentes → genera un archivo de reglas por agente (mismo contenido) con las convenciones del CLI: Clean Architecture, BLoC+freezed, `TStateless`/`TStatefull` (nada de `setState` — BLoC para estado compartido, `ValueNotifier` para local), freezed en modelos/entidades, intl_utils, GoRouter, get_it. Archivos: `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`, `GEMINI.md`, `.windsurfrules`, `AGENTS.md`. Código: enum `AiAgent` + `ProjectConfig.aiAgents` + `core/utils/agent_rules_generator.dart`.
 
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).

@@ -25,3 +25,6 @@ USAGE.md
 
 # GitHub workflows
 .github/
+
+# Large demo asset (keep out of the published package)
+demo.gif
