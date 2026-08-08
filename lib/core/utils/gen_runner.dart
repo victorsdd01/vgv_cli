@@ -51,6 +51,9 @@ class GenRunner {
           defaultsTo: false, help: 'Make the page a StatefulWidget.')
       ..addFlag('bloc-in-page',
           defaultsTo: true, help: 'Wire the Bloc into the page.')
+      ..addFlag('wire',
+          defaultsTo: true,
+          help: 'Auto-register DI + route (needs the vgv injector/routes).')
       ..addFlag('force',
           abbr: 'f', defaultsTo: false, help: 'Overwrite existing files.')
       ..addFlag('yes',
@@ -138,8 +141,102 @@ class GenRunner {
       file.writeAsStringSync(entry.value);
     }
 
-    _report(options, files.keys.toList()..sort());
+    final wired = (res['wire'] as bool) ? _wireFeature(options) : <String>[];
+    _report(options, files.keys.toList()..sort(), wired);
     return 0;
+  }
+
+  /// Best-effort auto-wiring into a vgv-generated project: registers the
+  /// datasource/repository/usecases/bloc in `application/injector.dart` and
+  /// adds a route in `application/routes/routes.dart`. Returns what it wired
+  /// (empty when the anchors aren't found — e.g. a non-vgv project).
+  List<String> _wireFeature(FeatureOptions o) {
+    final wired = <String>[];
+    final F = o.feature.pascalCase;
+    final c = o.feature.camelCase;
+    final snake = o.feature.snakeCase;
+    final B = o.bloc.pascalCase;
+    final bSnake = o.bloc.snakeCase;
+
+    final inj = File('lib/application/injector.dart');
+    if (inj.existsSync()) {
+      var s = inj.readAsStringSync();
+      final canWire = s.contains('class Injector {') &&
+          s.contains('_registerDataSources() {') &&
+          !s.contains('${F}RemoteDataSource>');
+      if (canWire) {
+        final imports = StringBuffer()
+          ..writeln("import '../features/$snake/data/datasources/remote/${snake}_remote_datasource.dart';")
+          ..writeln("import '../features/$snake/data/repositories/${snake}_repository_impl.dart';")
+          ..writeln("import '../features/$snake/domain/repositories/${snake}_repository.dart';")
+          ..write("import '../features/$snake/domain/use_cases/${snake}_use_cases.dart';\n");
+        if (o.includeBloc) {
+          imports.write("import '../features/$snake/presentation/blocs/${bSnake}_bloc/${bSnake}_bloc.dart';\n");
+        }
+        s = s.replaceFirst('\nclass Injector {', '$imports\nclass Injector {');
+        s = s.replaceFirst(
+          'static void _registerDataSources() {\n',
+          'static void _registerDataSources() {\n'
+              '    registerLazySingleton<${F}RemoteDataSource>(\n'
+              '      () => ${F}RemoteDataSourceImpl(),\n'
+              '    );\n',
+        );
+        s = s.replaceFirst(
+          'static void _registerRepositories() {\n',
+          'static void _registerRepositories() {\n'
+              '    registerLazySingleton<${F}Repository>(\n'
+              '      () => ${F}RepositoryImpl(${c}RemoteDataSource: get<${F}RemoteDataSource>()),\n'
+              '    );\n',
+        );
+        s = s.replaceFirst(
+          'static void _registerUseCases() {\n',
+          'static void _registerUseCases() {\n'
+              '    registerLazySingleton<${F}UseCases>(\n'
+              '      () => ${F}UseCases(repository: get<${F}Repository>()),\n'
+              '    );\n',
+        );
+        if (o.includeBloc) {
+          s = s.replaceFirst(
+            'static void _registerBlocs() {\n',
+            'static void _registerBlocs() {\n'
+                '    registerLazySingleton<${B}Bloc>(\n'
+                '      () => ${B}Bloc(${c}UseCases: get<${F}UseCases>()),\n'
+                '    );\n',
+          );
+        }
+        inj.writeAsStringSync(s);
+        wired.add('application/injector.dart');
+      }
+    }
+
+    if (o.addPage) {
+      final rt = File('lib/application/routes/routes.dart');
+      if (rt.existsSync()) {
+        var s = rt.readAsStringSync();
+        final P = o.page.pascalCase;
+        final pSnake = o.page.snakeCase;
+        final canWire = s.contains('class Routes {') &&
+            s.contains('routes: <RouteBase>[') &&
+            !s.contains('${P}Page()');
+        if (canWire) {
+          s = s.replaceFirst('\nclass Routes {',
+              "import '../../features/$snake/presentation/pages/${pSnake}_page.dart';\n\nclass Routes {");
+          s = s.replaceFirst('const Routes._();\n',
+              "const Routes._();\n  static const String $c = '/$snake';\n");
+          s = s.replaceFirst(
+            'routes: <RouteBase>[\n',
+            'routes: <RouteBase>[\n'
+                '      GoRoute(\n'
+                '        path: Routes.$c,\n'
+                '        builder: (BuildContext context, GoRouterState state) => const ${P}Page(),\n'
+                '      ),\n',
+          );
+          rt.writeAsStringSync(s);
+          wired.add('application/routes/routes.dart → /$snake');
+        }
+      }
+    }
+    return wired;
   }
 
   /// Handles `vgv gen bloc|page|usecase <name> --feature <f>`.
@@ -323,7 +420,7 @@ class GenRunner {
     return 0;
   }
 
-  void _report(FeatureOptions o, List<String> paths) {
+  void _report(FeatureOptions o, List<String> paths, List<String> wired) {
     _logger
       ..info('')
       ..info(green.wrap(
@@ -332,14 +429,29 @@ class GenRunner {
       _logger.info('    ${styleDim.wrap(path)}');
     }
 
+    final F = o.feature.pascalCase;
+    final c = o.feature.camelCase;
+
+    if (wired.isNotEmpty) {
+      // Auto-wired: just tell the user what changed.
+      _logger.info('');
+      _logger.info(green.wrap('  ✓ Auto-wired:')!);
+      for (final w in wired) {
+        _logger.info('    ${styleDim.wrap(w)}');
+      }
+      _logger
+        ..info('')
+        ..info('  ${styleDim.wrap('Run build_runner:')}')
+        ..info('       ${lightCyan.wrap('dart run build_runner build --delete-conflicting-outputs')}')
+        ..info('');
+      return;
+    }
+
+    // Not wired (non-vgv project or --no-wire): print manual steps.
     _logger
       ..info('')
       ..info(styleBold.wrap('  Next steps — wire it up:'))
-      ..info('  ${styleDim.wrap('1. Register dependencies in application/injector.dart:')}');
-
-    final F = o.feature.pascalCase;
-    final c = o.feature.camelCase;
-    _logger
+      ..info('  ${styleDim.wrap('1. Register dependencies in application/injector.dart:')}')
       ..info(lightCyan.wrap('       registerLazySingleton<${F}RemoteDataSource>(')!)
       ..info(lightCyan.wrap('         () => ${F}RemoteDataSourceImpl(),')!)
       ..info(lightCyan.wrap('       );')!)
@@ -352,7 +464,7 @@ class GenRunner {
     if (o.includeBloc) {
       final B = o.bloc.pascalCase;
       _logger
-        ..info(lightCyan.wrap('       registerFactory<${B}Bloc>(')!)
+        ..info(lightCyan.wrap('       registerLazySingleton<${B}Bloc>(')!)
         ..info(lightCyan.wrap('         () => ${B}Bloc(${c}UseCases: get()),')!)
         ..info(lightCyan.wrap('       );')!);
     }

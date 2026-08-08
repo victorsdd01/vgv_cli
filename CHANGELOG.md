@@ -46,8 +46,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a `HydratedBloc` + freezed bloc (status/success/error), `dartz` `Either`/
   `Failure`, and `Injector` DI. Interactive prompts + flags (`--no-bloc`,
   `--bloc-name`, `--no-page`, `--page-name`, `--stateful`, `--no-bloc-in-page`,
-  `-y/--yes`, `-f/--force`). Prints DI + route wiring next-steps. Modeled on the
-  author's `feature_structure` Mason brick.
+  `-y/--yes`, `-f/--force`). Modeled on the author's `feature_structure` Mason
+  brick.
+- **Auto-wiring for `vgv gen feature`**: on a vgv-generated project it now
+  registers the datasource/repository/use-cases/bloc in
+  `application/injector.dart` and adds a route in `application/routes/routes.dart`
+  automatically (falls back to printing manual steps on a non-vgv project; opt
+  out with `--no-wire`).
 - **`vgv screenshots`** — generate App Store / Play Store marketing screenshots
   with realistic device frames (iPhone, Android, iPad, MacBook, desktop),
   gradient backgrounds + glow, and headlines (wrap words in `**asterisks**` to

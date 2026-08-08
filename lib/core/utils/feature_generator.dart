@@ -274,7 +274,9 @@ class ${B}Event with _\$${B}Event {
   String _state(FeatureOptions o) {
     final B = o.bloc.pascalCase;
     final b = o.bloc.snakeCase;
-    return '''part of '${b}_bloc.dart';
+    return '''// ignore_for_file: invalid_annotation_target
+
+part of '${b}_bloc.dart';
 
 @freezed
 abstract class ${B}Status with _\$${B}Status {
