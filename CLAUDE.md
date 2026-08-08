@@ -204,7 +204,8 @@ Comando **standalone** que enmarca capturas crudas en imágenes de marketing tip
   - `vgv screenshots --init [dir]` → scaffoldea `raw/`, `out/`, `manifest.json` + `README.md`.
   - `vgv screenshots <manifest>` → detecta `python3` + Pillow (si faltan, **instruye** cómo instalar, no auto-instala), escribe el script a temp y renderiza.
 - **Devices**: `iphone` (Dynamic Island), `android` (hole-punch), `ipad`, `macbook`, `desktop` (traffic lights). **Templates**: `poster` (frame + texto), `hero` (ícono + tagline), `frame` (solo frame), `feature_graphic` (banner Play Store 1024×500: ícono + título + tagline, `device` se ignora).
-- **Manifest**: lista de items `{device,type,src,out,headline,subtitle,accent,bg}`. En `headline`, envolver palabras en `**dobles asteriscos**` las pinta con `accent`.
+- **Manifest**: lista de items `{device,type,src,out,headline,subtitle,accent,bg}`. En `headline`, envolver palabras en `**dobles asteriscos**` las pinta con `accent`. Override de tamaño exacto por item: `width`+`height` o `size:[w,h]`.
+- **Tamaños de store (verificados contra docs oficiales, no asumidos)**: defaults ya aceptados — iPhone 1290×2796 (slot 6.7"/6.9"; alt. 1260×2736 / 1320×2868), iPad 2048×2732 (12.9"; 13"=2064×2752), Android phone 1080×1920 (Play recomienda 9:16, min 320/max 3840, max ≤ 2× min), feature graphic 1024×500 fijo. Salida **RGB sin alpha** (requisito de ambas stores). Cualquiera se puede sobrescribir con `width`/`height`/`size`.
 - Verificado end-to-end (`dart run bin/vgv.dart screenshots manifest.json` → 3 PNGs iPhone/Android con acentos, frames realistas, gradiente+glow). `analyze` limpio, 23 tests pasan.
 - Futuro (pedido del usuario): más templates/opciones y ligarlo a una web editora (en Flutter) para editar texto/fondo/plantilla.
 

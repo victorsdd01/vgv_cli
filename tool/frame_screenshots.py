@@ -33,6 +33,15 @@ MUTED = (0x9A, 0xA2, 0xAC)
 ACCENT = (0x39, 0xD6, 0xE0)
 
 # Store canvas (WxH) + screen aspect (w/h) per device.
+# Default canvas sizes are real store-accepted dimensions (portrait). Any item
+# may override with "width"/"height" (or "size": [w, h]) to hit an exact store
+# spec — nothing here is assumed to fit every submission.
+#   iphone  1290x2796  App Store Connect 6.7"/6.9" slot
+#   android 1080x1920  Google Play recommended phone (9:16)
+#   ipad    2048x2732  App Store Connect 12.9"
+#   macbook 2560x1600  Mac App Store accepted
+#   desktop 2560x1600  generic desktop
+# Google Play feature graphic is fixed at 1024x500 (see make_feature_graphic).
 DEVICES = {
     "iphone":  {"canvas": (1290, 2796), "aspect": 1179 / 2556, "notch": "island"},
     "android": {"canvas": (1080, 1920), "aspect": 1080 / 2340, "notch": "punch"},
@@ -240,8 +249,8 @@ def _shadow(canvas, x, y, w, h, radius, blur, alpha=150):
     return Image.alpha_composite(canvas, sh.filter(ImageFilter.GaussianBlur(blur)))
 
 
-def make_poster(device, src, out, headline, subtitle="", accent=ACCENT, bg=None):
-    cw, ch = DEVICES[device]["canvas"]
+def make_poster(device, src, out, headline, subtitle="", accent=ACCENT, bg=None, canvas=None):
+    cw, ch = canvas or DEVICES[device]["canvas"]
     dev = build_device(device, src, cw)
     dx = (cw - dev.width) // 2
     dy = ch - dev.height + round(ch * 0.02)
@@ -255,8 +264,8 @@ def make_poster(device, src, out, headline, subtitle="", accent=ACCENT, bg=None)
     canvas.convert("RGB").save(out)
 
 
-def make_hero(device, icon_src, out, headline, subtitle="", accent=ACCENT, bg=None):
-    cw, ch = DEVICES[device]["canvas"]
+def make_hero(device, icon_src, out, headline, subtitle="", accent=ACCENT, bg=None, canvas=None):
+    cw, ch = canvas or DEVICES[device]["canvas"]
     canvas = _background(cw, ch, accent, bg, glow_y=round(ch * 0.32))
     icon = Image.open(icon_src).convert("RGBA")
     size = round(cw * 0.36)
@@ -277,8 +286,8 @@ def make_hero(device, icon_src, out, headline, subtitle="", accent=ACCENT, bg=No
     canvas.convert("RGB").save(out)
 
 
-def make_frame(device, src, out, accent=ACCENT, bg=None):
-    cw, ch = DEVICES[device]["canvas"]
+def make_frame(device, src, out, accent=ACCENT, bg=None, canvas=None):
+    cw, ch = canvas or DEVICES[device]["canvas"]
     dev = build_device(device, src, cw if DEVICES[device]["notch"] in ("laptop", "window") else int(cw * 1.35))
     dx, dy = (cw - dev.width) // 2, (ch - dev.height) // 2
     canvas = _background(cw, ch, accent, bg, glow_y=ch // 2)
@@ -287,9 +296,9 @@ def make_frame(device, src, out, accent=ACCENT, bg=None):
     canvas.convert("RGB").save(out)
 
 
-def make_feature_graphic(out, headline, subtitle="", icon_src=None, accent=ACCENT, bg=None):
+def make_feature_graphic(out, headline, subtitle="", icon_src=None, accent=ACCENT, bg=None, canvas=None):
     # Google Play feature graphic is a fixed 1024x500 landscape banner.
-    cw, ch = 1024, 500
+    cw, ch = canvas or (1024, 500)
     canvas = _background(cw, ch, accent, bg, glow_y=round(ch * 0.5))
     title_top = round(ch * 0.30)
     if icon_src:
@@ -324,15 +333,22 @@ def main(argv):
         os.makedirs(os.path.dirname(out), exist_ok=True)
         accent = _hex(e["accent"]) if e.get("accent") else ACCENT
         bg = _hex(e["bg"]) if e.get("bg") else None
+        # Optional explicit output size — override defaults to hit an exact
+        # store spec: "size": [w, h] or "width"/"height".
+        canvas = None
+        if isinstance(e.get("size"), (list, tuple)) and len(e["size"]) == 2:
+            canvas = (int(e["size"][0]), int(e["size"][1]))
+        elif e.get("width") and e.get("height"):
+            canvas = (int(e["width"]), int(e["height"]))
         t = (e.get("type") or "poster").lower()
         if t == "hero":
-            make_hero(device, src, out, e["headline"], e.get("subtitle", ""), accent, bg)
+            make_hero(device, src, out, e["headline"], e.get("subtitle", ""), accent, bg, canvas)
         elif t == "frame":
-            make_frame(device, src, out, accent, bg)
+            make_frame(device, src, out, accent, bg, canvas)
         elif t in ("feature_graphic", "feature"):
-            make_feature_graphic(out, e["headline"], e.get("subtitle", ""), src, accent, bg)
+            make_feature_graphic(out, e["headline"], e.get("subtitle", ""), src, accent, bg, canvas)
         else:
-            make_poster(device, src, out, e["headline"], e.get("subtitle", ""), accent, bg)
+            make_poster(device, src, out, e["headline"], e.get("subtitle", ""), accent, bg, canvas)
         print(f"{t}/{device} -> {out}")
 
 

@@ -42,7 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (Google Play 1024×500 banner: app icon + headline + tagline). Works on **any** Flutter
   project — driven by a JSON manifest. `vgv screenshots --init [dir]` scaffolds a
   ready-to-edit manifest + folders. Rendering uses Python 3 + Pillow (detected;
-  the CLI instructs how to install if missing — no auto-install).
+  the CLI instructs how to install if missing — no auto-install). Default output
+  sizes are real store-accepted dimensions (iPhone 1290×2796, iPad 2048×2732,
+  Android 1080×1920, feature graphic 1024×500) and any item can override them
+  with `width`/`height` (or `size:[w,h]`) to hit an exact store spec; output is
+  RGB PNG (no alpha) as both stores require.
 - **Native flavors** (dev/staging/production): Android `productFlavors`
   (`build.gradle.kts`), iOS build configs + schemes + xcconfig (`pbxproj`),
   per-flavor bundle id, app name and entry points, flavor-aware VS Code

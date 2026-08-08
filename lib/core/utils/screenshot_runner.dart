@@ -133,6 +133,19 @@ class ScreenshotRunner {
      | feature_graphic (Play Store 1024x500 banner; `device` ignored)
    - `headline`: wrap words in **double asterisks** to paint them with `accent`.
    - `accent` / `bg`: hex colors (bg optional; defaults to a tint of accent).
+   - `width` + `height` (or `size: [w, h]`): optional — force an exact output
+     size to match a store spec. Defaults are already store-accepted sizes.
+
+## Store target sizes (portrait, no alpha — PNG/JPEG)
+
+Defaults per device (override with width/height if your submission needs another):
+- iPhone: 1290x2796 (App Store 6.7"/6.9" slot). Other accepted: 1260x2736, 1320x2868.
+- iPad: 2048x2732 (12.9"); 13" is 2064x2752.
+- Android phone: 1080x1920 (Play recommends 9:16; min 320, max 3840, max ≤ 2× min).
+- Feature graphic (Google Play): 1024x500, fixed.
+
+Outputs are written as RGB PNG (no alpha) as both stores require.
+
 3. Render:
    ```bash
    vgv screenshots $dir/manifest.json
