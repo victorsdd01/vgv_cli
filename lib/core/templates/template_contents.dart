@@ -724,6 +724,7 @@ import '../../../../application/injector.dart';
 import '../../../../application/routes/routes.dart';
 import '../../../../core/states/tstateless.dart';
 import '../../../../shared/widgets/dialogs/app_dialogs.dart';
+import '../../../../shared/widgets/responsive_center.dart';
 import '../../../auth/presentation/blocs/auth_bloc/auth_bloc.dart';
 import '../blocs/settings_bloc/settings_bloc.dart';
 
@@ -745,7 +746,10 @@ class SettingsPage extends TStateless<SettingsBloc> {
     ),
     body: BlocBuilder<SettingsBloc, SettingsState>(
       bloc: bloc,
-      builder: (BuildContext context, SettingsState state) => ListView(
+      builder: (BuildContext context, SettingsState state) => ResponsiveCenter(
+        maxWidth: 640,
+        padding: EdgeInsets.zero,
+        child: ListView(
         children: <Widget>[
           _SectionHeader(title: translation.appearance),
           _ThemeTile(
@@ -769,6 +773,7 @@ class SettingsPage extends TStateless<SettingsBloc> {
           const _AppInfoTile(),
           _LicensesTile(appName: translation.appTitle),
         ],
+      ),
       ),
     ),
   );
@@ -1361,8 +1366,6 @@ class HomePage extends TStateless<AuthBloc> {
               offset: const Offset(0, 50),
               onSelected: (String value) {
                 switch (value) {
-                  case 'settings':
-                    context.push(Routes.settings);
                   case 'logout':
                     _showLogoutConfirmation(context);
                 }
@@ -1389,20 +1392,6 @@ class HomePage extends TStateless<AuthBloc> {
                   ),
                 ),
                 const PopupMenuDivider(),
-                PopupMenuItem<String>(
-                  value: 'settings',
-                  child: Row(
-                    children: <Widget>[
-                      Icon(
-                        Icons.settings,
-                        color: theme.colorScheme.onSurface,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(translation.settings),
-                    ],
-                  ),
-                ),
                 PopupMenuItem<String>(
                   value: 'logout',
                   child: Row(
@@ -2107,6 +2096,7 @@ import '../../../../application/injector.dart';
 import '../../../../application/routes/routes.dart';
 import '../../../../application/generated/l10n.dart';
 import '../../../../core/states/tstatefull.dart';
+import '../../../../shared/widgets/responsive_center.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -2135,7 +2125,7 @@ class _RegisterPageState extends TStateful<RegisterPage, AuthBloc> {
       bloc: bloc,
       listener: _handleStateChanges,
       builder: (BuildContext context, AuthState state) => SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        child: ResponsiveCenter(
         child: FormBuilder(
           key: _formKey,
           child: Column(
@@ -2250,6 +2240,7 @@ class _RegisterPageState extends TStateful<RegisterPage, AuthBloc> {
             ],
           ),
         ),
+        ),
       ),
     ),
   );
@@ -2300,6 +2291,7 @@ import '../../../../application/injector.dart';
 import '../../../../application/routes/routes.dart';
 import '../../../../application/generated/l10n.dart';
 import '../../../../core/states/tstatefull.dart';
+import '../../../../shared/widgets/responsive_center.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -2353,7 +2345,7 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
         }
         
         return SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        child: ResponsiveCenter(
         child: FormBuilder(
           key: _formKey,
           child: Column(
@@ -2435,6 +2427,7 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
             ],
           ),
         ),
+        ),
       );
       },
     ),
@@ -2480,6 +2473,35 @@ class _LoginPageState extends TStateful<LoginPage, AuthBloc> {
 ''';
   static const String _shared_widgets_widgets_dart = r'''export 'app_header.dart';
 export 'dialogs/app_dialogs.dart';
+export 'responsive_center.dart';
+''';
+  static const String _shared_widgets_responsive_center_dart = r'''import 'package:flutter/material.dart';
+
+/// Constrains and centers content within a max width on wide viewports
+/// (desktop, web, large tablets) while letting it fill the width on phones.
+/// Because it keys off the available width it also adapts live as a
+/// desktop/web window is resized.
+class ResponsiveCenter extends StatelessWidget {
+  const ResponsiveCenter({
+    super.key,
+    required this.child,
+    this.maxWidth = 460,
+    this.padding = const EdgeInsets.all(16),
+  });
+
+  final Widget child;
+  final double maxWidth;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.topCenter,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Padding(padding: padding, child: child),
+    ),
+  );
+}
 ''';
   static const String _shared_widgets_app_header_dart = r'''import 'package:flutter/material.dart';
 
@@ -3560,6 +3582,7 @@ class AppTheme {
 ''';
   static const String _application_routes_routes_dart = r'''import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../app_shell.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
@@ -3604,16 +3627,107 @@ class AppRoutes {
         path: Routes.register,
         builder: (BuildContext context, GoRouterState state) => const RegisterPage(),
       ),
-      GoRoute(
-        path: Routes.home,
-        builder: (BuildContext context, GoRouterState state) => const HomePage(),
-      ),
-      GoRoute(
-        path: Routes.settings,
-        builder: (BuildContext context, GoRouterState state) => const SettingsPage(),
+      StatefulShellRoute.indexedStack(
+        builder:
+            (BuildContext context, GoRouterState state, StatefulNavigationShell navigationShell) =>
+                AppShell(navigationShell: navigationShell),
+        branches: <StatefulShellBranch>[
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
+                path: Routes.home,
+                builder: (BuildContext context, GoRouterState state) => const HomePage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
+                path: Routes.settings,
+                builder: (BuildContext context, GoRouterState state) => const SettingsPage(),
+              ),
+            ],
+          ),
+        ],
       ),
     ],
   );
+}
+''';
+  static const String _application_app_shell_dart = r'''import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'generated/l10n.dart';
+
+/// Adaptive navigation shell: a NavigationRail on wide viewports (desktop, web,
+/// large tablets) and a NavigationBar on phones. Wraps the Home and Settings
+/// branches so switching between them keeps each branch's own state.
+class AppShell extends StatelessWidget {
+  const AppShell({super.key, required this.navigationShell});
+
+  final StatefulNavigationShell navigationShell;
+
+  static const double _wideBreakpoint = 800;
+
+  void _goBranch(int index) {
+    navigationShell.goBranch(
+      index,
+      initialLocation: index == navigationShell.currentIndex,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final S t = S.of(context);
+    final bool wide = MediaQuery.sizeOf(context).width >= _wideBreakpoint;
+
+    if (wide) {
+      return Scaffold(
+        body: Row(
+          children: <Widget>[
+            NavigationRail(
+              selectedIndex: navigationShell.currentIndex,
+              onDestinationSelected: _goBranch,
+              labelType: NavigationRailLabelType.all,
+              destinations: <NavigationRailDestination>[
+                NavigationRailDestination(
+                  icon: const Icon(Icons.home_outlined),
+                  selectedIcon: const Icon(Icons.home),
+                  label: Text(t.home),
+                ),
+                NavigationRailDestination(
+                  icon: const Icon(Icons.settings_outlined),
+                  selectedIcon: const Icon(Icons.settings),
+                  label: Text(t.settings),
+                ),
+              ],
+            ),
+            const VerticalDivider(width: 1),
+            Expanded(child: navigationShell),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      body: navigationShell,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: navigationShell.currentIndex,
+        onDestinationSelected: _goBranch,
+        destinations: <NavigationDestination>[
+          NavigationDestination(
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home),
+            label: t.home,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.settings_outlined),
+            selectedIcon: const Icon(Icons.settings),
+            label: t.settings,
+          ),
+        ],
+      ),
+    );
+  }
 }
 ''';
   static const String _main_staging_dart = r'''import 'application/config/config.dart';
@@ -3666,6 +3780,7 @@ void main() {
     'features/auth/presentation/pages/login_page.dart': _features_auth_presentation_pages_login_page_dart,
     'shared/shared.dart': _shared_shared_dart,
     'shared/widgets/widgets.dart': _shared_widgets_widgets_dart,
+    'shared/widgets/responsive_center.dart': _shared_widgets_responsive_center_dart,
     'shared/widgets/app_header.dart': _shared_widgets_app_header_dart,
     'shared/widgets/dialogs/app_dialogs.dart': _shared_widgets_dialogs_app_dialogs_dart,
     'main.dart': _main_dart,
@@ -3681,6 +3796,7 @@ void main() {
     'application/constants/assets.dart': _application_constants_assets_dart,
     'application/theme/app_colors.dart': _application_theme_app_colors_dart,
     'application/theme/theme.dart': _application_theme_theme_dart,
+    'application/app_shell.dart': _application_app_shell_dart,
     'application/routes/routes.dart': _application_routes_routes_dart,
     'main_staging.dart': _main_staging_dart,
   };

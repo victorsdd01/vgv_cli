@@ -26,6 +26,10 @@ class CliController {
     final selectedFlavors = flavors ?? _getFlavors();
     final includeFastlane = _getFastlaneChoice(platforms);
     final includeLefthook = _getLefthookChoice();
+    final seedColorHex = _getSeedColor();
+    final iconMasterPath = _getIconMaster();
+    final includeSplash = _getSplashChoice();
+    final desktopWindow = _getDesktopWindowChoice(platforms);
     final aiAgents = _getAiAgents();
     final includeLinterRules = _getLinterRulesChoice();
 
@@ -48,6 +52,10 @@ class CliController {
       flavors: selectedFlavors,
       includeFastlane: includeFastlane,
       includeLefthook: includeLefthook,
+      seedColorHex: seedColorHex,
+      iconMasterPath: iconMasterPath,
+      includeSplash: includeSplash,
+      desktopWindow: desktopWindow,
       aiAgents: aiAgents,
     );
 
@@ -201,6 +209,86 @@ class CliController {
   MobilePlatform _selectedMobilePlatform = MobilePlatform.both;
   CustomDesktopPlatforms? _selectedDesktopPlatforms;
 
+  /// Single-choice selector with arrow keys, drawn with **relative** cursor
+  /// movement (works in macOS Terminal.app, unlike mason_logger's chooseOne
+  /// which relies on save/restore cursor and stacks). Falls back to a numbered
+  /// prompt when there's no TTY. Returns the chosen index.
+  int _selectOne(String message, List<String> options, {int initialIndex = 0}) {
+    if (!stdin.hasTerminal) {
+      _logger.info(message);
+      for (var i = 0; i < options.length; i++) {
+        _logger.info('  ${i + 1}) ${options[i]}');
+      }
+      final answer =
+          _logger.prompt('  #:', defaultValue: '${initialIndex + 1}').trim();
+      final n = int.tryParse(answer);
+      return (n != null && n >= 1 && n <= options.length)
+          ? n - 1
+          : initialIndex;
+    }
+
+    var index = initialIndex;
+    final count = options.length;
+
+    void draw(bool first) {
+      if (!first) stdout.write('\x1B[${count + 1}A'); // up to the message line
+      stdout.write('\x1B[0J'); // clear from here to end of screen
+      stdout.writeln(message);
+      for (var i = 0; i < count; i++) {
+        final selected = i == index;
+        final pointer = selected ? green.wrap('❯')! : ' ';
+        final box = selected ? lightCyan.wrap('◉')! : '◯';
+        final label =
+            selected ? lightCyan.wrap(options[i])! : options[i];
+        stdout.writeln('$pointer $box  $label');
+      }
+    }
+
+    stdout.write('\x1B[?25l'); // hide cursor
+    stdin
+      ..echoMode = false
+      ..lineMode = false;
+    draw(true);
+    try {
+      var done = false;
+      while (!done) {
+        final b = stdin.readByteSync();
+        if (b == -1) break;
+        if (b == 0x1b) {
+          // Escape sequence: ESC [ A|B for arrow up/down.
+          if (stdin.readByteSync() == 0x5b) {
+            final c = stdin.readByteSync();
+            if (c == 0x41) {
+              index = (index - 1 + count) % count;
+            } else if (c == 0x42) {
+              index = (index + 1) % count;
+            }
+          }
+          draw(false);
+        } else if (b == 0x0a || b == 0x0d) {
+          // Enter → collapse the list to a single summary line.
+          stdout
+            ..write('\x1B[${count + 1}A')
+            ..write('\x1B[0J')
+            ..writeln('$message ${styleDim.wrap(lightCyan.wrap(options[index])!)!}');
+          done = true;
+        } else if (b == 0x6b) {
+          index = (index - 1 + count) % count;
+          draw(false);
+        } else if (b == 0x6a) {
+          index = (index + 1) % count;
+          draw(false);
+        }
+      }
+    } finally {
+      stdin
+        ..lineMode = true
+        ..echoMode = true;
+      stdout.write('\x1B[?25h'); // show cursor
+    }
+    return index;
+  }
+
   List<PlatformType> _getPlatforms() {
     const platformOptions = [
       'Mobile Only (Android & iOS)',
@@ -213,12 +301,10 @@ class CliController {
       'Custom Selection',
     ];
 
-    final selected = _logger.chooseOne(
+    final selection = _selectOne(
       '${lightCyan.wrap('?')} Select platforms',
-      choices: platformOptions,
-      defaultValue: platformOptions.first,
+      platformOptions,
     );
-    final selection = platformOptions.indexOf(selected);
 
     // Reset custom selections
     _selectedMobilePlatform = MobilePlatform.both;
@@ -343,6 +429,62 @@ class CliController {
     );
   }
 
+  /// Asks for an optional brand (seed) color for the Material 3 theme.
+  /// Returns a 6-digit hex (no #) or null to keep the default.
+  String? _getSeedColor() {
+    final useCustom = _logger.confirm(
+      '${lightCyan.wrap('?')} Set a brand (seed) color for the theme?',
+      defaultValue: false,
+    );
+    if (!useCustom) return null;
+    final re = RegExp(r'^[0-9A-Fa-f]{6}$');
+    while (true) {
+      final input = _logger
+          .prompt('${lightCyan.wrap('?')} Brand color hex (e.g. 4B60AA):',
+              defaultValue: '2196F3')
+          .replaceAll('#', '')
+          .trim();
+      if (re.hasMatch(input)) return input.toUpperCase();
+      _logger.err('  Enter a 6-digit hex like 4B60AA.');
+    }
+  }
+
+  /// Asks for an optional 1024×1024 master app icon. Returns an absolute path
+  /// (resolved now, before the CWD changes) or null.
+  String? _getIconMaster() {
+    final useIcon = _logger.confirm(
+      '${lightCyan.wrap('?')} Generate app icons from a 1024×1024 master image?',
+      defaultValue: false,
+    );
+    if (!useIcon) return null;
+    while (true) {
+      final input = _logger
+          .prompt('${lightCyan.wrap('?')} Path to the master icon (.png):')
+          .trim();
+      if (input.isEmpty) return null;
+      final file = File(input);
+      if (file.existsSync()) return file.absolute.path;
+      _logger.err('  File not found: $input');
+    }
+  }
+
+  /// Asks whether to configure a native splash screen.
+  bool _getSplashChoice() {
+    return _logger.confirm(
+      '${lightCyan.wrap('?')} Configure a native splash screen (flutter_native_splash)?',
+      defaultValue: false,
+    );
+  }
+
+  /// Asks whether to set a desktop window min-size + title (desktop only).
+  bool _getDesktopWindowChoice(List<PlatformType> platforms) {
+    if (!platforms.contains(PlatformType.desktop)) return false;
+    return _logger.confirm(
+      '${lightCyan.wrap('?')} Set a desktop window min-size + title (window_manager)?',
+      defaultValue: true,
+    );
+  }
+
   /// Asks whether to scaffold lefthook git hooks (format/analyze on commit,
   /// tests on push). Platform-agnostic.
   bool _getLefthookChoice() {
@@ -396,6 +538,18 @@ class CliController {
     }
     if (config.includeLefthook) {
       _logger.info('  ${label('Lefthook:')}      ${value('pre-commit / pre-push hooks')}');
+    }
+    if (config.seedColorHex != null) {
+      _logger.info('  ${label('Brand color:')}   ${value('#${config.seedColorHex}')}');
+    }
+    if (config.iconMasterPath != null) {
+      _logger.info('  ${label('App icons:')}     ${value('from master image')}');
+    }
+    if (config.includeSplash) {
+      _logger.info('  ${label('Splash:')}        ${value('native splash screen')}');
+    }
+    if (config.desktopWindow) {
+      _logger.info('  ${label('Desktop:')}       ${value('window min-size + title')}');
     }
     if (config.aiAgents.isNotEmpty) {
       _logger.info('  ${label('AI rules:')}      ${value(config.aiAgents.map((a) => a.name).join(', '))}');

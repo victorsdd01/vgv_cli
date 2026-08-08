@@ -62,10 +62,41 @@ class FeatureGenerator {
     }
 
     if (o.addPage) {
-      files['$root/presentation/pages/${o.page.snakeCase}_page.dart'] = _page(o);
+      files.addAll(buildPage(o));
     }
 
     return files;
+  }
+
+  /// Just the Bloc trio (bloc/event/state) — used by `vgv gen bloc`.
+  Map<String, String> buildBloc(FeatureOptions o) {
+    final f = o.feature.snakeCase;
+    final b = o.bloc.snakeCase;
+    final dir = 'lib/features/$f/presentation/blocs/${b}_bloc';
+    return <String, String>{
+      '$dir/${b}_bloc.dart': _bloc(o),
+      '$dir/${b}_event.dart': _event(o),
+      '$dir/${b}_state.dart': _state(o),
+    };
+  }
+
+  /// Just the page — used by `vgv gen page`.
+  Map<String, String> buildPage(FeatureOptions o) {
+    final f = o.feature.snakeCase;
+    return <String, String>{
+      'lib/features/$f/presentation/pages/${o.page.snakeCase}_page.dart':
+          _page(o),
+    };
+  }
+
+  /// Just the domain contract (repository interface + use cases) — used by
+  /// `vgv gen usecase`.
+  Map<String, String> buildUseCases(FeatureOptions o) {
+    final f = o.feature.snakeCase;
+    return <String, String>{
+      'lib/features/$f/domain/repositories/${f}_repository.dart': _repository(o),
+      'lib/features/$f/domain/use_cases/${f}_use_cases.dart': _useCases(o),
+    };
   }
 
   // ---- domain -------------------------------------------------------------
@@ -243,7 +274,9 @@ class ${B}Event with _\$${B}Event {
   String _state(FeatureOptions o) {
     final B = o.bloc.pascalCase;
     final b = o.bloc.snakeCase;
-    return '''part of '${b}_bloc.dart';
+    return '''// ignore_for_file: invalid_annotation_target
+
+part of '${b}_bloc.dart';
 
 @freezed
 abstract class ${B}Status with _\$${B}Status {

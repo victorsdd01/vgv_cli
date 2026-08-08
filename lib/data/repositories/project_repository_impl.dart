@@ -3,6 +3,8 @@ import 'dart:io';
 import '../../core/utils/agent_rules_generator.dart';
 import '../../core/utils/fastlane_generator.dart';
 import '../../core/utils/lefthook_generator.dart';
+import '../../core/utils/polish_generators.dart';
+import '../../core/utils/theme_seed_generator.dart';
 import '../../domain/entities/project_config.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../datasources/file_system_datasource.dart';
@@ -126,6 +128,28 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
     // Scaffold lefthook git hooks (format/analyze on commit) if requested.
     await const LefthookGenerator().generate(config);
+
+    // Apply the brand seed color to the Material 3 theme, if chosen.
+    await const ThemeSeedGenerator().generate(config);
+
+    // Branding & platform polish (icon set → splash → desktop window).
+    await const IconSetGenerator().generate(config);
+    await const SplashGenerator().generate(config);
+    await const DesktopWindowGenerator().generate(config);
+
+    // These add pubspec dependencies after the initial `pub get`, so resolve
+    // them now and surface the one-time generator commands the user must run.
+    if (config.iconMasterPath != null ||
+        config.includeSplash ||
+        config.desktopWindow) {
+      await _flutterCommandDataSource.pubGet(config.projectName);
+    }
+    if (config.iconMasterPath != null) {
+      warnings.add('Generate launcher icons: dart run flutter_launcher_icons');
+    }
+    if (config.includeSplash) {
+      warnings.add('Generate splash screen: dart run flutter_native_splash:create');
+    }
 
     // Initialize git unless the user opted out with --no-git.
     if (!config.skipGitInit) {

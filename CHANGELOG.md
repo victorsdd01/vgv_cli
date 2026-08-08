@@ -18,6 +18,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Merge pull request #68 from victorsdd01/develop
 
 ### Added
+- **App icon set from a master** (prompted): point at a 1024×1024 image and the
+  CLI copies it to `assets/icon/`, writes a `flutter_launcher_icons.yaml` for the
+  selected platforms, adds the dev dependency, and tells you to run
+  `dart run flutter_launcher_icons`.
+- **Native splash screen** (prompted): writes a `flutter_native_splash.yaml`
+  (brand color + optional icon image), adds the dev dependency, and prompts you
+  to run `dart run flutter_native_splash:create`.
+- **Desktop window sizing** (prompted for desktop targets): wires
+  `window_manager` into `main.dart` so desktop builds open with a sensible
+  minimum size and the app title.
+- **Brand seed color** (prompted at creation): pick a hex and the generated
+  Material 3 theme seeds its light+dark `ColorScheme` from it
+  (`ColorScheme.fromSeed`).
+- **`vgv screenshots capture`** — auto-capture raw screens instead of taking
+  them by hand: `capture --init` scaffolds a golden-test harness that renders
+  your screens at exact device sizes, and `capture <test>` runs it
+  (`flutter test --update-goldens`), writing raw PNGs that then feed the manifest.
+- **Screenshots: more templates + i18n** — a `duo` template (two device frames
+  side by side), named gradient `preset`s (ocean/sunset/grape/forest/mono/gold),
+  **image backgrounds** (`bg` as an image path, with a legibility scrim), and
+  **multi-language sets** (`locales` map renders one localized image per
+  language via a `{locale}` path token or per-locale subfolder).
 - **`vgv doctor`** — checks the local toolchain (Flutter, Dart, git; and the
   optional Python+Pillow, Ruby+bundler, lefthook, CocoaPods) and prints versions
   with install hints for whatever's missing. Also available as `vgv --doctor`.
@@ -36,14 +58,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `List<…>` of a generated element class (with recursive `fromModel` wiring).
   `--feature <f>` places files under `lib/features/<f>/{data/models,domain/
   entities}`; otherwise `lib/models/`.
+- **`vgv gen api <Name> --from <spec>`** — generate freezed models + a typed
+  API client from an OpenAPI 3 / Swagger 2 spec (JSON or YAML). Maps
+  `components.schemas`/`definitions` to freezed models (required vs nullable,
+  `$ref`, arrays, `date-time`→`DateTime`, snake keys get `@JsonKey`), and each
+  operation in `paths` to a client method whose return type is resolved from the
+  2xx JSON schema (bodies are stubbed for you to wire your HTTP layer).
+- **`vgv gen bloc|page|usecase`** — sub-generators for single units into an
+  existing feature: `gen bloc <Name> --feature <f>` (HydratedBloc + freezed
+  trio), `gen page <Name> --feature <f>` (`--stateful`, `--bloc <B>` to wire
+  one), `gen usecase <feature>` (repository interface + use cases). Same vgv
+  conventions as `gen feature`.
 - **`vgv gen feature <name>`** — scaffold a full Clean Architecture feature
   (domain/data/presentation) matching the vgv project conventions: relative
   imports, `TStateless`/`TStateful` pages with `bodyWidget(context, theme, S)`,
   a `HydratedBloc` + freezed bloc (status/success/error), `dartz` `Either`/
   `Failure`, and `Injector` DI. Interactive prompts + flags (`--no-bloc`,
   `--bloc-name`, `--no-page`, `--page-name`, `--stateful`, `--no-bloc-in-page`,
-  `-y/--yes`, `-f/--force`). Prints DI + route wiring next-steps. Modeled on the
-  author's `feature_structure` Mason brick.
+  `-y/--yes`, `-f/--force`). Modeled on the author's `feature_structure` Mason
+  brick.
+- **Auto-wiring for `vgv gen feature`**: on a vgv-generated project it now
+  registers the datasource/repository/use-cases/bloc in
+  `application/injector.dart` and adds a route in `application/routes/routes.dart`
+  automatically (falls back to printing manual steps on a non-vgv project; opt
+  out with `--no-wire`).
 - **`vgv screenshots`** — generate App Store / Play Store marketing screenshots
   with realistic device frames (iPhone, Android, iPad, MacBook, desktop),
   gradient backgrounds + glow, and headlines (wrap words in `**asterisks**` to
@@ -77,6 +115,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TStateless/TStatefull, no `setState`, intl_utils, GoRouter).
 
 ### Changed
+- **Adaptive navigation shell** in the generated project: Home and Settings now
+  live under a `StatefulShellRoute` with an `AppShell` that shows a
+  `NavigationRail` on wide viewports (desktop/web/large tablets) and a
+  `NavigationBar` on phones — switching by available width, so it adapts as the
+  window resizes. (The Settings entry moved from the Home popup to a nav tab.)
+- **Responsive UI on desktop/web** in the generated project: a new
+  `ResponsiveCenter` widget (`shared/widgets/`) constrains + centers content on
+  wide viewports and fills the width on phones, adapting live as the window is
+  resized. Applied to login/register (max 460) and settings (max 640); no more
+  edge-to-edge forms/lists on desktop. Home is already a centered column.
 - Interactive UI migrated from `interact` to **`mason_logger`** (Mason-style
   prompts + progress spinners).
 - `vgv -u` now shows a **real** animated progress spinner tied to the actual

@@ -22,6 +22,9 @@ abstract class FlutterCommandDataSource {
 
   Future<void> cleanBuildCache(String projectName);
 
+  /// Runs `flutter pub get` (used after adding dependencies post-generation).
+  Future<void> pubGet(String projectName);
+
   /// Returns true if code generation (build_runner) succeeded.
   Future<bool> runBuildRunner(String projectName);
 
@@ -200,6 +203,20 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
       }
     } catch (_) {
       // Silent: runs during spinner animation
+    }
+  }
+
+  @override
+  Future<void> pubGet(String projectName) async {
+    try {
+      await Process.run(
+        'flutter',
+        ['pub', 'get'],
+        workingDirectory: projectName,
+        runInShell: true,
+      );
+    } catch (_) {
+      // Non-fatal: the user can run `flutter pub get` manually.
     }
   }
 

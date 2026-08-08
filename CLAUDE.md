@@ -240,6 +240,31 @@ Prompt opcional (platform-agnostic): "¿Add lefthook git hooks?". Genera `leftho
 ### 8. `vgv doctor` (✅ HECHO)
 Chequeo read-only del toolchain: **Core** (flutter/dart/git) + **Optional** por feature (python3+Pillow → screenshots, ruby+bundler → fastlane, lefthook → hooks, cocoapods en macOS → iOS/macOS). Imprime ✓/• + versión o hint de instalación. Sale 1 si falta Flutter. `vgv doctor` o `vgv --doctor`. Código: `core/utils/doctor_runner.dart`, ruteado en `vgv_cli.dart`. Verificado en la máquina del autor (detecta Flutter 3.44.8, Dart 3.12.2, Pillow 11.3.0, lefthook, cocoapods, etc.).
 
+### 9. UI responsive del proyecto generado (✅ HECHO)
+En desktop/web el form de login/register se estiraba de borde a borde (botón de 2000px). Se agregó `ResponsiveCenter` (`shared/widgets/responsive_center.dart`, exportado en `widgets.dart`): `Align(topCenter) + ConstrainedBox(maxWidth: 460) + Padding`. Es **por ancho disponible** (no por plataforma) → cubre desktop + web + tablets y se adapta al **resize** de la ventana. Login y register envuelven su body en él. En template_contents.dart: nuevo const + registro en el map + export; imports relativos `../../../../shared/widgets/responsive_center.dart`. Verificado: proyecto generado pasa `flutter analyze` (solo infos preexistentes), `dart format` limpio. **Pendiente opcional**: aplicar el mismo wrap a home/settings (hoy son ListViews que también se estiran).
+
+### 10. Tanda grande de valor (11 features, ✅ HECHO)
+Todas verificadas (`analyze` limpio, 49 tests; los proyectos generados pasan `flutter analyze` sin warnings/errores). Commits `3a95363`..`416d9f3` en `develop`.
+
+**Screenshots (motor `tool/frame_screenshots.py`, re-embebido en base64):**
+- Template `duo` (dos devices lado a lado, `src2`), presets de gradiente (`preset`: ocean/sunset/grape/forest/mono/gold), **fondo con imagen** (`bg` = path → cover + scrim), **multi-idioma** (`locales` map → una imagen por idioma con `{locale}` en `out` o subcarpeta).
+- `vgv screenshots capture --init|<test>`: harness golden que renderiza pantallas a tamaños exactos → PNGs crudos (`flutter test --update-goldens`), luego se enmarcan.
+
+**Generadores (`gen`):**
+- **Auto-wiring** en `gen feature`: registra DS/repo/usecases/bloc en `application/injector.dart` (anclas `_registerXxx() {`) + import/const/GoRoute en `routes.dart` (anclas `class Routes {`, `const Routes._();`, `routes: <RouteBase>[`). `--no-wire` para saltar; si no hay anclas vgv → imprime pasos. Fix: `// ignore_for_file: invalid_annotation_target` en states generados.
+- **Sub-generadores**: `gen bloc <N> --feature <f>`, `gen page <N> --feature <f>` (`--stateful`/`--bloc`), `gen usecase <feature>`. (`FeatureGenerator.buildBloc/buildPage/buildUseCases`).
+- **`gen api <N> --from <openapi.json|yaml>`** (`core/utils/api_generator.dart`): schemas→models freezed (required/nullable, `$ref`, arrays, date-time→DateTime, snake→`@JsonKey`), paths→client tipado con bodies stub. `--feature` o `lib/api/<n>/`.
+
+**Proyecto generado (branding & plataforma, post-procesadores en `project_repository_impl` tras generar; `pubGet` extra si agregan deps):**
+- **Seed color** (`ThemeSeedGenerator`): prompt de hex → `theme.dart` usa `ColorScheme.fromSeed(Color(0xFF..))` light+dark.
+- **Icon set** (`IconSetGenerator`, `polish_generators.dart`): master 1024 → copia a `assets/icon/` + `flutter_launcher_icons.yaml` por plataforma + dev dep (instruye `dart run flutter_launcher_icons`).
+- **Splash** (`SplashGenerator`): `flutter_native_splash.yaml` (color seed + icono) + dev dep (instruye `:create`).
+- **Desktop window** (`DesktopWindowGenerator`): `window_manager` en `main.dart` (min size + título) para desktop.
+- **Adaptive navigation shell**: `application/app_shell.dart` (`NavigationRail` ancho / `NavigationBar` mobile por ancho) + `StatefulShellRoute.indexedStack` con branches home/settings; settings pasó de popup de Home a tab. go_router ^16.
+- **UI responsive** (`ResponsiveCenter` en `shared/widgets/`): login/register (max 460) y settings (max 640) centrados/acotados en desktop/web; home ya centrado.
+
+Prompts nuevos en `cli_controller.dart`: `_getSeedColor`, `_getIconMaster` (path absoluto resuelto antes de cambiar CWD), `_getSplashChoice`, `_getDesktopWindowChoice(platforms)`. Campos nuevos en `ProjectConfig`: `seedColorHex`, `iconMasterPath`, `includeSplash`, `desktopWindow`.
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Limpiar artefactos de build versionados en `templates/blocs/build/`.

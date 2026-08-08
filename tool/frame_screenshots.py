@@ -32,6 +32,16 @@ WHITE = (0xF4, 0xF6, 0xF8)
 MUTED = (0x9A, 0xA2, 0xAC)
 ACCENT = (0x39, 0xD6, 0xE0)
 
+# Named color presets: {"preset": "ocean"} sets accent + bg unless overridden.
+PRESETS = {
+    "ocean":  {"accent": "#39D6E0", "bg": "#0B1F2A"},
+    "sunset": {"accent": "#FF7A59", "bg": "#241019"},
+    "grape":  {"accent": "#7C4DFF", "bg": "#141018"},
+    "forest": {"accent": "#43A047", "bg": "#0E1A12"},
+    "mono":   {"accent": "#C7CDD4", "bg": "#101215"},
+    "gold":   {"accent": "#E0B341", "bg": "#20180A"},
+}
+
 # Store canvas (WxH) + screen aspect (w/h) per device.
 # Default canvas sizes are real store-accepted dimensions (portrait). Any item
 # may override with "width"/"height" (or "size": [w, h]) to hit an exact store
@@ -80,7 +90,22 @@ def _bg_stops(accent, bg):
     return top, (7, 8, 10)
 
 
-def _background(cw, ch, accent, bg, glow_y):
+def _cover(img, cw, ch):
+    """Scale + center-crop img to exactly cw x ch."""
+    iw, ih = img.size
+    scale = max(cw / iw, ch / ih)
+    nw, nh = int(iw * scale + 0.5), int(ih * scale + 0.5)
+    img = img.resize((nw, nh), Image.LANCZOS)
+    return img.crop(((nw - cw) // 2, (nh - ch) // 2, (nw - cw) // 2 + cw, (nh - ch) // 2 + ch))
+
+
+def _background(cw, ch, accent, bg, glow_y, bg_image=None):
+    if bg_image:
+        # Photo/image background + a dark gradient scrim so text stays legible.
+        canvas = _cover(Image.open(bg_image).convert("RGBA"), cw, ch)
+        scrim = _vgrad((cw, ch), (6, 8, 12), (2, 3, 5)).convert("RGBA")
+        scrim.putalpha(150)
+        return Image.alpha_composite(canvas, scrim)
     top, bottom = _bg_stops(accent, bg)
     canvas = _vgrad((cw, ch), top, bottom).convert("RGBA")
     glow = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
@@ -249,12 +274,12 @@ def _shadow(canvas, x, y, w, h, radius, blur, alpha=150):
     return Image.alpha_composite(canvas, sh.filter(ImageFilter.GaussianBlur(blur)))
 
 
-def make_poster(device, src, out, headline, subtitle="", accent=ACCENT, bg=None, canvas=None):
+def make_poster(device, src, out, headline, subtitle="", accent=ACCENT, bg=None, canvas=None, bg_image=None):
     cw, ch = canvas or DEVICES[device]["canvas"]
     dev = build_device(device, src, cw)
     dx = (cw - dev.width) // 2
     dy = ch - dev.height + round(ch * 0.02)
-    canvas = _background(cw, ch, accent, bg, glow_y=dy + dev.height // 3)
+    canvas = _background(cw, ch, accent, bg, glow_y=dy + dev.height // 3, bg_image=bg_image)
     end_y = _draw_headline(canvas, headline, round(ch * 0.055), accent,
                            max_w=int(cw * 0.86), size=int(cw * 0.075))
     if subtitle:
@@ -264,9 +289,9 @@ def make_poster(device, src, out, headline, subtitle="", accent=ACCENT, bg=None,
     canvas.convert("RGB").save(out)
 
 
-def make_hero(device, icon_src, out, headline, subtitle="", accent=ACCENT, bg=None, canvas=None):
+def make_hero(device, icon_src, out, headline, subtitle="", accent=ACCENT, bg=None, canvas=None, bg_image=None):
     cw, ch = canvas or DEVICES[device]["canvas"]
-    canvas = _background(cw, ch, accent, bg, glow_y=round(ch * 0.32))
+    canvas = _background(cw, ch, accent, bg, glow_y=round(ch * 0.32), bg_image=bg_image)
     icon = Image.open(icon_src).convert("RGBA")
     size = round(cw * 0.36)
     icon = icon.resize((size, size), Image.LANCZOS)
@@ -286,20 +311,20 @@ def make_hero(device, icon_src, out, headline, subtitle="", accent=ACCENT, bg=No
     canvas.convert("RGB").save(out)
 
 
-def make_frame(device, src, out, accent=ACCENT, bg=None, canvas=None):
+def make_frame(device, src, out, accent=ACCENT, bg=None, canvas=None, bg_image=None):
     cw, ch = canvas or DEVICES[device]["canvas"]
     dev = build_device(device, src, cw if DEVICES[device]["notch"] in ("laptop", "window") else int(cw * 1.35))
     dx, dy = (cw - dev.width) // 2, (ch - dev.height) // 2
-    canvas = _background(cw, ch, accent, bg, glow_y=ch // 2)
+    canvas = _background(cw, ch, accent, bg, glow_y=ch // 2, bg_image=bg_image)
     canvas = _shadow(canvas, dx, dy, dev.width, dev.height, 60, int(cw * 0.03))
     canvas.alpha_composite(dev, (dx, dy))
     canvas.convert("RGB").save(out)
 
 
-def make_feature_graphic(out, headline, subtitle="", icon_src=None, accent=ACCENT, bg=None, canvas=None):
+def make_feature_graphic(out, headline, subtitle="", icon_src=None, accent=ACCENT, bg=None, canvas=None, bg_image=None):
     # Google Play feature graphic is a fixed 1024x500 landscape banner.
     cw, ch = canvas or (1024, 500)
-    canvas = _background(cw, ch, accent, bg, glow_y=round(ch * 0.5))
+    canvas = _background(cw, ch, accent, bg, glow_y=round(ch * 0.5), bg_image=bg_image)
     title_top = round(ch * 0.30)
     if icon_src:
         size = round(ch * 0.30)
@@ -320,6 +345,71 @@ def make_feature_graphic(out, headline, subtitle="", icon_src=None, accent=ACCEN
     canvas.convert("RGB").save(out)
 
 
+def make_duo(device, src, src2, out, headline, subtitle="", accent=ACCENT, bg=None, canvas=None, bg_image=None):
+    # Two device frames side by side (e.g. phone + phone, or two screens).
+    cw, ch = canvas or DEVICES[device]["canvas"]
+    canvas = _background(cw, ch, accent, bg, glow_y=int(ch * 0.55), bg_image=bg_image)
+    sw = int(cw * 0.44)
+    d1 = build_device(device, src, sw)
+    d2 = build_device(device, src2 or src, sw)
+    gap = int(cw * 0.03)
+    total = d1.width + d2.width + gap
+    x0 = (cw - total) // 2
+    # Vertically center the frames in the lower ~70% (below the headline).
+    top_area = round(ch * 0.26)
+    y = top_area + (ch - top_area - max(d1.height, d2.height)) // 2
+    end_y = _draw_headline(canvas, headline, round(ch * 0.06), accent,
+                           max_w=int(cw * 0.86), size=int(cw * 0.06))
+    if subtitle:
+        _draw_subtitle(canvas, subtitle, end_y + round(ch * 0.012), int(cw * 0.032), int(cw * 0.8))
+    canvas = _shadow(canvas, x0, y, d1.width, d1.height, 60, int(cw * 0.03))
+    canvas.alpha_composite(d1, (x0, y))
+    canvas = _shadow(canvas, x0 + d1.width + gap, y, d2.width, d2.height, 60, int(cw * 0.03))
+    canvas.alpha_composite(d2, (x0 + d1.width + gap, y))
+    canvas.convert("RGB").save(out)
+
+
+def _resolve_style(e):
+    """Resolve accent + bg (color) + bg_image (path) for an entry, honoring an
+    optional named preset. Explicit accent/bg override the preset."""
+    preset = PRESETS.get((e.get("preset") or "").lower(), {})
+    accent = _hex(e["accent"]) if e.get("accent") else (
+        _hex(preset["accent"]) if preset.get("accent") else ACCENT)
+    bg_val = e.get("bg") if e.get("bg") is not None else preset.get("bg")
+    bg, bg_image = None, None
+    if isinstance(bg_val, str) and bg_val:
+        if bg_val.lstrip("#").isalnum() and len(bg_val.lstrip("#")) in (3, 6) and "/" not in bg_val and "." not in bg_val:
+            bg = _hex(bg_val)
+        else:
+            bg_image = bg_val  # treat as an image path
+    return accent, bg, bg_image
+
+
+def _dispatch(t, device, src, src2, out, headline, subtitle, accent, bg, canvas, bg_image):
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    if t == "hero":
+        make_hero(device, src, out, headline, subtitle, accent, bg, canvas, bg_image)
+    elif t == "frame":
+        make_frame(device, src, out, accent, bg, canvas, bg_image)
+    elif t in ("feature_graphic", "feature"):
+        make_feature_graphic(out, headline, subtitle, src, accent, bg, canvas, bg_image)
+    elif t == "duo":
+        make_duo(device, src, src2, out, headline, subtitle, accent, bg, canvas, bg_image)
+    else:
+        make_poster(device, src, out, headline, subtitle, accent, bg, canvas, bg_image)
+
+
+def _out_for(out_tmpl, base, locale):
+    """Resolve an output path, inserting the locale for multi-language sets.
+    Uses a `{locale}` placeholder if present, else a per-locale subfolder."""
+    if locale and "{locale}" in out_tmpl:
+        out_tmpl = out_tmpl.replace("{locale}", locale)
+    elif locale:
+        d, f = os.path.split(out_tmpl)
+        out_tmpl = os.path.join(d, locale, f)
+    return out_tmpl if os.path.isabs(out_tmpl) else os.path.join(base, out_tmpl)
+
+
 def main(argv):
     if not argv or argv[0] != "manifest":
         sys.exit(__doc__)
@@ -327,12 +417,15 @@ def main(argv):
     base = os.path.dirname(os.path.abspath(argv[1]))
     for e in entries:
         device = (e.get("device") or "iphone").lower()
-        src = e.get("src")
-        src = src if not src or os.path.isabs(src) else os.path.join(base, src)
-        out = e["out"] if os.path.isabs(e["out"]) else os.path.join(base, e["out"])
-        os.makedirs(os.path.dirname(out), exist_ok=True)
-        accent = _hex(e["accent"]) if e.get("accent") else ACCENT
-        bg = _hex(e["bg"]) if e.get("bg") else None
+
+        def _abs(p):
+            return p if (not p or os.path.isabs(p)) else os.path.join(base, p)
+
+        src = _abs(e.get("src"))
+        src2 = _abs(e.get("src2"))
+        accent, bg, bg_image = _resolve_style(e)
+        bg_image = _abs(bg_image)
+
         # Optional explicit output size — override defaults to hit an exact
         # store spec: "size": [w, h] or "width"/"height".
         canvas = None
@@ -341,15 +434,24 @@ def main(argv):
         elif e.get("width") and e.get("height"):
             canvas = (int(e["width"]), int(e["height"]))
         t = (e.get("type") or "poster").lower()
-        if t == "hero":
-            make_hero(device, src, out, e["headline"], e.get("subtitle", ""), accent, bg, canvas)
-        elif t == "frame":
-            make_frame(device, src, out, accent, bg, canvas)
-        elif t in ("feature_graphic", "feature"):
-            make_feature_graphic(out, e["headline"], e.get("subtitle", ""), src, accent, bg, canvas)
+
+        # Multi-language: {"locales": {"en": {"headline":..,"subtitle":..}, ...}}
+        locales = e.get("locales")
+        if isinstance(locales, dict) and locales:
+            for loc, texts in locales.items():
+                texts = texts or {}
+                out = _out_for(e["out"], base, loc)
+                _dispatch(t, device, src, src2, out,
+                          texts.get("headline", e.get("headline", "")),
+                          texts.get("subtitle", e.get("subtitle", "")),
+                          accent, bg, canvas, bg_image)
+                print(f"{t}/{device}/{loc} -> {out}")
         else:
-            make_poster(device, src, out, e["headline"], e.get("subtitle", ""), accent, bg, canvas)
-        print(f"{t}/{device} -> {out}")
+            out = _out_for(e["out"], base, None)
+            _dispatch(t, device, src, src2, out,
+                      e.get("headline", ""), e.get("subtitle", ""),
+                      accent, bg, canvas, bg_image)
+            print(f"{t}/{device} -> {out}")
 
 
 if __name__ == "__main__":
