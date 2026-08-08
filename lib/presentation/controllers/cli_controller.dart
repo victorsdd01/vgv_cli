@@ -27,6 +27,9 @@ class CliController {
     final includeFastlane = _getFastlaneChoice(platforms);
     final includeLefthook = _getLefthookChoice();
     final seedColorHex = _getSeedColor();
+    final iconMasterPath = _getIconMaster();
+    final includeSplash = _getSplashChoice();
+    final desktopWindow = _getDesktopWindowChoice(platforms);
     final aiAgents = _getAiAgents();
     final includeLinterRules = _getLinterRulesChoice();
 
@@ -50,6 +53,9 @@ class CliController {
       includeFastlane: includeFastlane,
       includeLefthook: includeLefthook,
       seedColorHex: seedColorHex,
+      iconMasterPath: iconMasterPath,
+      includeSplash: includeSplash,
+      desktopWindow: desktopWindow,
       aiAgents: aiAgents,
     );
 
@@ -365,6 +371,42 @@ class CliController {
     }
   }
 
+  /// Asks for an optional 1024×1024 master app icon. Returns an absolute path
+  /// (resolved now, before the CWD changes) or null.
+  String? _getIconMaster() {
+    final useIcon = _logger.confirm(
+      '${lightCyan.wrap('?')} Generate app icons from a 1024×1024 master image?',
+      defaultValue: false,
+    );
+    if (!useIcon) return null;
+    while (true) {
+      final input = _logger
+          .prompt('${lightCyan.wrap('?')} Path to the master icon (.png):')
+          .trim();
+      if (input.isEmpty) return null;
+      final file = File(input);
+      if (file.existsSync()) return file.absolute.path;
+      _logger.err('  File not found: $input');
+    }
+  }
+
+  /// Asks whether to configure a native splash screen.
+  bool _getSplashChoice() {
+    return _logger.confirm(
+      '${lightCyan.wrap('?')} Configure a native splash screen (flutter_native_splash)?',
+      defaultValue: false,
+    );
+  }
+
+  /// Asks whether to set a desktop window min-size + title (desktop only).
+  bool _getDesktopWindowChoice(List<PlatformType> platforms) {
+    if (!platforms.contains(PlatformType.desktop)) return false;
+    return _logger.confirm(
+      '${lightCyan.wrap('?')} Set a desktop window min-size + title (window_manager)?',
+      defaultValue: true,
+    );
+  }
+
   /// Asks whether to scaffold lefthook git hooks (format/analyze on commit,
   /// tests on push). Platform-agnostic.
   bool _getLefthookChoice() {
@@ -421,6 +463,15 @@ class CliController {
     }
     if (config.seedColorHex != null) {
       _logger.info('  ${label('Brand color:')}   ${value('#${config.seedColorHex}')}');
+    }
+    if (config.iconMasterPath != null) {
+      _logger.info('  ${label('App icons:')}     ${value('from master image')}');
+    }
+    if (config.includeSplash) {
+      _logger.info('  ${label('Splash:')}        ${value('native splash screen')}');
+    }
+    if (config.desktopWindow) {
+      _logger.info('  ${label('Desktop:')}       ${value('window min-size + title')}');
     }
     if (config.aiAgents.isNotEmpty) {
       _logger.info('  ${label('AI rules:')}      ${value(config.aiAgents.map((a) => a.name).join(', '))}');

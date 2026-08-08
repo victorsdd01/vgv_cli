@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **App icon set from a master** (prompted): point at a 1024×1024 image and the
+  CLI copies it to `assets/icon/`, writes a `flutter_launcher_icons.yaml` for the
+  selected platforms, adds the dev dependency, and tells you to run
+  `dart run flutter_launcher_icons`.
+- **Native splash screen** (prompted): writes a `flutter_native_splash.yaml`
+  (brand color + optional icon image), adds the dev dependency, and prompts you
+  to run `dart run flutter_native_splash:create`.
+- **Desktop window sizing** (prompted for desktop targets): wires
+  `window_manager` into `main.dart` so desktop builds open with a sensible
+  minimum size and the app title.
 - **Brand seed color** (prompted at creation): pick a hex and the generated
   Material 3 theme seeds its light+dark `ColorScheme` from it
   (`ColorScheme.fromSeed`).
