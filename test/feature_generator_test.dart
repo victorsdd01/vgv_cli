@@ -86,6 +86,39 @@ void main() {
       expect(files.keys.where((k) => k.contains('/pages/')), isEmpty);
     });
 
+    test('buildBloc emits only the bloc trio', () {
+      final files = gen.buildBloc(FeatureOptions(
+        featureName: 'auth',
+        blocName: 'Session',
+        addPage: false,
+      ));
+      expect(files.keys, <String>{
+        'lib/features/auth/presentation/blocs/session_bloc/session_bloc.dart',
+        'lib/features/auth/presentation/blocs/session_bloc/session_event.dart',
+        'lib/features/auth/presentation/blocs/session_bloc/session_state.dart',
+      });
+    });
+
+    test('buildPage without a bloc uses TStateless<Null>', () {
+      final files = gen.buildPage(FeatureOptions(
+        featureName: 'account',
+        pageName: 'Profile',
+        includeBloc: false,
+        addBlocToPage: false,
+      ));
+      final page =
+          files['lib/features/account/presentation/pages/profile_page.dart']!;
+      expect(page, contains('TStateless<Null>'));
+    });
+
+    test('buildUseCases emits the domain contract', () {
+      final files = gen.buildUseCases(FeatureOptions(featureName: 'billing'));
+      expect(files.keys, containsAll(<String>[
+        'lib/features/billing/domain/repositories/billing_repository.dart',
+        'lib/features/billing/domain/use_cases/billing_use_cases.dart',
+      ]));
+    });
+
     test('custom bloc name is honored and suffix not doubled', () {
       final files = gen.build(FeatureOptions(
         featureName: 'auth',

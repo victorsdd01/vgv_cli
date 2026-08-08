@@ -28,6 +28,12 @@ class GenRunner {
         return _feature(rest);
       case 'model':
         return _model(rest);
+      case 'bloc':
+        return _unit(rest, 'bloc');
+      case 'page':
+        return _unit(rest, 'page');
+      case 'usecase':
+        return _unit(rest, 'usecase');
       default:
         _logger.err('Unknown subcommand: gen ${args.first}');
         _usage();
@@ -133,6 +139,96 @@ class GenRunner {
     }
 
     _report(options, files.keys.toList()..sort());
+    return 0;
+  }
+
+  /// Handles `vgv gen bloc|page|usecase <name> --feature <f>`.
+  Future<int> _unit(List<String> args, String kind) async {
+    final parser = ArgParser()
+      ..addOption('feature', help: 'Target feature (under lib/features/).')
+      ..addFlag('stateful', defaultsTo: false, help: 'page: StatefulWidget.')
+      ..addOption('bloc', help: 'page: wire this Bloc into the page.')
+      ..addFlag('force', abbr: 'f', defaultsTo: false)
+      ..addFlag('yes', abbr: 'y', defaultsTo: false);
+
+    final ArgResults res;
+    try {
+      res = parser.parse(args);
+    } on FormatException catch (e) {
+      _logger.err(e.message);
+      return 1;
+    }
+
+    if (!File('pubspec.yaml').existsSync()) {
+      _logger.err('No pubspec.yaml here — run this from a Flutter project root.');
+      return 1;
+    }
+
+    final ask = _interactive && !(res['yes'] as bool);
+    var name = res.rest.isNotEmpty ? res.rest.first : null;
+    name ??= ask ? _logger.prompt('Name for the $kind:') : null;
+    if (name == null || name.trim().isEmpty) {
+      _logger.err('A name is required: vgv gen $kind <name> --feature <feature>');
+      return 1;
+    }
+
+    var feature = res['feature'] as String?;
+    // usecase is feature-scoped by nature: the name IS the feature if omitted.
+    feature ??= kind == 'usecase' ? name : (ask ? _logger.prompt('Feature it belongs to:') : null);
+    if (feature == null || feature.trim().isEmpty) {
+      _logger.err('A feature is required: --feature <feature>');
+      return 1;
+    }
+
+    final gen = FeatureGenerator();
+    final Map<String, String> files;
+    switch (kind) {
+      case 'bloc':
+        files = gen.buildBloc(FeatureOptions(
+          featureName: feature,
+          blocName: name,
+          includeBloc: true,
+          addPage: false,
+        ));
+      case 'page':
+        final blocName = res['bloc'] as String?;
+        files = gen.buildPage(FeatureOptions(
+          featureName: feature,
+          pageName: name,
+          blocName: blocName ?? name,
+          includeBloc: blocName != null,
+          addBlocToPage: blocName != null,
+          statelessPage: !(res['stateful'] as bool),
+        ));
+      case 'usecase':
+      default:
+        files = gen.buildUseCases(FeatureOptions(featureName: feature));
+    }
+
+    final existing = files.keys.where((p) => File(p).existsSync()).toList();
+    if (existing.isNotEmpty && !(res['force'] as bool)) {
+      _logger.err('These files already exist (use --force to overwrite):');
+      for (final e in existing) {
+        _logger.err('  $e');
+      }
+      return 1;
+    }
+    for (final entry in files.entries) {
+      (File(entry.key)..parent.createSync(recursive: true))
+          .writeAsStringSync(entry.value);
+    }
+
+    _logger
+      ..info('')
+      ..info(green.wrap('  ✓ Generated $kind "$name":')!);
+    for (final p in files.keys.toList()..sort()) {
+      _logger.info('    ${styleDim.wrap(p)}');
+    }
+    _logger
+      ..info('')
+      ..info('  ${styleDim.wrap('Then run build_runner if it uses freezed:')}')
+      ..info('       ${lightCyan.wrap('dart run build_runner build --delete-conflicting-outputs')}')
+      ..info('');
     return 0;
   }
 
@@ -277,6 +373,9 @@ class GenRunner {
       ..info('')
       ..info('  ${lightCyan.wrap('vgv gen feature <name>')}          ${styleDim.wrap('Clean Architecture feature (data/domain/presentation)')}')
       ..info('  ${lightCyan.wrap('vgv gen model <Name> --from x.json')} ${styleDim.wrap('freezed model + entity from a sample JSON')}')
+      ..info('  ${lightCyan.wrap('vgv gen bloc <Name> --feature <f>')}  ${styleDim.wrap('a HydratedBloc + freezed (bloc/event/state)')}')
+      ..info('  ${lightCyan.wrap('vgv gen page <Name> --feature <f>')}  ${styleDim.wrap('a TStateless/TStateful page (--stateful, --bloc)')}')
+      ..info('  ${lightCyan.wrap('vgv gen usecase <feature>')}          ${styleDim.wrap('domain repository interface + use cases')}')
       ..info('')
       ..info(styleDim.wrap('  Options for feature:'))
       ..info('    ${lightCyan.wrap('--no-bloc')}              ${styleDim.wrap('skip the Bloc')}')

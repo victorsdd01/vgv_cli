@@ -35,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `List<…>` of a generated element class (with recursive `fromModel` wiring).
   `--feature <f>` places files under `lib/features/<f>/{data/models,domain/
   entities}`; otherwise `lib/models/`.
+- **`vgv gen bloc|page|usecase`** — sub-generators for single units into an
+  existing feature: `gen bloc <Name> --feature <f>` (HydratedBloc + freezed
+  trio), `gen page <Name> --feature <f>` (`--stateful`, `--bloc <B>` to wire
+  one), `gen usecase <feature>` (repository interface + use cases). Same vgv
+  conventions as `gen feature`.
 - **`vgv gen feature <name>`** — scaffold a full Clean Architecture feature
   (domain/data/presentation) matching the vgv project conventions: relative
   imports, `TStateless`/`TStateful` pages with `bodyWidget(context, theme, S)`,
