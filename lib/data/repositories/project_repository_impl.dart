@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../../core/utils/agent_rules_generator.dart';
 import '../../core/utils/fastlane_generator.dart';
 import '../../domain/entities/project_config.dart';
 import '../../domain/repositories/project_repository.dart';
@@ -118,6 +119,9 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
     // Scaffold Fastlane (Gemfile + android/ios lanes + metadata + guide).
     await const FastlaneGenerator().generate(config);
+
+    // Write AI-agent rules files (CLAUDE.md, .cursorrules, …) if requested.
+    await const AgentRulesGenerator().generate(config);
 
     // Initialize git unless the user opted out with --no-git.
     if (!config.skipGitInit) {

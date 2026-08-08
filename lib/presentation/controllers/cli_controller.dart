@@ -25,6 +25,7 @@ class CliController {
     // If flavors were passed via --flavors, honor them and skip the prompt.
     final selectedFlavors = flavors ?? _getFlavors();
     final includeFastlane = _getFastlaneChoice(platforms);
+    final aiAgents = _getAiAgents();
     final includeLinterRules = _getLinterRulesChoice();
 
     final config = ProjectConfig(
@@ -45,6 +46,7 @@ class CliController {
       skipGitInit: noGit,
       flavors: selectedFlavors,
       includeFastlane: includeFastlane,
+      aiAgents: aiAgents,
     );
 
     _printConfigurationSummary(config);
@@ -339,6 +341,25 @@ class CliController {
     );
   }
 
+  /// Asks whether the user works with an AI agent and, if so, which ones to
+  /// generate a project-conventions rules file for.
+  List<AiAgent> _getAiAgents() {
+    final usesAgent = _logger.confirm(
+      '${lightCyan.wrap('?')} Do you use an AI coding agent (Claude, Cursor, Gemini…)?',
+      defaultValue: false,
+    );
+    if (!usesAgent) return const [];
+
+    final selected = _logger.chooseAny<AiAgent>(
+      '${lightCyan.wrap('?')} Generate a project-rules file for which agents? '
+      '${styleDim.wrap('(space to toggle, enter to confirm)')}',
+      choices: AiAgent.values,
+      defaultValues: const [AiAgent.claude],
+      display: (agent) => agent.displayName,
+    );
+    return AiAgent.values.where(selected.contains).toList();
+  }
+
   void _printConfigurationSummary(ProjectConfig config) {
     String label(String text) => styleDim.wrap(text)!;
     String value(String text) => lightGreen.wrap(text)!;
@@ -361,6 +382,9 @@ class CliController {
     }
     if (config.includeFastlane) {
       _logger.info('  ${label('Fastlane:')}      ${value('Play Store / App Store')}');
+    }
+    if (config.aiAgents.isNotEmpty) {
+      _logger.info('  ${label('AI rules:')}      ${value(config.aiAgents.map((a) => a.name).join(', '))}');
     }
 
     // Bundle ID preview: the entered id is production; others derive a suffix.
