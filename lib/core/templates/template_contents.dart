@@ -724,6 +724,7 @@ import '../../../../application/injector.dart';
 import '../../../../application/routes/routes.dart';
 import '../../../../core/states/tstateless.dart';
 import '../../../../shared/widgets/dialogs/app_dialogs.dart';
+import '../../../../shared/widgets/responsive_center.dart';
 import '../../../auth/presentation/blocs/auth_bloc/auth_bloc.dart';
 import '../blocs/settings_bloc/settings_bloc.dart';
 
@@ -745,7 +746,10 @@ class SettingsPage extends TStateless<SettingsBloc> {
     ),
     body: BlocBuilder<SettingsBloc, SettingsState>(
       bloc: bloc,
-      builder: (BuildContext context, SettingsState state) => ListView(
+      builder: (BuildContext context, SettingsState state) => ResponsiveCenter(
+        maxWidth: 640,
+        padding: EdgeInsets.zero,
+        child: ListView(
         children: <Widget>[
           _SectionHeader(title: translation.appearance),
           _ThemeTile(
@@ -769,6 +773,7 @@ class SettingsPage extends TStateless<SettingsBloc> {
           const _AppInfoTile(),
           _LicensesTile(appName: translation.appTitle),
         ],
+      ),
       ),
     ),
   );
