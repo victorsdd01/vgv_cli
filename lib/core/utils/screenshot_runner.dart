@@ -130,7 +130,12 @@ class ScreenshotRunner {
 2. Edit `manifest.json`:
    - `device`: iphone | android | ipad | macbook | desktop
    - `type`: poster (frame + text) | hero (app icon + tagline) | frame (frame only)
+     | duo (two frames side by side; needs `src2`)
      | feature_graphic (Play Store 1024x500 banner; `device` ignored)
+   - `preset`: ocean | sunset | grape | forest | mono | gold (sets accent + bg)
+   - `bg`: a hex color OR a path to an image (used as the background, with a scrim)
+   - `locales`: `{ "en": {"headline":..,"subtitle":..}, "es": {...} }` renders one
+     image per language (use `{locale}` in `out`, or it becomes a subfolder)
    - `headline`: wrap words in **double asterisks** to paint them with `accent`.
    - `accent` / `bg`: hex colors (bg optional; defaults to a tint of accent).
    - `width` + `height` (or `size: [w, h]`): optional — force an exact output

@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Screenshots: more templates + i18n** — a `duo` template (two device frames
+  side by side), named gradient `preset`s (ocean/sunset/grape/forest/mono/gold),
+  **image backgrounds** (`bg` as an image path, with a legibility scrim), and
+  **multi-language sets** (`locales` map renders one localized image per
+  language via a `{locale}` path token or per-locale subfolder).
 - **`vgv doctor`** — checks the local toolchain (Flutter, Dart, git; and the
   optional Python+Pillow, Ruby+bundler, lefthook, CocoaPods) and prints versions
   with install hints for whatever's missing. Also available as `vgv --doctor`.
