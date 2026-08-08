@@ -217,7 +217,14 @@ Genera una **feature completa Clean Architecture** en `lib/features/<name>/` den
 - Tras generar, imprime **next steps**: registrar DS/repo/usecases/bloc en `application/injector.dart`, agregar ruta en `application/routes/routes.dart`, y correr `build_runner`.
 - Código: `core/utils/recase.dart` (snake/pascal/camel), `core/utils/feature_generator.dart` (build → `Map<path,content>`, testeable), `core/utils/gen_runner.dart` (ruteo `gen <sub>` + prompts + escritura + reporte). Ruteado en `vgv_cli.dart` como subcomando `gen` antes del parseo de flags.
 - Verificado: genera 10 archivos (feature completa) y variantes (sin bloc/stateful/sin page) — `dart format` valida sintaxis, sin placeholders. `analyze` limpio, 31 tests (incluye `test/feature_generator_test.dart`).
-- **Pendiente**: `vgv gen model` (entity+model desde JSON) y auto-wiring opcional de DI/rutas.
+- **Pendiente**: auto-wiring opcional de DI/rutas.
+
+### 5. `vgv gen model <Name> --from <file.json>` — model+entity desde JSON (✅ HECHO)
+Genera un **model freezed** (con `fromJson`) + una **entity** de dominio (con `fromJson` + `fromModel`) a partir de un JSON de ejemplo, estilo `user_model.dart`/`user_entity.dart` de vgv.
+- Inferencia de tipos: `String/int/double/bool`; `null` → campo `dynamic` nullable; **objetos anidados** → clases freezed anidadas (`AddressModel`/`GeoModel`…); **arrays de objetos** → `List<ElementModel>` con clase de elemento singularizada (`orders` → `OrderModel`) y `fromModel` recursivo (`.map(OrderEntity.fromModel).toList()`); arrays de primitivos → `List<primitive>`.
+- `--feature <f>` → `lib/features/<f>/{data/models,domain/entities}` (entity importa el model relativo); sin feature → `lib/models/`. Flags: `--from`, `--feature`, `-f/--force`, `-y/--yes`. Prompts si falta info y hay TTY.
+- Código: `core/utils/model_generator.dart` (build → `Map<path,content>`, testeable) + subcomando `model` en `gen_runner.dart`.
+- Verificado con JSON anidado (objeto+geo anidado+array de objetos+primitivos+null): `dart format` valida sintaxis. `analyze` limpio, 37 tests (incluye `test/model_generator_test.dart`).
 
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).

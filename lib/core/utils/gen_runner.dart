@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
 
 import 'feature_generator.dart';
+import 'model_generator.dart';
 import 'recase.dart';
 
 /// Routes `vgv gen <subcommand>` — scaffolds code into an existing project.
@@ -25,8 +27,7 @@ class GenRunner {
       case 'feature':
         return _feature(rest);
       case 'model':
-        _logger.info('${lightCyan.wrap('vgv gen model')} is coming next.');
-        return 0;
+        return _model(rest);
       default:
         _logger.err('Unknown subcommand: gen ${args.first}');
         _usage();
@@ -135,6 +136,97 @@ class GenRunner {
     return 0;
   }
 
+  Future<int> _model(List<String> args) async {
+    final parser = ArgParser()
+      ..addOption('from', help: 'Path to a sample .json file.')
+      ..addOption('feature',
+          help: 'Place under lib/features/<feature>/ (else lib/models/).')
+      ..addFlag('force',
+          abbr: 'f', defaultsTo: false, help: 'Overwrite existing files.')
+      ..addFlag('yes', abbr: 'y', defaultsTo: false, help: 'No prompts.');
+
+    final ArgResults res;
+    try {
+      res = parser.parse(args);
+    } on FormatException catch (e) {
+      _logger.err(e.message);
+      return 1;
+    }
+
+    if (!File('pubspec.yaml').existsSync()) {
+      _logger.err('No pubspec.yaml here — run this from a Flutter project root.');
+      return 1;
+    }
+
+    final ask = _interactive && !(res['yes'] as bool);
+
+    var name = res.rest.isNotEmpty ? res.rest.first : null;
+    name ??= ask ? _logger.prompt('Model name (e.g. User, Product):') : null;
+    if (name == null || name.trim().isEmpty) {
+      _logger.err('A model name is required: vgv gen model <Name> --from <file.json>');
+      return 1;
+    }
+
+    var fromPath = res['from'] as String?;
+    fromPath ??= ask ? _logger.prompt('Path to a sample .json file:') : null;
+    if (fromPath == null || fromPath.trim().isEmpty) {
+      _logger.err('A JSON source is required: --from <file.json>');
+      return 1;
+    }
+    final jsonFile = File(fromPath);
+    if (!jsonFile.existsSync()) {
+      _logger.err('JSON file not found: $fromPath');
+      return 1;
+    }
+
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(jsonFile.readAsStringSync());
+    } on FormatException catch (e) {
+      _logger.err('Invalid JSON in $fromPath: ${e.message}');
+      return 1;
+    }
+
+    final Map<String, String> files;
+    try {
+      files = ModelGenerator().build(
+        name: name,
+        json: decoded,
+        feature: res['feature'] as String?,
+      );
+    } on FormatException catch (e) {
+      _logger.err(e.message);
+      return 1;
+    }
+
+    final existing = files.keys.where((p) => File(p).existsSync()).toList();
+    if (existing.isNotEmpty && !(res['force'] as bool)) {
+      _logger.err('These files already exist (use --force to overwrite):');
+      for (final e in existing) {
+        _logger.err('  $e');
+      }
+      return 1;
+    }
+
+    for (final entry in files.entries) {
+      (File(entry.key)..parent.createSync(recursive: true))
+          .writeAsStringSync(entry.value);
+    }
+
+    _logger
+      ..info('')
+      ..info(green.wrap('  ✓ Model "$name" generated:'));
+    for (final path in files.keys.toList()..sort()) {
+      _logger.info('    ${styleDim.wrap(path)}');
+    }
+    _logger
+      ..info('')
+      ..info('  ${styleDim.wrap('Then run build_runner:')}')
+      ..info('       ${lightCyan.wrap('dart run build_runner build --delete-conflicting-outputs')}')
+      ..info('');
+    return 0;
+  }
+
   void _report(FeatureOptions o, List<String> paths) {
     _logger
       ..info('')
@@ -183,7 +275,8 @@ class GenRunner {
       ..info('')
       ..info(styleBold.wrap('  vgv gen — scaffold code into your project'))
       ..info('')
-      ..info('  ${lightCyan.wrap('vgv gen feature <name>')}   ${styleDim.wrap('Clean Architecture feature (data/domain/presentation)')}')
+      ..info('  ${lightCyan.wrap('vgv gen feature <name>')}          ${styleDim.wrap('Clean Architecture feature (data/domain/presentation)')}')
+      ..info('  ${lightCyan.wrap('vgv gen model <Name> --from x.json')} ${styleDim.wrap('freezed model + entity from a sample JSON')}')
       ..info('')
       ..info(styleDim.wrap('  Options for feature:'))
       ..info('    ${lightCyan.wrap('--no-bloc')}              ${styleDim.wrap('skip the Bloc')}')

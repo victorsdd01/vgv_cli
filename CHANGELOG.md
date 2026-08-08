@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`vgv gen model <Name> --from <file.json>`** — generate a freezed data model
+  (with `fromJson`) plus a matching domain entity (with `fromJson` + `fromModel`)
+  from a sample JSON. Infers primitive types, marks JSON `null`s nullable, turns
+  nested objects into nested freezed classes, and arrays of objects into
+  `List<…>` of a generated element class (with recursive `fromModel` wiring).
+  `--feature <f>` places files under `lib/features/<f>/{data/models,domain/
+  entities}`; otherwise `lib/models/`.
 - **`vgv gen feature <name>`** — scaffold a full Clean Architecture feature
   (domain/data/presentation) matching the vgv project conventions: relative
   imports, `TStateless`/`TStateful` pages with `bodyWidget(context, theme, S)`,
