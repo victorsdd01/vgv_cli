@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`vgv screenshots capture`** — auto-capture raw screens instead of taking
+  them by hand: `capture --init` scaffolds a golden-test harness that renders
+  your screens at exact device sizes, and `capture <test>` runs it
+  (`flutter test --update-goldens`), writing raw PNGs that then feed the manifest.
 - **Screenshots: more templates + i18n** — a `duo` template (two device frames
   side by side), named gradient `preset`s (ocean/sunset/grape/forest/mono/gold),
   **image backgrounds** (`bg` as an image path, with a legibility scrim), and
