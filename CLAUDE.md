@@ -240,6 +240,9 @@ Prompt opcional (platform-agnostic): "¿Add lefthook git hooks?". Genera `leftho
 ### 8. `vgv doctor` (✅ HECHO)
 Chequeo read-only del toolchain: **Core** (flutter/dart/git) + **Optional** por feature (python3+Pillow → screenshots, ruby+bundler → fastlane, lefthook → hooks, cocoapods en macOS → iOS/macOS). Imprime ✓/• + versión o hint de instalación. Sale 1 si falta Flutter. `vgv doctor` o `vgv --doctor`. Código: `core/utils/doctor_runner.dart`, ruteado en `vgv_cli.dart`. Verificado en la máquina del autor (detecta Flutter 3.44.8, Dart 3.12.2, Pillow 11.3.0, lefthook, cocoapods, etc.).
 
+### 9. UI responsive del proyecto generado (✅ HECHO)
+En desktop/web el form de login/register se estiraba de borde a borde (botón de 2000px). Se agregó `ResponsiveCenter` (`shared/widgets/responsive_center.dart`, exportado en `widgets.dart`): `Align(topCenter) + ConstrainedBox(maxWidth: 460) + Padding`. Es **por ancho disponible** (no por plataforma) → cubre desktop + web + tablets y se adapta al **resize** de la ventana. Login y register envuelven su body en él. En template_contents.dart: nuevo const + registro en el map + export; imports relativos `../../../../shared/widgets/responsive_center.dart`. Verificado: proyecto generado pasa `flutter analyze` (solo infos preexistentes), `dart format` limpio. **Pendiente opcional**: aplicar el mismo wrap a home/settings (hoy son ListViews que también se estiran).
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Limpiar artefactos de build versionados en `templates/blocs/build/`.
