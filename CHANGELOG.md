@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.56] - 2026-08-08
+
+### Changes
+- Merge pull request #68 from victorsdd01/develop
+
 ### Added
 - **Native flavors** (dev/staging/production): Android `productFlavors`
   (`build.gradle.kts`), iOS build configs + schemes + xcconfig (`pbxproj`),
