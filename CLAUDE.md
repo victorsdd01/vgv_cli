@@ -208,6 +208,17 @@ Comando **standalone** que enmarca capturas crudas en imágenes de marketing tip
 - Verificado end-to-end (`dart run bin/vgv.dart screenshots manifest.json` → 3 PNGs iPhone/Android con acentos, frames realistas, gradiente+glow). `analyze` limpio, 23 tests pasan.
 - Futuro (pedido del usuario): más templates/opciones y ligarlo a una web editora (en Flutter) para editar texto/fondo/plantilla.
 
+### 4. `vgv gen feature <name>` — scaffold de features (✅ HECHO)
+Genera una **feature completa Clean Architecture** en `lib/features/<name>/` dentro de un proyecto existente (detecta `pubspec.yaml`). Basado en el brick **`feature_structure`** del autor (repo `victorsdd01/flutter_bricks`), pero adaptado al **estilo del proyecto que genera vgv** para que **compile**: imports **relativos** (no barrels `core.dart`), páginas `TStateless<Bloc>` / `TStateful<Page,Bloc>` con `bodyWidget(context, theme, S)`, bloc `HydratedBloc` + **freezed** (status/successStatus/errorStatus + `Failure?`), `dartz` `Either/Failure` (`ServerFailure`/`CacheFailure`), y DI con `Injector.get<T>()`.
+
+- Estructura: `domain/{repositories,use_cases}`, `data/{datasources/{local,remote},repositories}`, `presentation/{blocs/<f>_bloc/{bloc,event,state},blocs.dart, pages/<page>_page.dart}`.
+- Flags: `--no-bloc`, `--bloc-name <N>`, `--no-page`, `--page-name <N>`, `--stateful`, `--no-bloc-in-page`, `-y/--yes` (no-interactivo), `-f/--force`. Prompts interactivos (mason_logger) si falta info y hay TTY.
+- Página sin bloc → `TStateless<Null>` / `TStateful<..,Null>` con `bloc => null`.
+- Tras generar, imprime **next steps**: registrar DS/repo/usecases/bloc en `application/injector.dart`, agregar ruta en `application/routes/routes.dart`, y correr `build_runner`.
+- Código: `core/utils/recase.dart` (snake/pascal/camel), `core/utils/feature_generator.dart` (build → `Map<path,content>`, testeable), `core/utils/gen_runner.dart` (ruteo `gen <sub>` + prompts + escritura + reporte). Ruteado en `vgv_cli.dart` como subcomando `gen` antes del parseo de flags.
+- Verificado: genera 10 archivos (feature completa) y variantes (sin bloc/stateful/sin page) — `dart format` valida sintaxis, sin placeholders. `analyze` limpio, 31 tests (incluye `test/feature_generator_test.dart`).
+- **Pendiente**: `vgv gen model` (entity+model desde JSON) y auto-wiring opcional de DI/rutas.
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Limpiar artefactos de build versionados en `templates/blocs/build/`.

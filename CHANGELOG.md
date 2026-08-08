@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`vgv gen feature <name>`** — scaffold a full Clean Architecture feature
+  (domain/data/presentation) matching the vgv project conventions: relative
+  imports, `TStateless`/`TStateful` pages with `bodyWidget(context, theme, S)`,
+  a `HydratedBloc` + freezed bloc (status/success/error), `dartz` `Either`/
+  `Failure`, and `Injector` DI. Interactive prompts + flags (`--no-bloc`,
+  `--bloc-name`, `--no-page`, `--page-name`, `--stateful`, `--no-bloc-in-page`,
+  `-y/--yes`, `-f/--force`). Prints DI + route wiring next-steps. Modeled on the
+  author's `feature_structure` Mason brick.
 - **`vgv screenshots`** — generate App Store / Play Store marketing screenshots
   with realistic device frames (iPhone, Android, iPad, MacBook, desktop),
   gradient backgrounds + glow, and headlines (wrap words in `**asterisks**` to
