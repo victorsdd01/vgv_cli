@@ -5,6 +5,7 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as p;
 
 import '../templates/screenshot_script.dart';
+import 'screenshot_web.dart';
 
 /// Runs `vgv screenshots`: frames raw app screenshots into store-ready
 /// marketing posters via the bundled Pillow script. Works on ANY Flutter
@@ -25,6 +26,9 @@ class ScreenshotRunner {
     }
     if (args.first == 'capture') {
       return _capture(args.sublist(1));
+    }
+    if (args.first == 'web') {
+      return ScreenshotWebServer(logger: _logger).run(args.sublist(1));
     }
 
     final manifest = args.first;
@@ -276,6 +280,7 @@ Requires Python 3 + Pillow (`python3 -m pip install --user pillow`).
       ..info('')
       ..info(styleBold.wrap('  vgv screenshots — store marketing screenshots'))
       ..info('')
+      ..info('  ${lightCyan.wrap('vgv screenshots web [--raw dir]')}     ${styleDim.wrap('open the visual editor (browser, no Python)')}')
       ..info('  ${lightCyan.wrap('vgv screenshots --init [dir]')}       ${styleDim.wrap('scaffold a manifest + folders')}')
       ..info('  ${lightCyan.wrap('vgv screenshots <manifest>')}         ${styleDim.wrap('render framed posters from a manifest')}')
       ..info('  ${lightCyan.wrap('vgv screenshots capture --init')}     ${styleDim.wrap('scaffold a golden harness to auto-capture raw screens')}')

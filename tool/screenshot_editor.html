@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>vgv screenshots — editor</title>
+<style>
+  :root {
+    --bg: #0e0f13; --panel: #16181e; --panel2: #1d2027; --line: #262a33;
+    --text: #e8ebf0; --muted: #949bab; --accent: #39d6e0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  #app { display: grid; grid-template-columns: 320px 1fr; height: 100vh; }
+  #sidebar { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; padding: 16px; }
+  #stage { display: flex; align-items: center; justify-content: center; overflow: auto; padding: 24px;
+    background: radial-gradient(1200px 600px at 50% 0%, #15171d, #0e0f13); }
+  h1 { font-size: 15px; margin: 0 0 4px; letter-spacing: .2px; }
+  .sub { color: var(--muted); font-size: 12px; margin: 0 0 16px; }
+  .group { margin-bottom: 18px; }
+  .group > label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
+    color: var(--muted); margin-bottom: 6px; }
+  input[type=text], textarea, select {
+    width: 100%; background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 10px; font: inherit; outline: none; }
+  input[type=text]:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 52px; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--panel2); cursor: pointer; font-size: 12px; user-select: none; }
+  .chip.active { border-color: var(--accent); color: var(--accent); }
+  .swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sw { width: 26px; height: 26px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
+  .sw.active { border-color: #fff; }
+  input[type=color] { width: 100%; height: 34px; background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 2px; }
+  button.file, .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 9px 10px; cursor: pointer; font: inherit; }
+  .btn.primary { background: var(--accent); color: #05222a; border-color: var(--accent); font-weight: 700; }
+  .btn.primary:hover { filter: brightness(1.05); }
+  .hint { color: var(--muted); font-size: 11px; margin-top: 6px; }
+  canvas#c { max-width: 100%; max-height: calc(100vh - 48px); border-radius: 18px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.5); cursor: grab; }
+  canvas#c:active { cursor: grabbing; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: #1d2027; border: 1px solid var(--line); padding: 10px 16px; border-radius: 10px;
+    opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .divider { height: 1px; background: var(--line); margin: 14px 0; }
+  .thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .thumb { aspect-ratio: 9/16; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px;
+    overflow: hidden; cursor: pointer; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb.active { border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <h1>vgv screenshots</h1>
+    <p class="sub">Frame your app screenshots — no Python needed.</p>
+
+    <div class="group">
+      <label>Template</label>
+      <div class="chips" id="templates"></div>
+    </div>
+
+    <div class="group">
+      <label>Device</label>
+      <div class="chips" id="devices"></div>
+    </div>
+
+    <div class="group">
+      <label>Screenshot</label>
+      <button class="file" id="pickShot">Upload screenshot…</button>
+      <div class="thumbs" id="rawThumbs" style="margin-top:8px"></div>
+      <div class="hint" id="rawHint"></div>
+    </div>
+
+    <div class="group">
+      <label>Headline <span class="hint">(**word** = accent)</span></label>
+      <textarea id="headline">Catch **stick drift** in real time</textarea>
+    </div>
+    <div class="group">
+      <label>Subtitle</label>
+      <textarea id="subtitle">Live per-stick offset and max deflection.</textarea>
+    </div>
+
+    <div class="group">
+      <label>Accent</label>
+      <input type="color" id="accent" value="#39d6e0" />
+    </div>
+
+    <div class="group">
+      <label>Background</label>
+      <div class="chips" id="presets"></div>
+      <div class="row" style="margin-top:8px">
+        <input type="color" id="bg" value="#0e0f11" />
+        <button class="file" id="pickBg">Image…</button>
+      </div>
+      <button class="btn" id="clearBg" style="margin-top:8px">Use gradient</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="group">
+      <button class="btn" id="download">Download PNG</button>
+      <button class="btn primary" id="save" style="margin-top:8px">Save to project (out/)</button>
+      <div class="hint" id="saveHint"></div>
+    </div>
+  </aside>
+
+  <main id="stage">
+    <canvas id="c"></canvas>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const DEVICES = {
+  iphone:  { label: "iPhone",  w: 1290, h: 2796, notch: "island" },
+  android: { label: "Android", w: 1080, h: 1920, notch: "punch" },
+  ipad:    { label: "iPad",    w: 2048, h: 2732, notch: null },
+};
+const TEMPLATES = ["poster", "hero", "frame", "feature_graphic"];
+const PRESETS = {
+  ocean:  { accent: "#39d6e0", bg: "#0b1f2a" },
+  sunset: { accent: "#ff7a59", bg: "#241019" },
+  grape:  { accent: "#7c4dff", bg: "#141018" },
+  forest: { accent: "#43a047", bg: "#0e1a12" },
+  mono:   { accent: "#c7cdd4", bg: "#101215" },
+  gold:   { accent: "#e0b341", bg: "#20180a" },
+};
+
+const state = {
+  device: "iphone",
+  template: "poster",
+  headline: "Catch **stick drift** in real time",
+  subtitle: "Live per-stick offset and max deflection.",
+  accent: "#39d6e0",
+  bg: "#0e0f11",
+  bgImage: null,     // HTMLImageElement or null
+  shot: null,        // HTMLImageElement or null
+  dragX: 0, dragY: 0,
+};
+
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+// ---------- helpers ----------
+function hexToRgb(h) { h = h.replace('#',''); return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; }
+function mix(a, b, t) { return a.map((v,i)=>Math.round(v+(b[i]-v)*t)); }
+function rgb(c){ return `rgb(${c[0]},${c[1]},${c[2]})`; }
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function drawCover(img,x,y,w,h){ const ir=img.width/img.height, tr=w/h; let sw,sh,sx,sy;
+  if(ir>tr){ sh=img.height; sw=sh*tr; sx=(img.width-sw)/2; sy=0; } else { sw=img.width; sh=sw/tr; sx=0; sy=(img.height-sh)/2; }
+  ctx.drawImage(img, sx,sy,sw,sh, x,y,w,h); }
+
+function background(W,H,accent,bgHex,bgImg,glowY){
+  if (bgImg){ drawCover(bgImg,0,0,W,H); const g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'rgba(6,8,12,.55)'); g.addColorStop(1,'rgba(2,3,5,.8)'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); return; }
+  const bg=hexToRgb(bgHex), top=mix(bg,[255,255,255],0.06), bot=mix(bg,[0,0,0],0.35);
+  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,rgb(top)); g.addColorStop(1,rgb(bot));
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  const ac=hexToRgb(accent); const rg=ctx.createRadialGradient(W/2,glowY,0,W/2,glowY,W*0.8);
+  rg.addColorStop(0,`rgba(${ac[0]},${ac[1]},${ac[2]},.34)`); rg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+}
+
+function drawPhone(x,y,w,h,notch,shot){
+  const r=w*0.16;
+  ctx.save(); ctx.shadowColor='rgba(0,0,0,.5)'; ctx.shadowBlur=w*0.08; ctx.shadowOffsetY=w*0.03;
+  roundRect(x,y,w,h,r); ctx.fillStyle='#0b0d10'; ctx.fill(); ctx.restore();
+  roundRect(x,y,w,h,r); ctx.lineWidth=Math.max(2,w*0.006); ctx.strokeStyle='rgba(255,255,255,.10)'; ctx.stroke();
+  const bz=w*0.032, sx=x+bz, sy=y+bz, sw=w-2*bz, sh=h-2*bz, sr=r-bz*0.5;
+  ctx.save(); roundRect(sx,sy,sw,sh,sr); ctx.clip();
+  if(shot){ drawCover(shot,sx,sy,sw,sh); } else { ctx.fillStyle='#12151b'; ctx.fillRect(sx,sy,sw,sh);
+    ctx.fillStyle='#3a414d'; ctx.font=`${Math.round(sw*0.06)}px sans-serif`; ctx.textAlign='center';
+    ctx.fillText('your screenshot', sx+sw/2, sy+sh/2); }
+  ctx.restore();
+  if(notch==='island'){ const iw=sw*0.32, ih=w*0.055; roundRect(x+w/2-iw/2, sy+ih*0.55, iw, ih, ih/2); ctx.fillStyle='#000'; ctx.fill(); }
+  else if(notch==='punch'){ ctx.beginPath(); ctx.arc(x+w/2, sy+w*0.05, w*0.017, 0, Math.PI*2); ctx.fillStyle='#000'; ctx.fill(); }
+}
+
+function tokens(text){ const out=[]; let acc=false; for(const chunk of text.split('**')){ for(const w of chunk.split(' ')){ if(w) out.push([w,acc]); } acc=!acc; } return out; }
+function drawHeadline(text, topY, accent, maxW, size, W){
+  ctx.font=`700 ${size}px -apple-system, "Segoe UI", Roboto, sans-serif`; ctx.textAlign='left'; ctx.textBaseline='top';
+  const spaceW=ctx.measureText(' ').width; const toks=tokens(text); const lines=[]; let cur=[], curW=0;
+  for(const [w,isAcc] of toks){ const ww=ctx.measureText(w).width; if(cur.length && curW+spaceW+ww>maxW){ lines.push(cur); cur=[]; curW=0; } cur.push([w,isAcc,ww]); curW+=(cur.length>1?spaceW:0)+ww; }
+  if(cur.length) lines.push(cur);
+  const lineH=size*1.16; let y=topY;
+  for(const line of lines){ const total=line.reduce((s,[,,ww])=>s+ww,0)+spaceW*(line.length-1); let x=(W-total)/2;
+    for(const [w,isAcc,ww] of line){ ctx.fillStyle=isAcc?accent:'#f4f6f8'; ctx.fillText(w,x,y); x+=ww+spaceW; } y+=lineH; }
+  return y;
+}
+function drawSubtitle(text, topY, size, maxW, W){
+  if(!text) return topY;
+  ctx.font=`400 ${size}px -apple-system, "Segoe UI", Roboto, sans-serif`; ctx.textAlign='left'; ctx.textBaseline='top';
+  const words=text.split(' '); const lines=[]; let cur='';
+  for(const w of words){ const t=(cur+' '+w).trim(); if(ctx.measureText(t).width>maxW && cur){ lines.push(cur); cur=w; } else cur=t; }
+  if(cur) lines.push(cur); let y=topY;
+  for(const ln of lines){ const tw=ctx.measureText(ln).width; ctx.fillStyle='#9aa2ac'; ctx.fillText(ln,(W-tw)/2,y); y+=size*1.35; }
+  return y;
+}
+
+// ---------- render ----------
+function render(){
+  const isFeature = state.template==='feature_graphic';
+  const dev = DEVICES[state.device];
+  const W = isFeature ? 1024 : dev.w;
+  const H = isFeature ? 500 : dev.h;
+  canvas.width = W; canvas.height = H;
+
+  if (isFeature){
+    background(W,H,state.accent,state.bg,state.bgImage,H*0.5);
+    let top=Math.round(H*0.30);
+    if(state.shot){ const s=Math.round(H*0.30); const ix=(W-s)/2, iy=Math.round(H*0.10);
+      ctx.save(); roundRect(ix,iy,s,s,s*0.22); ctx.clip(); drawCover(state.shot,ix,iy,s,s); ctx.restore(); top=iy+s+Math.round(H*0.06); }
+    const ey=drawHeadline(state.headline, top, state.accent, W*0.86, Math.round(H*0.11), W);
+    drawSubtitle(state.subtitle, ey+Math.round(H*0.02), Math.round(H*0.05), W*0.8, W);
+    return;
+  }
+
+  if (state.template==='hero'){
+    background(W,H,state.accent,state.bg,state.bgImage,Math.round(H*0.32));
+    const s=Math.round(W*0.36), ix=(W-s)/2, iy=Math.round(H*0.16);
+    if(state.shot){ ctx.save(); roundRect(ix,iy,s,s,s*0.22); ctx.clip(); drawCover(state.shot,ix,iy,s,s); ctx.restore(); }
+    else { roundRect(ix,iy,s,s,s*0.22); ctx.fillStyle='#12151b'; ctx.fill(); }
+    const ey=drawHeadline(state.headline, iy+s+Math.round(H*0.04), state.accent, W*0.82, Math.round(W*0.085), W);
+    drawSubtitle(state.subtitle, ey+Math.round(H*0.012), Math.round(W*0.042), W*0.8, W);
+    return;
+  }
+
+  // poster / frame
+  const isFrame = state.template==='frame';
+  const sw = W * (isFrame ? 0.82 : 0.72);
+  const sh = sw * (dev.h/dev.w);
+  const dx = (W-sw)/2 + state.dragX;
+  const dy = (isFrame ? (H-sh)/2 : (H-sh + H*0.02)) + state.dragY;
+  background(W,H,state.accent,state.bg,state.bgImage, dy + sh/3);
+  if(!isFrame){
+    const ey=drawHeadline(state.headline, Math.round(H*0.055), state.accent, W*0.86, Math.round(W*0.072), W);
+    drawSubtitle(state.subtitle, ey+Math.round(H*0.012), Math.round(W*0.038), W*0.8, W);
+  }
+  drawPhone(dx,dy,sw,sh,dev.notch,state.shot);
+}
+
+// ---------- UI wiring ----------
+function chip(container, items, current, onPick, labelFn){
+  container.innerHTML='';
+  for(const it of items){ const el=document.createElement('div'); el.className='chip'+(it===current?' active':'');
+    el.textContent=labelFn?labelFn(it):it; el.onclick=()=>onPick(it); container.appendChild(el); }
+}
+function refreshChips(){
+  chip(document.getElementById('templates'), TEMPLATES, state.template, t=>{ state.template=t; refreshChips(); render(); }, t=>t.replace('_',' '));
+  chip(document.getElementById('devices'), Object.keys(DEVICES), state.device, d=>{ state.device=d; refreshChips(); render(); }, d=>DEVICES[d].label);
+  chip(document.getElementById('presets'), Object.keys(PRESETS), null, name=>{ const p=PRESETS[name]; state.accent=p.accent; state.bg=p.bg; state.bgImage=null;
+    document.getElementById('accent').value=p.accent; document.getElementById('bg').value=p.bg; render(); });
+}
+function loadImage(file, cb){ const img=new Image(); img.onload=()=>cb(img); img.src=URL.createObjectURL(file); }
+function pick(cb){ const i=document.createElement('input'); i.type='file'; i.accept='image/*'; i.onchange=()=>{ if(i.files[0]) loadImage(i.files[0], cb); }; i.click(); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+
+document.getElementById('headline').oninput=e=>{ state.headline=e.target.value; render(); };
+document.getElementById('subtitle').oninput=e=>{ state.subtitle=e.target.value; render(); };
+document.getElementById('accent').oninput=e=>{ state.accent=e.target.value; render(); };
+document.getElementById('bg').oninput=e=>{ state.bg=e.target.value; state.bgImage=null; render(); };
+document.getElementById('pickShot').onclick=()=>pick(img=>{ state.shot=img; render(); });
+document.getElementById('pickBg').onclick=()=>pick(img=>{ state.bgImage=img; render(); });
+document.getElementById('clearBg').onclick=()=>{ state.bgImage=null; render(); };
+
+document.getElementById('download').onclick=()=>{ const a=document.createElement('a');
+  a.download=`${state.template}_${state.device}.png`; a.href=canvas.toDataURL('image/png'); a.click(); };
+
+document.getElementById('save').onclick=async()=>{
+  const name=`${state.template}_${state.device}.png`;
+  try {
+    const res=await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name, dataUrl:canvas.toDataURL('image/png')})});
+    const j=await res.json();
+    toast(j.ok?`Saved → ${j.path}`:'Save failed');
+  } catch(e){ toast('Save failed (is the CLI server running?)'); }
+};
+
+// drag the device on poster/frame
+let dragging=false, lastX=0, lastY=0;
+canvas.addEventListener('pointerdown', e=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; });
+window.addEventListener('pointerup', ()=>dragging=false);
+window.addEventListener('pointermove', e=>{ if(!dragging) return; const scale=canvas.width/canvas.getBoundingClientRect().width;
+  state.dragX+=(e.clientX-lastX)*scale; state.dragY+=(e.clientY-lastY)*scale; lastX=e.clientX; lastY=e.clientY; render(); });
+
+// raw screenshots served by the CLI (if any)
+async function loadRaw(){
+  try {
+    const res=await fetch('/api/raw'); const j=await res.json();
+    const box=document.getElementById('rawThumbs');
+    if(!j.images || !j.images.length){ document.getElementById('rawHint').textContent='Tip: pass --raw <dir> to pick from your screenshots.'; return; }
+    for(const im of j.images){ const d=document.createElement('div'); d.className='thumb';
+      const img=document.createElement('img'); img.src=im.url; d.appendChild(img);
+      d.onclick=()=>{ const full=new Image(); full.onload=()=>{ state.shot=full; render(); }; full.src=im.url; };
+      box.appendChild(d); }
+  } catch(e){ /* no server / no raw */ }
+}
+
+refreshChips(); loadRaw(); render();
+</script>
+</body>
+</html>

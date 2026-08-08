@@ -265,6 +265,14 @@ Todas verificadas (`analyze` limpio, 49 tests; los proyectos generados pasan `fl
 
 Prompts nuevos en `cli_controller.dart`: `_getSeedColor`, `_getIconMaster` (path absoluto resuelto antes de cambiar CWD), `_getSplashChoice`, `_getDesktopWindowChoice(platforms)`. Campos nuevos en `ProjectConfig`: `seedColorHex`, `iconMasterPath`, `includeSplash`, `desktopWindow`.
 
+### 11. `vgv screenshots web` — editor visual en el browser (✅ HECHO)
+Alternativa al motor Python: un **editor Canvas en el navegador**, servido por un **mini server local** (sin login, sin backend, offline). `screenshot_web.dart` (`ScreenshotWebServer`) levanta `HttpServer` en `127.0.0.1`, sirve el editor (`GET /`), lista raw (`GET /api/raw` desde `--raw <dir>`), sirve imágenes (`GET /raw/<f>`), y recibe el PNG renderizado (`POST /api/save`) escribiéndolo en `out/`. El "link" CLI↔web es localhost.
+- Editor: `tool/screenshot_editor.html` (HTML+CSS+JS+Canvas, editable), embebido en base64 en `lib/core/templates/screenshot_editor_html.dart` vía `tool/generate_editor_html.dart` (regenerar: `dart run tool/generate_editor_html.dart`).
+- Devices iPhone/Android/iPad **dibujados por código** en Canvas (frames premium, sin assets con licencia dudosa; hay un slot futuro para mockups PNG propios). Templates poster/hero/frame/feature_graphic. Controles: headline/subtitle (con `**acento**`), color/presets/gradiente o **imagen de fondo**, **drag** del device, upload de screenshot o pick de `--raw`. Botones Download y "Save to project (out/)".
+- Ruteado en `screenshot_runner.dart` como subcomando `web`. El motor por manifest (Python) queda para CI/headless.
+- Verificado end-to-end en el browser (in-app): sirve, lista raw, compone la captura en el frame, y `POST /api/save` escribe el PNG. `analyze` limpio, 49 tests.
+- **Futuro (pedido del usuario)**: más plantillas/efectos, mockups PNG reales, y eventualmente deploy público con cuentas (Pattern C).
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Limpiar artefactos de build versionados en `templates/blocs/build/`.

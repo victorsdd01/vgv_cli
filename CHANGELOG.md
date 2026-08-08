@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`vgv screenshots web`** — a **visual, in-browser editor** for store
+  screenshots (no Python). The CLI starts a tiny local server, opens the editor,
+  and you design live on a Canvas: pick device (iPhone/Android/iPad) + template
+  (poster/hero/frame/feature-graphic), edit headline/subtitle (with accent
+  words), colors/presets/gradient or image background, drag the device, and
+  upload a screenshot (or pick from `--raw <dir>`). "Save to project" posts the
+  PNG back and the CLI writes it to `out/`. The manifest/Python path stays for
+  CI/headless.
 - **`vgv gen` runs build_runner for you**: `gen feature`, `gen bloc`, `gen model`
   and `gen api` now run `dart run build_runner build -d` after generating (so the
   `*.freezed.dart` / `*.g.dart` files are ready) — no manual step. Skip with
