@@ -113,6 +113,14 @@ class ScreenshotRunner {
     "subtitle": "Same engine, Android frame.",
     "accent": "#7C4DFF",
     "bg": "#141018"
+  },
+  {
+    "type": "feature_graphic",
+    "src": "raw/icon.png",
+    "out": "out/feature_graphic.png",
+    "headline": "Your app, in **one line**",
+    "subtitle": "Play Store feature graphic (1024x500).",
+    "accent": "#39D6E0"
   }
 ]
 ''');
@@ -122,6 +130,7 @@ class ScreenshotRunner {
 2. Edit `manifest.json`:
    - `device`: iphone | android | ipad | macbook | desktop
    - `type`: poster (frame + text) | hero (app icon + tagline) | frame (frame only)
+     | feature_graphic (Play Store 1024x500 banner; `device` ignored)
    - `headline`: wrap words in **double asterisks** to paint them with `accent`.
    - `accent` / `bg`: hex colors (bg optional; defaults to a tint of accent).
 3. Render:
@@ -152,7 +161,7 @@ Requires Python 3 + Pillow (`python3 -m pip install --user pillow`).
       ..info('  ${lightCyan.wrap('vgv screenshots <manifest>')}     ${styleDim.wrap('render framed posters from a manifest')}')
       ..info('')
       ..info(styleDim.wrap('  Frames iPhone/Android/iPad/MacBook/desktop with backgrounds and'))
-      ..info(styleDim.wrap('  headlines. Requires Python 3 + Pillow.'))
+      ..info(styleDim.wrap('  headlines; also a Play Store feature graphic. Requires Python 3 + Pillow.'))
       ..info('');
   }
 }

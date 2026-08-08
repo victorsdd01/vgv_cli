@@ -38,7 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with realistic device frames (iPhone, Android, iPad, MacBook, desktop),
   gradient backgrounds + glow, and headlines (wrap words in `**asterisks**` to
   paint them with the accent color). Three templates: `poster` (frame + text),
-  `hero` (app icon + tagline), `frame` (frame only). Works on **any** Flutter
+  `hero` (app icon + tagline), `frame` (frame only), and `feature_graphic`
+  (Google Play 1024×500 banner: app icon + headline + tagline). Works on **any** Flutter
   project — driven by a JSON manifest. `vgv screenshots --init [dir]` scaffolds a
   ready-to-edit manifest + folders. Rendering uses Python 3 + Pillow (detected;
   the CLI instructs how to install if missing — no auto-install).

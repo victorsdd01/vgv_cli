@@ -203,7 +203,7 @@ Comando **standalone** que enmarca capturas crudas en imágenes de marketing tip
 - **Comando** (`lib/core/utils/screenshot_runner.dart`, ruteado en `vgv_cli.dart` como subcomando posicional antes del parseo de flags):
   - `vgv screenshots --init [dir]` → scaffoldea `raw/`, `out/`, `manifest.json` + `README.md`.
   - `vgv screenshots <manifest>` → detecta `python3` + Pillow (si faltan, **instruye** cómo instalar, no auto-instala), escribe el script a temp y renderiza.
-- **Devices**: `iphone` (Dynamic Island), `android` (hole-punch), `ipad`, `macbook`, `desktop` (traffic lights). **Templates**: `poster` (frame + texto), `hero` (ícono + tagline), `frame` (solo frame).
+- **Devices**: `iphone` (Dynamic Island), `android` (hole-punch), `ipad`, `macbook`, `desktop` (traffic lights). **Templates**: `poster` (frame + texto), `hero` (ícono + tagline), `frame` (solo frame), `feature_graphic` (banner Play Store 1024×500: ícono + título + tagline, `device` se ignora).
 - **Manifest**: lista de items `{device,type,src,out,headline,subtitle,accent,bg}`. En `headline`, envolver palabras en `**dobles asteriscos**` las pinta con `accent`.
 - Verificado end-to-end (`dart run bin/vgv.dart screenshots manifest.json` → 3 PNGs iPhone/Android con acentos, frames realistas, gradiente+glow). `analyze` limpio, 23 tests pasan.
 - Futuro (pedido del usuario): más templates/opciones y ligarlo a una web editora (en Flutter) para editar texto/fondo/plantilla.

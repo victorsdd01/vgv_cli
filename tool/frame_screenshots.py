@@ -287,6 +287,30 @@ def make_frame(device, src, out, accent=ACCENT, bg=None):
     canvas.convert("RGB").save(out)
 
 
+def make_feature_graphic(out, headline, subtitle="", icon_src=None, accent=ACCENT, bg=None):
+    # Google Play feature graphic is a fixed 1024x500 landscape banner.
+    cw, ch = 1024, 500
+    canvas = _background(cw, ch, accent, bg, glow_y=round(ch * 0.5))
+    title_top = round(ch * 0.30)
+    if icon_src:
+        size = round(ch * 0.30)
+        icon = Image.open(icon_src).convert("RGBA").resize((size, size), Image.LANCZOS)
+        ix, iy = (cw - size) // 2, round(ch * 0.10)
+        halo = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+        ImageDraw.Draw(halo).ellipse([ix - 60, iy - 30, ix + size + 60, iy + size + 60], fill=accent + (70,))
+        canvas = Image.alpha_composite(canvas, halo.filter(ImageFilter.GaussianBlur(70)))
+        canvas = _shadow(canvas, ix, iy, size, size, round(size * 0.22), 45, 130)
+        m = Image.new("L", (size, size), 0)
+        ImageDraw.Draw(m).rounded_rectangle([0, 0, size - 1, size - 1], radius=round(size * 0.22), fill=255)
+        canvas.paste(icon, (ix, iy), m)
+        title_top = iy + size + round(ch * 0.06)
+    end_y = _draw_headline(canvas, headline, title_top, accent,
+                           max_w=int(cw * 0.86), size=int(ch * 0.11))
+    if subtitle:
+        _draw_subtitle(canvas, subtitle, end_y + round(ch * 0.02), int(ch * 0.052), int(cw * 0.8))
+    canvas.convert("RGB").save(out)
+
+
 def main(argv):
     if not argv or argv[0] != "manifest":
         sys.exit(__doc__)
@@ -305,6 +329,8 @@ def main(argv):
             make_hero(device, src, out, e["headline"], e.get("subtitle", ""), accent, bg)
         elif t == "frame":
             make_frame(device, src, out, accent, bg)
+        elif t in ("feature_graphic", "feature"):
+            make_feature_graphic(out, e["headline"], e.get("subtitle", ""), src, accent, bg)
         else:
             make_poster(device, src, out, e["headline"], e.get("subtitle", ""), accent, bg)
         print(f"{t}/{device} -> {out}")
