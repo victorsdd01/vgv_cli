@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Presets / config file** (`vgv.yaml` project-local, `~/.vgvrc` global): set
+  defaults for `org`, `output`, `flavors` and `git` so you stop re-typing flags.
+  Precedence: CLI flags > `vgv.yaml` > `~/.vgvrc`. `vgv config init [--global]`
+  scaffolds a commented file; `vgv config show` prints the effective presets.
 - **`vgv gen model <Name> --from <file.json>`** — generate a freezed data model
   (with `fromJson`) plus a matching domain entity (with `fromJson` + `fromModel`)
   from a sample JSON. Infers primitive types, marks JSON `null`s nullable, turns

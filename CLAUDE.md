@@ -226,6 +226,13 @@ Genera un **model freezed** (con `fromJson`) + una **entity** de dominio (con `f
 - Código: `core/utils/model_generator.dart` (build → `Map<path,content>`, testeable) + subcomando `model` en `gen_runner.dart`.
 - Verificado con JSON anidado (objeto+geo anidado+array de objetos+primitivos+null): `dart format` valida sintaxis. `analyze` limpio, 37 tests (incluye `test/model_generator_test.dart`).
 
+### 6. Presets / config file (`vgv.yaml` / `~/.vgvrc`) (✅ HECHO)
+Para no re-tipear flags. `VgvConfig.load()` (`core/utils/vgv_config.dart`, dep `yaml`) mergea `~/.vgvrc` (global) + `./vgv.yaml` (proyecto, override). Precedencia: **flags > vgv.yaml > ~/.vgvrc**.
+- Claves soportadas (las que se propagan por flags): `org` (alias `organization`), `output`, `flavors` (lista `[dev,prod]` o string `dev,prod`), `git` (bool). Tokens de flavor inválidos y claves desconocidas se ignoran (parseo defensivo, nunca lanza).
+- Comando: `vgv config init [--global] [--force]` (escribe template comentado; no pisa sin `--force`), `vgv config show` (presets efectivos). Ruteado como subcomando `config` en `vgv_cli.dart`; el fallback se aplica en `run()` (usa `wasParsed('no-git')` para no pisar el flag).
+- Verificado: `config init/show` + `--dry-run -n test_app` toma `org` del preset. 42 tests (incluye `test/vgv_config_test.dart`), `analyze` limpio.
+- **Futuro**: extender presets a fastlane/aiAgents (hoy son prompts interactivos en el controller).
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Limpiar artefactos de build versionados en `templates/blocs/build/`.
