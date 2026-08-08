@@ -25,6 +25,7 @@ class CliController {
     // If flavors were passed via --flavors, honor them and skip the prompt.
     final selectedFlavors = flavors ?? _getFlavors();
     final includeFastlane = _getFastlaneChoice(platforms);
+    final includeLefthook = _getLefthookChoice();
     final aiAgents = _getAiAgents();
     final includeLinterRules = _getLinterRulesChoice();
 
@@ -46,6 +47,7 @@ class CliController {
       skipGitInit: noGit,
       flavors: selectedFlavors,
       includeFastlane: includeFastlane,
+      includeLefthook: includeLefthook,
       aiAgents: aiAgents,
     );
 
@@ -341,6 +343,15 @@ class CliController {
     );
   }
 
+  /// Asks whether to scaffold lefthook git hooks (format/analyze on commit,
+  /// tests on push). Platform-agnostic.
+  bool _getLefthookChoice() {
+    return _logger.confirm(
+      '${lightCyan.wrap('?')} Add lefthook git hooks (format/analyze on commit, tests on push)?',
+      defaultValue: false,
+    );
+  }
+
   /// Asks whether the user works with an AI agent and, if so, which ones to
   /// generate a project-conventions rules file for.
   List<AiAgent> _getAiAgents() {
@@ -382,6 +393,9 @@ class CliController {
     }
     if (config.includeFastlane) {
       _logger.info('  ${label('Fastlane:')}      ${value('Play Store / App Store')}');
+    }
+    if (config.includeLefthook) {
+      _logger.info('  ${label('Lefthook:')}      ${value('pre-commit / pre-push hooks')}');
     }
     if (config.aiAgents.isNotEmpty) {
       _logger.info('  ${label('AI rules:')}      ${value(config.aiAgents.map((a) => a.name).join(', '))}');
@@ -482,6 +496,10 @@ class CliController {
         await _reportFastlaneTooling(config.projectName);
       }
 
+      if (config.includeLefthook) {
+        await _reportLefthookTooling();
+      }
+
       if (warnings.isNotEmpty) {
         _logger.warn('Some post-generation steps need your attention:');
         for (final warning in warnings) {
@@ -502,6 +520,30 @@ class CliController {
         ..info('    - Try running: flutter doctor')
         ..info('');
     }
+  }
+
+  /// Detects lefthook and prints how to enable the hooks.
+  Future<void> _reportLefthookTooling() async {
+    var installed = false;
+    try {
+      final result = await Process.run('which', ['lefthook'], runInShell: true);
+      installed = result.exitCode == 0;
+    } catch (_) {
+      installed = false;
+    }
+
+    _logger.info(styleDim.wrap('  Lefthook (git hooks — see lefthook.yml):'));
+    if (installed) {
+      _logger
+        ..info('    ${green.wrap('✓')} lefthook installed — enable it from the project root:')
+        ..info('      ${lightCyan.wrap('lefthook install')}');
+    } else {
+      _logger
+        ..info('    ${yellow.wrap('•')} lefthook not found. Install then enable:')
+        ..info('      ${lightCyan.wrap('brew install lefthook')}  ${styleDim.wrap('# or: dart pub global activate lefthook')}')
+        ..info('      ${lightCyan.wrap('lefthook install')}');
+    }
+    _logger.info('');
   }
 
   /// Detects the Fastlane toolchain and prints a concise status + next steps.

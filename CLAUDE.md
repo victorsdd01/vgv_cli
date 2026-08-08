@@ -195,6 +195,51 @@ Prompt opcional en interactivo (solo si hay mobile): "¿Configurar Fastlane?". G
 ### 1.e Reglas para agentes de IA (✅ HECHO, 2026-08-08)
 Prompt: "¿Usás un agente de IA?" → si sí, multi-select de agentes → genera un archivo de reglas por agente (mismo contenido) con las convenciones del CLI: Clean Architecture, BLoC+freezed, `TStateless`/`TStatefull` (nada de `setState` — BLoC para estado compartido, `ValueNotifier` para local), freezed en modelos/entidades, intl_utils, GoRouter, get_it. Archivos: `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`, `GEMINI.md`, `.windsurfrules`, `AGENTS.md`. Código: enum `AiAgent` + `ProjectConfig.aiAgents` + `core/utils/agent_rules_generator.dart`.
 
+### 3. `vgv screenshots` — capturas para las stores (✅ motor + comando)
+Comando **standalone** que enmarca capturas crudas en imágenes de marketing tipo App Store / Play Store (frames realistas + fondo + texto, estilo appscreens.com). **Funciona en cualquier proyecto Flutter** (no solo los generados por el CLI); input = PNGs crudos + un `manifest.json`.
+
+- **Motor**: Python + **Pillow** (elegido sobre el paquete Dart `image` porque los fonts bitmap de `image` no renderizan acentos — á/ñ salían como huecos). Pillow usa TTF reales (`HelveticaNeue.ttc`/`Arial.ttf`) → acentos perfectos.
+- **Fuente única**: `tool/frame_screenshots.py`. Se embebe en `lib/core/templates/screenshot_script.dart` como **base64** (via `tool/generate_screenshot_script.dart`) para que el CLI instalado global pueda escribirlo a temp y correrlo. Regenerar: `dart run tool/generate_screenshot_script.dart`.
+- **Comando** (`lib/core/utils/screenshot_runner.dart`, ruteado en `vgv_cli.dart` como subcomando posicional antes del parseo de flags):
+  - `vgv screenshots --init [dir]` → scaffoldea `raw/`, `out/`, `manifest.json` + `README.md`.
+  - `vgv screenshots <manifest>` → detecta `python3` + Pillow (si faltan, **instruye** cómo instalar, no auto-instala), escribe el script a temp y renderiza.
+- **Devices**: `iphone` (Dynamic Island), `android` (hole-punch), `ipad`, `macbook`, `desktop` (traffic lights). **Templates**: `poster` (frame + texto), `hero` (ícono + tagline), `frame` (solo frame), `feature_graphic` (banner Play Store 1024×500: ícono + título + tagline, `device` se ignora).
+- **Manifest**: lista de items `{device,type,src,out,headline,subtitle,accent,bg}`. En `headline`, envolver palabras en `**dobles asteriscos**` las pinta con `accent`. Override de tamaño exacto por item: `width`+`height` o `size:[w,h]`.
+- **Tamaños de store (verificados contra docs oficiales, no asumidos)**: defaults ya aceptados — iPhone 1290×2796 (slot 6.7"/6.9"; alt. 1260×2736 / 1320×2868), iPad 2048×2732 (12.9"; 13"=2064×2752), Android phone 1080×1920 (Play recomienda 9:16, min 320/max 3840, max ≤ 2× min), feature graphic 1024×500 fijo. Salida **RGB sin alpha** (requisito de ambas stores). Cualquiera se puede sobrescribir con `width`/`height`/`size`.
+- Verificado end-to-end (`dart run bin/vgv.dart screenshots manifest.json` → 3 PNGs iPhone/Android con acentos, frames realistas, gradiente+glow). `analyze` limpio, 23 tests pasan.
+- Futuro (pedido del usuario): más templates/opciones y ligarlo a una web editora (en Flutter) para editar texto/fondo/plantilla.
+
+### 4. `vgv gen feature <name>` — scaffold de features (✅ HECHO)
+Genera una **feature completa Clean Architecture** en `lib/features/<name>/` dentro de un proyecto existente (detecta `pubspec.yaml`). Basado en el brick **`feature_structure`** del autor (repo `victorsdd01/flutter_bricks`), pero adaptado al **estilo del proyecto que genera vgv** para que **compile**: imports **relativos** (no barrels `core.dart`), páginas `TStateless<Bloc>` / `TStateful<Page,Bloc>` con `bodyWidget(context, theme, S)`, bloc `HydratedBloc` + **freezed** (status/successStatus/errorStatus + `Failure?`), `dartz` `Either/Failure` (`ServerFailure`/`CacheFailure`), y DI con `Injector.get<T>()`.
+
+- Estructura: `domain/{repositories,use_cases}`, `data/{datasources/{local,remote},repositories}`, `presentation/{blocs/<f>_bloc/{bloc,event,state},blocs.dart, pages/<page>_page.dart}`.
+- Flags: `--no-bloc`, `--bloc-name <N>`, `--no-page`, `--page-name <N>`, `--stateful`, `--no-bloc-in-page`, `-y/--yes` (no-interactivo), `-f/--force`. Prompts interactivos (mason_logger) si falta info y hay TTY.
+- Página sin bloc → `TStateless<Null>` / `TStateful<..,Null>` con `bloc => null`.
+- Tras generar, imprime **next steps**: registrar DS/repo/usecases/bloc en `application/injector.dart`, agregar ruta en `application/routes/routes.dart`, y correr `build_runner`.
+- Código: `core/utils/recase.dart` (snake/pascal/camel), `core/utils/feature_generator.dart` (build → `Map<path,content>`, testeable), `core/utils/gen_runner.dart` (ruteo `gen <sub>` + prompts + escritura + reporte). Ruteado en `vgv_cli.dart` como subcomando `gen` antes del parseo de flags.
+- Verificado: genera 10 archivos (feature completa) y variantes (sin bloc/stateful/sin page) — `dart format` valida sintaxis, sin placeholders. `analyze` limpio, 31 tests (incluye `test/feature_generator_test.dart`).
+- **Pendiente**: auto-wiring opcional de DI/rutas.
+
+### 5. `vgv gen model <Name> --from <file.json>` — model+entity desde JSON (✅ HECHO)
+Genera un **model freezed** (con `fromJson`) + una **entity** de dominio (con `fromJson` + `fromModel`) a partir de un JSON de ejemplo, estilo `user_model.dart`/`user_entity.dart` de vgv.
+- Inferencia de tipos: `String/int/double/bool`; `null` → campo `dynamic` nullable; **objetos anidados** → clases freezed anidadas (`AddressModel`/`GeoModel`…); **arrays de objetos** → `List<ElementModel>` con clase de elemento singularizada (`orders` → `OrderModel`) y `fromModel` recursivo (`.map(OrderEntity.fromModel).toList()`); arrays de primitivos → `List<primitive>`.
+- `--feature <f>` → `lib/features/<f>/{data/models,domain/entities}` (entity importa el model relativo); sin feature → `lib/models/`. Flags: `--from`, `--feature`, `-f/--force`, `-y/--yes`. Prompts si falta info y hay TTY.
+- Código: `core/utils/model_generator.dart` (build → `Map<path,content>`, testeable) + subcomando `model` en `gen_runner.dart`.
+- Verificado con JSON anidado (objeto+geo anidado+array de objetos+primitivos+null): `dart format` valida sintaxis. `analyze` limpio, 37 tests (incluye `test/model_generator_test.dart`).
+
+### 6. Presets / config file (`vgv.yaml` / `~/.vgvrc`) (✅ HECHO)
+Para no re-tipear flags. `VgvConfig.load()` (`core/utils/vgv_config.dart`, dep `yaml`) mergea `~/.vgvrc` (global) + `./vgv.yaml` (proyecto, override). Precedencia: **flags > vgv.yaml > ~/.vgvrc**.
+- Claves soportadas (las que se propagan por flags): `org` (alias `organization`), `output`, `flavors` (lista `[dev,prod]` o string `dev,prod`), `git` (bool). Tokens de flavor inválidos y claves desconocidas se ignoran (parseo defensivo, nunca lanza).
+- Comando: `vgv config init [--global] [--force]` (escribe template comentado; no pisa sin `--force`), `vgv config show` (presets efectivos). Ruteado como subcomando `config` en `vgv_cli.dart`; el fallback se aplica en `run()` (usa `wasParsed('no-git')` para no pisar el flag).
+- Verificado: `config init/show` + `--dry-run -n test_app` toma `org` del preset. 42 tests (incluye `test/vgv_config_test.dart`), `analyze` limpio.
+- **Futuro**: extender presets a fastlane/aiAgents (hoy son prompts interactivos en el controller).
+
+### 7. lefthook git hooks (✅ HECHO)
+Prompt opcional (platform-agnostic): "¿Add lefthook git hooks?". Genera `lefthook.yml` en la raíz del proyecto: `pre-commit` (`dart format --set-exit-if-changed {staged_files}` con `stage_fixed`, `dart analyze --fatal-infos`) + `pre-push` (`flutter test`). Tras crear, el CLI detecta `lefthook` e imprime cómo instalarlo (`brew install lefthook` / `dart pub global activate lefthook`) + `lefthook install` (no auto-instala). Código: `ProjectConfig.includeLefthook`, prompt `_getLefthookChoice` + `_reportLefthookTooling` en `cli_controller.dart`, `core/utils/lefthook_generator.dart`, llamado en `project_repository_impl.dart`.
+
+### 8. `vgv doctor` (✅ HECHO)
+Chequeo read-only del toolchain: **Core** (flutter/dart/git) + **Optional** por feature (python3+Pillow → screenshots, ruby+bundler → fastlane, lefthook → hooks, cocoapods en macOS → iOS/macOS). Imprime ✓/• + versión o hint de instalación. Sale 1 si falta Flutter. `vgv doctor` o `vgv --doctor`. Código: `core/utils/doctor_runner.dart`, ruteado en `vgv_cli.dart`. Verificado en la máquina del autor (detecta Flutter 3.44.8, Dart 3.12.2, Pillow 11.3.0, lefthook, cocoapods, etc.).
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Limpiar artefactos de build versionados en `templates/blocs/build/`.

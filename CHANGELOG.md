@@ -13,6 +13,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Merge pull request #68 from victorsdd01/develop
 
 ### Added
+- **`vgv doctor`** — checks the local toolchain (Flutter, Dart, git; and the
+  optional Python+Pillow, Ruby+bundler, lefthook, CocoaPods) and prints versions
+  with install hints for whatever's missing. Also available as `vgv --doctor`.
+- **Optional lefthook git hooks** (prompted): scaffolds `lefthook.yml` with a
+  `pre-commit` (dart format + `dart analyze --fatal-infos` on staged files) and
+  `pre-push` (`flutter test`). After creation the CLI detects `lefthook` and
+  prints how to install + `lefthook install` (no auto-install).
+- **Presets / config file** (`vgv.yaml` project-local, `~/.vgvrc` global): set
+  defaults for `org`, `output`, `flavors` and `git` so you stop re-typing flags.
+  Precedence: CLI flags > `vgv.yaml` > `~/.vgvrc`. `vgv config init [--global]`
+  scaffolds a commented file; `vgv config show` prints the effective presets.
+- **`vgv gen model <Name> --from <file.json>`** — generate a freezed data model
+  (with `fromJson`) plus a matching domain entity (with `fromJson` + `fromModel`)
+  from a sample JSON. Infers primitive types, marks JSON `null`s nullable, turns
+  nested objects into nested freezed classes, and arrays of objects into
+  `List<…>` of a generated element class (with recursive `fromModel` wiring).
+  `--feature <f>` places files under `lib/features/<f>/{data/models,domain/
+  entities}`; otherwise `lib/models/`.
+- **`vgv gen feature <name>`** — scaffold a full Clean Architecture feature
+  (domain/data/presentation) matching the vgv project conventions: relative
+  imports, `TStateless`/`TStateful` pages with `bodyWidget(context, theme, S)`,
+  a `HydratedBloc` + freezed bloc (status/success/error), `dartz` `Either`/
+  `Failure`, and `Injector` DI. Interactive prompts + flags (`--no-bloc`,
+  `--bloc-name`, `--no-page`, `--page-name`, `--stateful`, `--no-bloc-in-page`,
+  `-y/--yes`, `-f/--force`). Prints DI + route wiring next-steps. Modeled on the
+  author's `feature_structure` Mason brick.
+- **`vgv screenshots`** — generate App Store / Play Store marketing screenshots
+  with realistic device frames (iPhone, Android, iPad, MacBook, desktop),
+  gradient backgrounds + glow, and headlines (wrap words in `**asterisks**` to
+  paint them with the accent color). Three templates: `poster` (frame + text),
+  `hero` (app icon + tagline), `frame` (frame only), and `feature_graphic`
+  (Google Play 1024×500 banner: app icon + headline + tagline). Works on **any** Flutter
+  project — driven by a JSON manifest. `vgv screenshots --init [dir]` scaffolds a
+  ready-to-edit manifest + folders. Rendering uses Python 3 + Pillow (detected;
+  the CLI instructs how to install if missing — no auto-install). Default output
+  sizes are real store-accepted dimensions (iPhone 1290×2796, iPad 2048×2732,
+  Android 1080×1920, feature graphic 1024×500) and any item can override them
+  with `width`/`height` (or `size:[w,h]`) to hit an exact store spec; output is
+  RGB PNG (no alpha) as both stores require.
 - **Native flavors** (dev/staging/production): Android `productFlavors`
   (`build.gradle.kts`), iOS build configs + schemes + xcconfig (`pbxproj`),
   per-flavor bundle id, app name and entry points, flavor-aware VS Code

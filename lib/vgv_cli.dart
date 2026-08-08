@@ -5,7 +5,11 @@ import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/utils/ansi_colors.dart';
+import 'core/utils/doctor_runner.dart';
+import 'core/utils/gen_runner.dart';
+import 'core/utils/screenshot_runner.dart';
 import 'core/utils/version_checker.dart';
+import 'core/utils/vgv_config.dart';
 import 'domain/entities/project_config.dart';
 import 'presentation/controllers/cli_controller.dart';
 
@@ -89,6 +93,23 @@ class VgvCli {
   }
 
   Future<void> run(List<String> arguments) async {
+    // Subcommands (positional) are handled before flag parsing.
+    if (arguments.isNotEmpty && arguments.first == 'screenshots') {
+      final code = await ScreenshotRunner().run(arguments.sublist(1));
+      exit(code);
+    }
+    if (arguments.isNotEmpty && arguments.first == 'gen') {
+      final code = await GenRunner().run(arguments.sublist(1));
+      exit(code);
+    }
+    if (arguments.isNotEmpty && arguments.first == 'config') {
+      exit(_runConfig(arguments.sublist(1)));
+    }
+    if ((arguments.isNotEmpty && arguments.first == 'doctor') ||
+        arguments.contains('--doctor')) {
+      exit(await DoctorRunner().run());
+    }
+
     try {
       _argResults = _argParser.parse(arguments);
 
@@ -110,14 +131,21 @@ class VgvCli {
       // Check for updates when running normally
       await _checkForUpdates();
 
+      // Presets (vgv.yaml / ~/.vgvrc) fill in anything not passed as a flag.
+      final config = VgvConfig.load();
+
       // Handle quick mode or flags
       final projectName = _argResults['name'] as String?;
-      final organization = _argResults['org'] as String?;
-      final outputDir = _argResults['output'] as String?;
-      final noGit = _argResults['no-git'] as bool;
+      final organization = (_argResults['org'] as String?) ?? config.organization;
+      final outputDir = (_argResults['output'] as String?) ?? config.output;
+      var noGit = _argResults['no-git'] as bool;
+      if (!_argResults.wasParsed('no-git') && config.git == false) {
+        noGit = true;
+      }
       final dryRun = _argResults['dry-run'] as bool;
       final quickMode = _argResults['quick'] as bool;
-      final flavors = _parseFlavors(_argResults['flavors'] as String?);
+      final flavors =
+          _parseFlavors(_argResults['flavors'] as String?) ?? config.flavors;
 
       if (dryRun) {
         await _runDryRun(projectName, organization, outputDir);
@@ -358,6 +386,40 @@ class VgvCli {
     print('');
   }
 
+  /// Handles `vgv config <init|show>`.
+  int _runConfig(List<String> args) {
+    final sub = args.isNotEmpty ? args.first : 'show';
+    switch (sub) {
+      case 'init':
+        final global = args.contains('--global') || args.contains('-g');
+        final force = args.contains('--force') || args.contains('-f');
+        final target = global ? VgvConfig.globalPath : VgvConfig.projectPath;
+        if (File(target).existsSync() && !force) {
+          print('${AnsiColors.brightYellow}Config already exists:${AnsiColors.reset} $target');
+          print('${AnsiColors.dim}   Use --force to overwrite.${AnsiColors.reset}');
+          return 0;
+        }
+        VgvConfig.writeTemplate(global: global, force: force);
+        print('${AnsiColors.brightGreen}✓ Wrote presets:${AnsiColors.reset} $target');
+        print('${AnsiColors.dim}   Edit it, then just run: vgv${AnsiColors.reset}');
+        return 0;
+      case 'show':
+        final c = VgvConfig.load();
+        print('');
+        print('${AnsiColors.brightGreen}${AnsiColors.bold}Effective presets${AnsiColors.reset} ${AnsiColors.dim}(vgv.yaml over ~/.vgvrc):${AnsiColors.reset}');
+        print('  org:     ${c.organization ?? '${AnsiColors.dim}(unset)${AnsiColors.reset}'}');
+        print('  output:  ${c.output ?? '${AnsiColors.dim}(unset)${AnsiColors.reset}'}');
+        print('  flavors: ${c.flavors?.map((f) => f.flavorName).join(', ') ?? '${AnsiColors.dim}(default: all)${AnsiColors.reset}'}');
+        print('  git:     ${c.git ?? '${AnsiColors.dim}(default: true)${AnsiColors.reset}'}');
+        print('');
+        return 0;
+      default:
+        print('${AnsiColors.brightRed}Unknown:${AnsiColors.reset} config $sub');
+        print('${AnsiColors.dim}   Usage: vgv config init [--global] [--force] | vgv config show${AnsiColors.reset}');
+        return 1;
+    }
+  }
+
   void _printUsage() {
     print('');
     print('${AnsiColors.brightCyan}${AnsiColors.bold}╔══════════════════════════════════════════════════════════════╗${AnsiColors.reset}');
@@ -371,6 +433,13 @@ class VgvCli {
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}-q${AnsiColors.reset}                 ${AnsiColors.dim}Quick mode with defaults${AnsiColors.reset}');
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}-n${AnsiColors.reset} <name>          ${AnsiColors.dim}Create project with name${AnsiColors.reset}');
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}-n${AnsiColors.reset} <name> ${AnsiColors.brightCyan}--org${AnsiColors.reset} <org> ${AnsiColors.dim}With organization${AnsiColors.reset}');
+    print('');
+    print('${AnsiColors.brightGreen}${AnsiColors.bold}Commands:${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}gen feature${AnsiColors.reset} <name>  ${AnsiColors.dim}Scaffold a Clean Architecture feature${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots --init${AnsiColors.reset}   ${AnsiColors.dim}Scaffold a store-screenshots manifest${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots${AnsiColors.reset} <manifest> ${AnsiColors.dim}Render framed store screenshots${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}config init${AnsiColors.reset}          ${AnsiColors.dim}Write a presets file (vgv.yaml / ~/.vgvrc)${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}doctor${AnsiColors.reset}               ${AnsiColors.dim}Check your environment (Flutter, Python, …)${AnsiColors.reset}');
     print('');
     print('${AnsiColors.brightGreen}${AnsiColors.bold}Flags:${AnsiColors.reset}');
     print('  ${AnsiColors.brightCyan}-h, --help${AnsiColors.reset}                   ${AnsiColors.dim}Show this help message${AnsiColors.reset}');

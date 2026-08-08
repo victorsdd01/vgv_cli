@@ -2,6 +2,7 @@ import 'dart:io';
 
 import '../../core/utils/agent_rules_generator.dart';
 import '../../core/utils/fastlane_generator.dart';
+import '../../core/utils/lefthook_generator.dart';
 import '../../domain/entities/project_config.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../datasources/file_system_datasource.dart';
@@ -122,6 +123,9 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
     // Write AI-agent rules files (CLAUDE.md, .cursorrules, …) if requested.
     await const AgentRulesGenerator().generate(config);
+
+    // Scaffold lefthook git hooks (format/analyze on commit) if requested.
+    await const LefthookGenerator().generate(config);
 
     // Initialize git unless the user opted out with --no-git.
     if (!config.skipGitInit) {
