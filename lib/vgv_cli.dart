@@ -5,6 +5,7 @@ import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/utils/ansi_colors.dart';
+import 'core/utils/screenshot_runner.dart';
 import 'core/utils/version_checker.dart';
 import 'domain/entities/project_config.dart';
 import 'presentation/controllers/cli_controller.dart';
@@ -89,6 +90,12 @@ class VgvCli {
   }
 
   Future<void> run(List<String> arguments) async {
+    // Subcommands (positional) are handled before flag parsing.
+    if (arguments.isNotEmpty && arguments.first == 'screenshots') {
+      final code = await ScreenshotRunner().run(arguments.sublist(1));
+      exit(code);
+    }
+
     try {
       _argResults = _argParser.parse(arguments);
 
@@ -371,6 +378,10 @@ class VgvCli {
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}-q${AnsiColors.reset}                 ${AnsiColors.dim}Quick mode with defaults${AnsiColors.reset}');
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}-n${AnsiColors.reset} <name>          ${AnsiColors.dim}Create project with name${AnsiColors.reset}');
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}-n${AnsiColors.reset} <name> ${AnsiColors.brightCyan}--org${AnsiColors.reset} <org> ${AnsiColors.dim}With organization${AnsiColors.reset}');
+    print('');
+    print('${AnsiColors.brightGreen}${AnsiColors.bold}Commands:${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots --init${AnsiColors.reset}   ${AnsiColors.dim}Scaffold a store-screenshots manifest${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots${AnsiColors.reset} <manifest> ${AnsiColors.dim}Render framed store screenshots${AnsiColors.reset}');
     print('');
     print('${AnsiColors.brightGreen}${AnsiColors.bold}Flags:${AnsiColors.reset}');
     print('  ${AnsiColors.brightCyan}-h, --help${AnsiColors.reset}                   ${AnsiColors.dim}Show this help message${AnsiColors.reset}');

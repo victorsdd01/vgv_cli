@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`vgv screenshots`** — generate App Store / Play Store marketing screenshots
+  with realistic device frames (iPhone, Android, iPad, MacBook, desktop),
+  gradient backgrounds + glow, and headlines (wrap words in `**asterisks**` to
+  paint them with the accent color). Three templates: `poster` (frame + text),
+  `hero` (app icon + tagline), `frame` (frame only). Works on **any** Flutter
+  project — driven by a JSON manifest. `vgv screenshots --init [dir]` scaffolds a
+  ready-to-edit manifest + folders. Rendering uses Python 3 + Pillow (detected;
+  the CLI instructs how to install if missing — no auto-install).
 - **Native flavors** (dev/staging/production): Android `productFlavors`
   (`build.gradle.kts`), iOS build configs + schemes + xcconfig (`pbxproj`),
   per-flavor bundle id, app name and entry points, flavor-aware VS Code

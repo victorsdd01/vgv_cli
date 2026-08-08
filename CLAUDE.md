@@ -195,6 +195,19 @@ Prompt opcional en interactivo (solo si hay mobile): "¿Configurar Fastlane?". G
 ### 1.e Reglas para agentes de IA (✅ HECHO, 2026-08-08)
 Prompt: "¿Usás un agente de IA?" → si sí, multi-select de agentes → genera un archivo de reglas por agente (mismo contenido) con las convenciones del CLI: Clean Architecture, BLoC+freezed, `TStateless`/`TStatefull` (nada de `setState` — BLoC para estado compartido, `ValueNotifier` para local), freezed en modelos/entidades, intl_utils, GoRouter, get_it. Archivos: `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`, `GEMINI.md`, `.windsurfrules`, `AGENTS.md`. Código: enum `AiAgent` + `ProjectConfig.aiAgents` + `core/utils/agent_rules_generator.dart`.
 
+### 3. `vgv screenshots` — capturas para las stores (✅ motor + comando)
+Comando **standalone** que enmarca capturas crudas en imágenes de marketing tipo App Store / Play Store (frames realistas + fondo + texto, estilo appscreens.com). **Funciona en cualquier proyecto Flutter** (no solo los generados por el CLI); input = PNGs crudos + un `manifest.json`.
+
+- **Motor**: Python + **Pillow** (elegido sobre el paquete Dart `image` porque los fonts bitmap de `image` no renderizan acentos — á/ñ salían como huecos). Pillow usa TTF reales (`HelveticaNeue.ttc`/`Arial.ttf`) → acentos perfectos.
+- **Fuente única**: `tool/frame_screenshots.py`. Se embebe en `lib/core/templates/screenshot_script.dart` como **base64** (via `tool/generate_screenshot_script.dart`) para que el CLI instalado global pueda escribirlo a temp y correrlo. Regenerar: `dart run tool/generate_screenshot_script.dart`.
+- **Comando** (`lib/core/utils/screenshot_runner.dart`, ruteado en `vgv_cli.dart` como subcomando posicional antes del parseo de flags):
+  - `vgv screenshots --init [dir]` → scaffoldea `raw/`, `out/`, `manifest.json` + `README.md`.
+  - `vgv screenshots <manifest>` → detecta `python3` + Pillow (si faltan, **instruye** cómo instalar, no auto-instala), escribe el script a temp y renderiza.
+- **Devices**: `iphone` (Dynamic Island), `android` (hole-punch), `ipad`, `macbook`, `desktop` (traffic lights). **Templates**: `poster` (frame + texto), `hero` (ícono + tagline), `frame` (solo frame).
+- **Manifest**: lista de items `{device,type,src,out,headline,subtitle,accent,bg}`. En `headline`, envolver palabras en `**dobles asteriscos**` las pinta con `accent`.
+- Verificado end-to-end (`dart run bin/vgv.dart screenshots manifest.json` → 3 PNGs iPhone/Android con acentos, frames realistas, gradiente+glow). `analyze` limpio, 23 tests pasan.
+- Futuro (pedido del usuario): más templates/opciones y ligarlo a una web editora (en Flutter) para editar texto/fondo/plantilla.
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Limpiar artefactos de build versionados en `templates/blocs/build/`.
