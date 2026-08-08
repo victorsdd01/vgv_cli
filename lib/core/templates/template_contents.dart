@@ -1366,8 +1366,6 @@ class HomePage extends TStateless<AuthBloc> {
               offset: const Offset(0, 50),
               onSelected: (String value) {
                 switch (value) {
-                  case 'settings':
-                    context.push(Routes.settings);
                   case 'logout':
                     _showLogoutConfirmation(context);
                 }
@@ -1394,20 +1392,6 @@ class HomePage extends TStateless<AuthBloc> {
                   ),
                 ),
                 const PopupMenuDivider(),
-                PopupMenuItem<String>(
-                  value: 'settings',
-                  child: Row(
-                    children: <Widget>[
-                      Icon(
-                        Icons.settings,
-                        color: theme.colorScheme.onSurface,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(translation.settings),
-                    ],
-                  ),
-                ),
                 PopupMenuItem<String>(
                   value: 'logout',
                   child: Row(
@@ -3598,6 +3582,7 @@ class AppTheme {
 ''';
   static const String _application_routes_routes_dart = r'''import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../app_shell.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
@@ -3642,16 +3627,107 @@ class AppRoutes {
         path: Routes.register,
         builder: (BuildContext context, GoRouterState state) => const RegisterPage(),
       ),
-      GoRoute(
-        path: Routes.home,
-        builder: (BuildContext context, GoRouterState state) => const HomePage(),
-      ),
-      GoRoute(
-        path: Routes.settings,
-        builder: (BuildContext context, GoRouterState state) => const SettingsPage(),
+      StatefulShellRoute.indexedStack(
+        builder:
+            (BuildContext context, GoRouterState state, StatefulNavigationShell navigationShell) =>
+                AppShell(navigationShell: navigationShell),
+        branches: <StatefulShellBranch>[
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
+                path: Routes.home,
+                builder: (BuildContext context, GoRouterState state) => const HomePage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
+                path: Routes.settings,
+                builder: (BuildContext context, GoRouterState state) => const SettingsPage(),
+              ),
+            ],
+          ),
+        ],
       ),
     ],
   );
+}
+''';
+  static const String _application_app_shell_dart = r'''import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'generated/l10n.dart';
+
+/// Adaptive navigation shell: a NavigationRail on wide viewports (desktop, web,
+/// large tablets) and a NavigationBar on phones. Wraps the Home and Settings
+/// branches so switching between them keeps each branch's own state.
+class AppShell extends StatelessWidget {
+  const AppShell({super.key, required this.navigationShell});
+
+  final StatefulNavigationShell navigationShell;
+
+  static const double _wideBreakpoint = 800;
+
+  void _goBranch(int index) {
+    navigationShell.goBranch(
+      index,
+      initialLocation: index == navigationShell.currentIndex,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final S t = S.of(context);
+    final bool wide = MediaQuery.sizeOf(context).width >= _wideBreakpoint;
+
+    if (wide) {
+      return Scaffold(
+        body: Row(
+          children: <Widget>[
+            NavigationRail(
+              selectedIndex: navigationShell.currentIndex,
+              onDestinationSelected: _goBranch,
+              labelType: NavigationRailLabelType.all,
+              destinations: <NavigationRailDestination>[
+                NavigationRailDestination(
+                  icon: const Icon(Icons.home_outlined),
+                  selectedIcon: const Icon(Icons.home),
+                  label: Text(t.home),
+                ),
+                NavigationRailDestination(
+                  icon: const Icon(Icons.settings_outlined),
+                  selectedIcon: const Icon(Icons.settings),
+                  label: Text(t.settings),
+                ),
+              ],
+            ),
+            const VerticalDivider(width: 1),
+            Expanded(child: navigationShell),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      body: navigationShell,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: navigationShell.currentIndex,
+        onDestinationSelected: _goBranch,
+        destinations: <NavigationDestination>[
+          NavigationDestination(
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home),
+            label: t.home,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.settings_outlined),
+            selectedIcon: const Icon(Icons.settings),
+            label: t.settings,
+          ),
+        ],
+      ),
+    );
+  }
 }
 ''';
   static const String _main_staging_dart = r'''import 'application/config/config.dart';
@@ -3720,6 +3796,7 @@ void main() {
     'application/constants/assets.dart': _application_constants_assets_dart,
     'application/theme/app_colors.dart': _application_theme_app_colors_dart,
     'application/theme/theme.dart': _application_theme_theme_dart,
+    'application/app_shell.dart': _application_app_shell_dart,
     'application/routes/routes.dart': _application_routes_routes_dart,
     'main_staging.dart': _main_staging_dart,
   };

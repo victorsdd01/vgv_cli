@@ -105,6 +105,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TStateless/TStatefull, no `setState`, intl_utils, GoRouter).
 
 ### Changed
+- **Adaptive navigation shell** in the generated project: Home and Settings now
+  live under a `StatefulShellRoute` with an `AppShell` that shows a
+  `NavigationRail` on wide viewports (desktop/web/large tablets) and a
+  `NavigationBar` on phones — switching by available width, so it adapts as the
+  window resizes. (The Settings entry moved from the Home popup to a nav tab.)
 - **Responsive UI on desktop/web** in the generated project: a new
   `ResponsiveCenter` widget (`shared/widgets/`) constrains + centers content on
   wide viewports and fills the width on phones, adapting live as the window is
