@@ -209,6 +209,86 @@ class CliController {
   MobilePlatform _selectedMobilePlatform = MobilePlatform.both;
   CustomDesktopPlatforms? _selectedDesktopPlatforms;
 
+  /// Single-choice selector with arrow keys, drawn with **relative** cursor
+  /// movement (works in macOS Terminal.app, unlike mason_logger's chooseOne
+  /// which relies on save/restore cursor and stacks). Falls back to a numbered
+  /// prompt when there's no TTY. Returns the chosen index.
+  int _selectOne(String message, List<String> options, {int initialIndex = 0}) {
+    if (!stdin.hasTerminal) {
+      _logger.info(message);
+      for (var i = 0; i < options.length; i++) {
+        _logger.info('  ${i + 1}) ${options[i]}');
+      }
+      final answer =
+          _logger.prompt('  #:', defaultValue: '${initialIndex + 1}').trim();
+      final n = int.tryParse(answer);
+      return (n != null && n >= 1 && n <= options.length)
+          ? n - 1
+          : initialIndex;
+    }
+
+    var index = initialIndex;
+    final count = options.length;
+
+    void draw(bool first) {
+      if (!first) stdout.write('\x1B[${count + 1}A'); // up to the message line
+      stdout.write('\x1B[0J'); // clear from here to end of screen
+      stdout.writeln(message);
+      for (var i = 0; i < count; i++) {
+        final selected = i == index;
+        final pointer = selected ? green.wrap('❯')! : ' ';
+        final box = selected ? lightCyan.wrap('◉')! : '◯';
+        final label =
+            selected ? lightCyan.wrap(options[i])! : options[i];
+        stdout.writeln('$pointer $box  $label');
+      }
+    }
+
+    stdout.write('\x1B[?25l'); // hide cursor
+    stdin
+      ..echoMode = false
+      ..lineMode = false;
+    draw(true);
+    try {
+      var done = false;
+      while (!done) {
+        final b = stdin.readByteSync();
+        if (b == -1) break;
+        if (b == 0x1b) {
+          // Escape sequence: ESC [ A|B for arrow up/down.
+          if (stdin.readByteSync() == 0x5b) {
+            final c = stdin.readByteSync();
+            if (c == 0x41) {
+              index = (index - 1 + count) % count;
+            } else if (c == 0x42) {
+              index = (index + 1) % count;
+            }
+          }
+          draw(false);
+        } else if (b == 0x0a || b == 0x0d) {
+          // Enter → collapse the list to a single summary line.
+          stdout
+            ..write('\x1B[${count + 1}A')
+            ..write('\x1B[0J')
+            ..writeln('$message ${styleDim.wrap(lightCyan.wrap(options[index])!)!}');
+          done = true;
+        } else if (b == 0x6b) {
+          index = (index - 1 + count) % count;
+          draw(false);
+        } else if (b == 0x6a) {
+          index = (index + 1) % count;
+          draw(false);
+        }
+      }
+    } finally {
+      stdin
+        ..lineMode = true
+        ..echoMode = true;
+      stdout.write('\x1B[?25h'); // show cursor
+    }
+    return index;
+  }
+
   List<PlatformType> _getPlatforms() {
     const platformOptions = [
       'Mobile Only (Android & iOS)',
@@ -221,12 +301,10 @@ class CliController {
       'Custom Selection',
     ];
 
-    final selected = _logger.chooseOne(
+    final selection = _selectOne(
       '${lightCyan.wrap('?')} Select platforms',
-      choices: platformOptions,
-      defaultValue: platformOptions.first,
+      platformOptions,
     );
-    final selection = platformOptions.indexOf(selected);
 
     // Reset custom selections
     _selectedMobilePlatform = MobilePlatform.both;
