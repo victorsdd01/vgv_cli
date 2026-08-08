@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`vgv gen` runs build_runner for you**: `gen feature`, `gen bloc`, `gen model`
+  and `gen api` now run `dart run build_runner build -d` after generating (so the
+  `*.freezed.dart` / `*.g.dart` files are ready) — no manual step. Skip with
+  `--no-build-runner`.
 - **App icon set from a master** (prompted): point at a 1024×1024 image and the
   CLI copies it to `assets/icon/`, writes a `flutter_launcher_icons.yaml` for the
   selected platforms, adds the dev dependency, and tells you to run
