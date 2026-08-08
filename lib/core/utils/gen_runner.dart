@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
+import 'package:yaml/yaml.dart';
 
+import 'api_generator.dart';
 import 'feature_generator.dart';
 import 'model_generator.dart';
 import 'recase.dart';
@@ -34,6 +36,8 @@ class GenRunner {
         return _unit(rest, 'page');
       case 'usecase':
         return _unit(rest, 'usecase');
+      case 'api':
+        return _api(rest);
       default:
         _logger.err('Unknown subcommand: gen ${args.first}');
         _usage();
@@ -237,6 +241,87 @@ class GenRunner {
       }
     }
     return wired;
+  }
+
+  /// Handles `vgv gen api <Name> --from <openapi.json|yaml>`.
+  Future<int> _api(List<String> args) async {
+    final parser = ArgParser()
+      ..addOption('from', help: 'Path to an OpenAPI/Swagger spec (.json/.yaml).')
+      ..addOption('feature',
+          help: 'Place under lib/features/<f>/data (else lib/api/).')
+      ..addFlag('force', abbr: 'f', defaultsTo: false)
+      ..addFlag('yes', abbr: 'y', defaultsTo: false);
+
+    final ArgResults res;
+    try {
+      res = parser.parse(args);
+    } on FormatException catch (e) {
+      _logger.err(e.message);
+      return 1;
+    }
+
+    if (!File('pubspec.yaml').existsSync()) {
+      _logger.err('No pubspec.yaml here — run this from a Flutter project root.');
+      return 1;
+    }
+
+    final ask = _interactive && !(res['yes'] as bool);
+    var name = res.rest.isNotEmpty ? res.rest.first : null;
+    name ??= ask ? _logger.prompt('API name (e.g. Store, Petshop):') : null;
+    if (name == null || name.trim().isEmpty) {
+      _logger.err('A name is required: vgv gen api <Name> --from <spec>');
+      return 1;
+    }
+
+    var fromPath = res['from'] as String?;
+    fromPath ??= ask ? _logger.prompt('Path to the OpenAPI/Swagger spec:') : null;
+    if (fromPath == null || !File(fromPath).existsSync()) {
+      _logger.err('Spec not found: ${fromPath ?? '(none)'} — pass --from <spec>');
+      return 1;
+    }
+
+    final Object? decoded;
+    try {
+      final raw = File(fromPath).readAsStringSync();
+      decoded = fromPath.endsWith('.json') ? jsonDecode(raw) : loadYaml(raw);
+    } on FormatException catch (e) {
+      _logger.err('Could not parse $fromPath: ${e.message}');
+      return 1;
+    }
+    if (decoded is! Map) {
+      _logger.err('The spec must be a map (OpenAPI/Swagger document).');
+      return 1;
+    }
+
+    final files = ApiGenerator()
+        .build(name: name, spec: decoded, feature: res['feature'] as String?);
+
+    final existing = files.keys.where((p) => File(p).existsSync()).toList();
+    if (existing.isNotEmpty && !(res['force'] as bool)) {
+      _logger.err('These files already exist (use --force to overwrite):');
+      for (final e in existing) {
+        _logger.err('  $e');
+      }
+      return 1;
+    }
+    for (final entry in files.entries) {
+      (File(entry.key)..parent.createSync(recursive: true))
+          .writeAsStringSync(entry.value);
+    }
+
+    _logger
+      ..info('')
+      ..info(green.wrap('  ✓ API "$name" generated:')!);
+    for (final p in files.keys.toList()..sort()) {
+      _logger.info('    ${styleDim.wrap(p)}');
+    }
+    _logger
+      ..info('')
+      ..info('  ${styleDim.wrap('Models use freezed — run build_runner:')}')
+      ..info('       ${lightCyan.wrap('dart run build_runner build --delete-conflicting-outputs')}')
+      ..info('  ${styleDim.wrap('Then implement the stubbed methods in the generated *_api.dart.')}')
+      ..info('');
+    return 0;
   }
 
   /// Handles `vgv gen bloc|page|usecase <name> --feature <f>`.
@@ -488,6 +573,7 @@ class GenRunner {
       ..info('  ${lightCyan.wrap('vgv gen bloc <Name> --feature <f>')}  ${styleDim.wrap('a HydratedBloc + freezed (bloc/event/state)')}')
       ..info('  ${lightCyan.wrap('vgv gen page <Name> --feature <f>')}  ${styleDim.wrap('a TStateless/TStateful page (--stateful, --bloc)')}')
       ..info('  ${lightCyan.wrap('vgv gen usecase <feature>')}          ${styleDim.wrap('domain repository interface + use cases')}')
+      ..info('  ${lightCyan.wrap('vgv gen api <Name> --from api.yaml')} ${styleDim.wrap('freezed models + API client from an OpenAPI spec')}')
       ..info('')
       ..info(styleDim.wrap('  Options for feature:'))
       ..info('    ${lightCyan.wrap('--no-bloc')}              ${styleDim.wrap('skip the Bloc')}')

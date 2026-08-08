@@ -35,6 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `List<…>` of a generated element class (with recursive `fromModel` wiring).
   `--feature <f>` places files under `lib/features/<f>/{data/models,domain/
   entities}`; otherwise `lib/models/`.
+- **`vgv gen api <Name> --from <spec>`** — generate freezed models + a typed
+  API client from an OpenAPI 3 / Swagger 2 spec (JSON or YAML). Maps
+  `components.schemas`/`definitions` to freezed models (required vs nullable,
+  `$ref`, arrays, `date-time`→`DateTime`, snake keys get `@JsonKey`), and each
+  operation in `paths` to a client method whose return type is resolved from the
+  2xx JSON schema (bodies are stubbed for you to wire your HTTP layer).
 - **`vgv gen bloc|page|usecase`** — sub-generators for single units into an
   existing feature: `gen bloc <Name> --feature <f>` (HydratedBloc + freezed
   trio), `gen page <Name> --feature <f>` (`--stateful`, `--bloc <B>` to wire
