@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   upload a screenshot (or pick from `--raw <dir>`). "Save to project" posts the
   PNG back and the CLI writes it to `out/`. The manifest/Python path stays for
   CI/headless.
+- **Real device frames in the editor** (Device frame → Image): load any device
+  frame PNG that has a transparent screen (e.g. Apple Product Bezels or Google
+  Device Art) and the editor auto-detects the screen cut-out and composites your
+  screenshot inside it. Nothing copyrighted is bundled — you supply the frame
+  (its license is between you and the provider); the built-in frames stay
+  code-drawn.
 - **`vgv gen` runs build_runner for you**: `gen feature`, `gen bloc`, `gen model`
   and `gen api` now run `dart run build_runner build -d` after generating (so the
   `*.freezed.dart` / `*.g.dart` files are ready) — no manual step. Skip with

@@ -75,6 +75,13 @@
     </div>
 
     <div class="group">
+      <label>Device frame</label>
+      <div class="chips" id="frameModes"></div>
+      <button class="file" id="pickFrame" style="margin-top:8px; display:none">Load frame PNG…</button>
+      <div class="hint" id="frameHint">“Image” lets you drop a real device frame (transparent screen) — e.g. Apple Product Bezels or Google Device Art.</div>
+    </div>
+
+    <div class="group">
       <label>Screenshot</label>
       <button class="file" id="pickShot">Upload screenshot…</button>
       <div class="thumbs" id="rawThumbs" style="margin-top:8px"></div>
@@ -146,6 +153,9 @@ const state = {
   bgImage: null,     // HTMLImageElement or null
   shot: null,        // HTMLImageElement or null
   dragX: 0, dragY: 0,
+  frameMode: "code", // "code" (drawn) | "real" (image)
+  frameImg: null,    // HTMLImageElement of a device frame (transparent screen)
+  frameScreen: null, // [x0,y0,x1,y1] fractions of the screen hole within the frame
 };
 
 const canvas = document.getElementById("c");
@@ -159,6 +169,30 @@ function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w
 function drawCover(img,x,y,w,h){ const ir=img.width/img.height, tr=w/h; let sw,sh,sx,sy;
   if(ir>tr){ sh=img.height; sw=sh*tr; sx=(img.width-sw)/2; sy=0; } else { sw=img.width; sh=sw/tr; sx=0; sy=(img.height-sh)/2; }
   ctx.drawImage(img, sx,sy,sw,sh, x,y,w,h); }
+
+// Detect the transparent "screen" hole inside a device frame image: flood-fill
+// transparency from the borders (that's the outer margin); the transparent
+// pixels NOT reached are the enclosed screen. Returns [x0,y0,x1,y1] fractions
+// or null if the frame has no see-through screen.
+function detectFrameScreen(img){
+  const MAX=320; const s=Math.min(1, MAX/Math.max(img.width,img.height));
+  const w=Math.max(1,Math.round(img.width*s)), h=Math.max(1,Math.round(img.height*s));
+  const oc=document.createElement('canvas'); oc.width=w; oc.height=h;
+  const octx=oc.getContext('2d'); octx.drawImage(img,0,0,w,h);
+  const data=octx.getImageData(0,0,w,h).data;
+  const A=i=>data[i*4+3];
+  const outer=new Uint8Array(w*h); const st=[];
+  const push=(x,y)=>{ const i=y*w+x; if(!outer[i] && A(i)<=10){ outer[i]=1; st.push(i); } };
+  for(let x=0;x<w;x++){ push(x,0); push(x,h-1); }
+  for(let y=0;y<h;y++){ push(0,y); push(w-1,y); }
+  while(st.length){ const i=st.pop(); const x=i%w, y=(i/w)|0;
+    if(x+1<w) push(x+1,y); if(x-1>=0) push(x-1,y); if(y+1<h) push(x,y+1); if(y-1>=0) push(x,y-1); }
+  let minx=1e9,miny=1e9,maxx=-1,maxy=-1,cnt=0;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const i=y*w+x; if(A(i)<=10 && !outer[i]){ cnt++;
+    if(x<minx)minx=x; if(y<miny)miny=y; if(x>maxx)maxx=x; if(y>maxy)maxy=y; } }
+  if(cnt < (w*h*0.01)) return null; // no meaningful enclosed hole
+  return [minx/w, miny/h, (maxx+1)/w, (maxy+1)/h];
+}
 
 function background(W,H,accent,bgHex,bgImg,glowY){
   if (bgImg){ drawCover(bgImg,0,0,W,H); const g=ctx.createLinearGradient(0,0,0,H);
@@ -237,6 +271,29 @@ function render(){
 
   // poster / frame
   const isFrame = state.template==='frame';
+
+  // Real device-frame image (transparent screen) → composite screenshot in.
+  if (state.frameMode==='real' && state.frameImg){
+    const fAsp = state.frameImg.width/state.frameImg.height;
+    let fw = W*(isFrame?0.9:0.86), fh = fw/fAsp;
+    const maxH = isFrame ? H*0.94 : H*0.82;
+    if (fh>maxH){ fh=maxH; fw=fh*fAsp; }
+    const fx=(W-fw)/2 + state.dragX;
+    const fy=(isFrame ? (H-fh)/2 : (H-fh + H*0.02)) + state.dragY;
+    background(W,H,state.accent,state.bg,state.bgImage, fy + fh/3);
+    if(!isFrame){
+      const ey=drawHeadline(state.headline, Math.round(H*0.055), state.accent, W*0.86, Math.round(W*0.072), W);
+      drawSubtitle(state.subtitle, ey+Math.round(H*0.012), Math.round(W*0.038), W*0.8, W);
+    }
+    if(state.shot && state.frameScreen){
+      const [x0,y0,x1,y1]=state.frameScreen;
+      const rx=fx+x0*fw, ry=fy+y0*fh, rw=(x1-x0)*fw, rh=(y1-y0)*fh;
+      ctx.save(); roundRect(rx,ry,rw,rh, Math.min(rw,rh)*0.06); ctx.clip(); drawCover(state.shot,rx,ry,rw,rh); ctx.restore();
+    }
+    ctx.drawImage(state.frameImg, fx,fy,fw,fh);
+    return;
+  }
+
   const sw = W * (isFrame ? 0.82 : 0.72);
   const sh = sw * (dev.h/dev.w);
   const dx = (W-sw)/2 + state.dragX;
@@ -260,6 +317,12 @@ function refreshChips(){
   chip(document.getElementById('devices'), Object.keys(DEVICES), state.device, d=>{ state.device=d; refreshChips(); render(); }, d=>DEVICES[d].label);
   chip(document.getElementById('presets'), Object.keys(PRESETS), null, name=>{ const p=PRESETS[name]; state.accent=p.accent; state.bg=p.bg; state.bgImage=null;
     document.getElementById('accent').value=p.accent; document.getElementById('bg').value=p.bg; render(); });
+  const modeLabel = state.frameMode==='code' ? 'Drawn' : 'Image';
+  chip(document.getElementById('frameModes'), ['Drawn','Image'], modeLabel, label=>{
+    state.frameMode = label==='Image' ? 'real' : 'code';
+    document.getElementById('pickFrame').style.display = state.frameMode==='real' ? 'flex' : 'none';
+    refreshChips(); render();
+  });
 }
 function loadImage(file, cb){ const img=new Image(); img.onload=()=>cb(img); img.src=URL.createObjectURL(file); }
 function pick(cb){ const i=document.createElement('input'); i.type='file'; i.accept='image/*'; i.onchange=()=>{ if(i.files[0]) loadImage(i.files[0], cb); }; i.click(); }
@@ -270,6 +333,14 @@ document.getElementById('subtitle').oninput=e=>{ state.subtitle=e.target.value; 
 document.getElementById('accent').oninput=e=>{ state.accent=e.target.value; render(); };
 document.getElementById('bg').oninput=e=>{ state.bg=e.target.value; state.bgImage=null; render(); };
 document.getElementById('pickShot').onclick=()=>pick(img=>{ state.shot=img; render(); });
+document.getElementById('pickFrame').onclick=()=>pick(img=>{
+  const rect=detectFrameScreen(img);
+  state.frameImg=img; state.frameScreen=rect;
+  document.getElementById('frameHint').textContent = rect
+    ? 'Frame loaded — screen detected. Your screenshot composites inside it.'
+    : 'Loaded, but no transparent screen detected. Use a frame PNG with a see-through screen (e.g. Apple Product Bezels).';
+  render();
+});
 document.getElementById('pickBg').onclick=()=>pick(img=>{ state.bgImage=img; render(); });
 document.getElementById('clearBg').onclick=()=>{ state.bgImage=null; render(); };
 
