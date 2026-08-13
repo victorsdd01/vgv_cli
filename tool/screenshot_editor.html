@@ -77,8 +77,9 @@
     <div class="group">
       <label>Device frame</label>
       <div class="chips" id="frameModes"></div>
+      <div class="thumbs" id="frameThumbs" style="margin-top:8px; display:none"></div>
       <button class="file" id="pickFrame" style="margin-top:8px; display:none">Load frame PNG…</button>
-      <div class="hint" id="frameHint">“Image” lets you drop a real device frame (transparent screen) — e.g. Apple Product Bezels or Google Device Art.</div>
+      <div class="hint" id="frameHint">“Image” lets you drop a real device frame (transparent screen) — e.g. Apple Product Bezels or Google Device Art. Pass <code>--frames &lt;dir&gt;</code> to list your own.</div>
     </div>
 
     <div class="group">
@@ -320,7 +321,9 @@ function refreshChips(){
   const modeLabel = state.frameMode==='code' ? 'Drawn' : 'Image';
   chip(document.getElementById('frameModes'), ['Drawn','Image'], modeLabel, label=>{
     state.frameMode = label==='Image' ? 'real' : 'code';
-    document.getElementById('pickFrame').style.display = state.frameMode==='real' ? 'flex' : 'none';
+    const show = state.frameMode==='real';
+    document.getElementById('pickFrame').style.display = show ? 'flex' : 'none';
+    document.getElementById('frameThumbs').style.display = show ? 'grid' : 'none';
     refreshChips(); render();
   });
 }
@@ -333,14 +336,29 @@ document.getElementById('subtitle').oninput=e=>{ state.subtitle=e.target.value; 
 document.getElementById('accent').oninput=e=>{ state.accent=e.target.value; render(); };
 document.getElementById('bg').oninput=e=>{ state.bg=e.target.value; state.bgImage=null; render(); };
 document.getElementById('pickShot').onclick=()=>pick(img=>{ state.shot=img; render(); });
-document.getElementById('pickFrame').onclick=()=>pick(img=>{
+function useFrame(img){
   const rect=detectFrameScreen(img);
-  state.frameImg=img; state.frameScreen=rect;
+  state.frameMode='real'; state.frameImg=img; state.frameScreen=rect;
   document.getElementById('frameHint').textContent = rect
     ? 'Frame loaded — screen detected. Your screenshot composites inside it.'
     : 'Loaded, but no transparent screen detected. Use a frame PNG with a see-through screen (e.g. Apple Product Bezels).';
   render();
-});
+}
+document.getElementById('pickFrame').onclick=()=>pick(useFrame);
+
+// Real device frames served by the CLI (--frames <dir>).
+async function loadFrames(){
+  try {
+    const res=await fetch('/api/frames'); const j=await res.json();
+    const box=document.getElementById('frameThumbs');
+    if(!j.images || !j.images.length) return;
+    for(const fr of j.images){ const d=document.createElement('div'); d.className='thumb';
+      const img=document.createElement('img'); img.src=fr.url; img.style.objectFit='contain'; d.appendChild(img);
+      d.title=fr.name;
+      d.onclick=()=>{ const full=new Image(); full.onload=()=>useFrame(full); full.src=fr.url; };
+      box.appendChild(d); }
+  } catch(e){ /* no --frames */ }
+}
 document.getElementById('pickBg').onclick=()=>pick(img=>{ state.bgImage=img; render(); });
 document.getElementById('clearBg').onclick=()=>{ state.bgImage=null; render(); };
 
@@ -377,7 +395,7 @@ async function loadRaw(){
   } catch(e){ /* no server / no raw */ }
 }
 
-refreshChips(); loadRaw(); render();
+refreshChips(); loadRaw(); loadFrames(); render();
 </script>
 </body>
 </html>

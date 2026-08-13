@@ -21,7 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Device Art) and the editor auto-detects the screen cut-out and composites your
   screenshot inside it. Nothing copyrighted is bundled — you supply the frame
   (its license is between you and the provider); the built-in frames stay
-  code-drawn.
+  code-drawn. Pass `vgv screenshots web --frames <dir>` to list your own local
+  frame collection as pickable thumbnails (they live only on your machine, never
+  in the published package).
 - **`vgv gen` runs build_runner for you**: `gen feature`, `gen bloc`, `gen model`
   and `gen api` now run `dart run build_runner build -d` after generating (so the
   `*.freezed.dart` / `*.g.dart` files are ready) — no manual step. Skip with

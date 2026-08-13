@@ -280,7 +280,7 @@ Requires Python 3 + Pillow (`python3 -m pip install --user pillow`).
       ..info('')
       ..info(styleBold.wrap('  vgv screenshots — store marketing screenshots'))
       ..info('')
-      ..info('  ${lightCyan.wrap('vgv screenshots web [--raw dir]')}     ${styleDim.wrap('open the visual editor (browser, no Python)')}')
+      ..info('  ${lightCyan.wrap('vgv screenshots web [--raw d] [--frames d]')} ${styleDim.wrap('visual editor (browser, no Python)')}')
       ..info('  ${lightCyan.wrap('vgv screenshots --init [dir]')}       ${styleDim.wrap('scaffold a manifest + folders')}')
       ..info('  ${lightCyan.wrap('vgv screenshots <manifest>')}         ${styleDim.wrap('render framed posters from a manifest')}')
       ..info('  ${lightCyan.wrap('vgv screenshots capture --init')}     ${styleDim.wrap('scaffold a golden harness to auto-capture raw screens')}')

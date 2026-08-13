@@ -20,6 +20,9 @@ class ScreenshotWebServer {
       ..addOption('raw', help: 'Folder of raw screenshots to pick from.')
       ..addOption('out', help: 'Folder to save framed PNGs (default: out).')
       ..addOption('port', help: 'Port (default: an open one).')
+      ..addOption('frames',
+          help: 'Folder of device-frame PNGs (transparent screen) to offer as '
+              'real frames — e.g. Apple Product Bezels you downloaded locally.')
       ..addFlag('open', defaultsTo: true, help: 'Open the browser automatically.');
 
     final ArgResults res;
@@ -31,6 +34,7 @@ class ScreenshotWebServer {
     }
 
     final rawDir = res['raw'] as String?;
+    final framesDir = res['frames'] as String?;
     final outDir = (res['out'] as String?) ?? 'out';
     Directory(outDir).createSync(recursive: true);
 
@@ -57,7 +61,7 @@ class ScreenshotWebServer {
 
     await for (final request in server) {
       try {
-        await _handle(request, html, rawDir, outDir);
+        await _handle(request, html, rawDir, framesDir, outDir);
       } catch (_) {
         try {
           request.response.statusCode = HttpStatus.internalServerError;
@@ -72,6 +76,7 @@ class ScreenshotWebServer {
     HttpRequest req,
     String html,
     String? rawDir,
+    String? framesDir,
     String outDir,
   ) async {
     final res = req.response;
@@ -84,13 +89,15 @@ class ScreenshotWebServer {
       return;
     }
 
-    if (path == '/api/raw') {
+    if (path == '/api/raw' || path == '/api/frames') {
+      final dir = path == '/api/raw' ? rawDir : framesDir;
+      final prefix = path == '/api/raw' ? '/raw' : '/frames';
       final images = <Map<String, String>>[];
-      if (rawDir != null && Directory(rawDir).existsSync()) {
-        for (final f in Directory(rawDir).listSync().whereType<File>()) {
+      if (dir != null && Directory(dir).existsSync()) {
+        for (final f in Directory(dir).listSync().whereType<File>()) {
           final name = p.basename(f.path);
           if (RegExp(r'\.(png|jpg|jpeg)$', caseSensitive: false).hasMatch(name)) {
-            images.add(<String, String>{'name': name, 'url': '/raw/$name'});
+            images.add(<String, String>{'name': name, 'url': '$prefix/$name'});
           }
         }
       }
@@ -100,8 +107,10 @@ class ScreenshotWebServer {
       return;
     }
 
-    if (path.startsWith('/raw/') && rawDir != null) {
-      final file = File(p.join(rawDir, p.basename(path)));
+    if ((path.startsWith('/raw/') && rawDir != null) ||
+        (path.startsWith('/frames/') && framesDir != null)) {
+      final dir = path.startsWith('/raw/') ? rawDir! : framesDir!;
+      final file = File(p.join(dir, p.basename(path)));
       if (file.existsSync()) {
         res.headers.contentType = ContentType('image', 'png');
         await res.addStream(file.openRead());
