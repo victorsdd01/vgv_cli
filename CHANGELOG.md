@@ -123,6 +123,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TStateless/TStatefull, no `setState`, intl_utils, GoRouter).
 
 ### Changed
+- **Interactive wizard: review & edit before creating.** After the summary you
+  now choose Create / Change something / Cancel, and "Change something" lets you
+  jump back to any field (name, org, platforms, flavors, colors, …) and re-answer
+  — no more restarting the whole flow to fix one choice.
 - **Adaptive navigation shell** in the generated project: Home and Settings now
   live under a `StatefulShellRoute` with an `AppShell` that shows a
   `NavigationRail` on wide viewports (desktop/web/large tablets) and a
@@ -141,6 +145,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   via `tool/generate_version.dart`); "latest" reads the `main` `pubspec.yaml`.
 
 ### Fixed
+- **All multi-select prompts** (flavors, AI agents, custom platforms) no longer
+  stack on each keypress in macOS Terminal.app — replaced mason_logger's
+  `chooseAny` (save/restore-cursor) with a selector that redraws using relative
+  cursor movement (matching the earlier single-select fix). Arrow keys, j/k, and
+  space-to-toggle; numbered fallback with no TTY.
 - `-o/--output` and `--no-git` are now honored (+ `git init`); `--org/-o/--no-git`
   are respected even when falling back to interactive mode.
 - `addDependencies` no longer places the Flutter SDK and `cupertino_icons`

@@ -19,52 +19,96 @@ class CliController {
   }) async {
     _printWelcomeMessage();
 
-    final projectName = _getProjectName();
-    final org = _getOrganization(projectName, organization);
-    final platforms = _getPlatforms();
+    var projectName = _getProjectName();
+    var org = _getOrganization(projectName, organization);
+    var platforms = _getPlatforms();
     // If flavors were passed via --flavors, honor them and skip the prompt.
-    final selectedFlavors = flavors ?? _getFlavors();
-    final includeFastlane = _getFastlaneChoice(platforms);
-    final includeLefthook = _getLefthookChoice();
-    final seedColorHex = _getSeedColor();
-    final iconMasterPath = _getIconMaster();
-    final includeSplash = _getSplashChoice();
-    final desktopWindow = _getDesktopWindowChoice(platforms);
-    final aiAgents = _getAiAgents();
-    final includeLinterRules = _getLinterRulesChoice();
+    var selectedFlavors = flavors ?? _getFlavors();
+    var includeFastlane = _getFastlaneChoice(platforms);
+    var includeLefthook = _getLefthookChoice();
+    var seedColorHex = _getSeedColor();
+    var iconMasterPath = _getIconMaster();
+    var includeSplash = _getSplashChoice();
+    var desktopWindow = _getDesktopWindowChoice(platforms);
+    var aiAgents = _getAiAgents();
+    var includeLinterRules = _getLinterRulesChoice();
 
-    final config = ProjectConfig(
-      projectName: projectName,
-      organizationName: org,
-      platforms: platforms,
-      stateManagement: StateManagementType.bloc,
-      architecture: ArchitectureType.cleanArchitecture,
-      includeGoRouter: true,
-      includeLinterRules: includeLinterRules,
-      includeFreezed: true,
-      mobilePlatform: _selectedMobilePlatform,
-      desktopPlatform: _selectedDesktopPlatforms != null
-          ? DesktopPlatform.custom
-          : DesktopPlatform.all,
-      customDesktopPlatforms: _selectedDesktopPlatforms,
-      outputDirectory: outputDir,
-      skipGitInit: noGit,
-      flavors: selectedFlavors,
-      includeFastlane: includeFastlane,
-      includeLefthook: includeLefthook,
-      seedColorHex: seedColorHex,
-      iconMasterPath: iconMasterPath,
-      includeSplash: includeSplash,
-      desktopWindow: desktopWindow,
-      aiAgents: aiAgents,
-    );
+    ProjectConfig buildConfig() => ProjectConfig(
+          projectName: projectName,
+          organizationName: org,
+          platforms: platforms,
+          stateManagement: StateManagementType.bloc,
+          architecture: ArchitectureType.cleanArchitecture,
+          includeGoRouter: true,
+          includeLinterRules: includeLinterRules,
+          includeFreezed: true,
+          mobilePlatform: _selectedMobilePlatform,
+          desktopPlatform: _selectedDesktopPlatforms != null
+              ? DesktopPlatform.custom
+              : DesktopPlatform.all,
+          customDesktopPlatforms: _selectedDesktopPlatforms,
+          outputDirectory: outputDir,
+          skipGitInit: noGit,
+          flavors: selectedFlavors,
+          includeFastlane: includeFastlane,
+          includeLefthook: includeLefthook,
+          seedColorHex: seedColorHex,
+          iconMasterPath: iconMasterPath,
+          includeSplash: includeSplash,
+          desktopWindow: desktopWindow,
+          aiAgents: aiAgents,
+        );
 
-    _printConfigurationSummary(config);
+    // Review loop: create, change any field, or cancel.
+    while (true) {
+      _printConfigurationSummary(buildConfig());
+      final action = _selectOne(
+        '${lightCyan.wrap('?')} Ready?',
+        <String>['Create it', 'Change something', 'Cancel'],
+      );
+      if (action == 0) {
+        await _createProject(buildConfig());
+        return;
+      }
+      if (action == 2) {
+        _printCancelledMessage();
+        return;
+      }
 
-    if (_confirmConfiguration()) {
-      await _createProject(config);
-    } else {
-      _printCancelledMessage();
+      const fields = <String>[
+        'Project name', 'Organization', 'Platforms', 'Flavors', 'Fastlane',
+        'Lefthook', 'Brand color', 'App icon', 'Splash', 'Desktop window',
+        'AI agents', 'Linter rules', '← Back',
+      ];
+      final f = _selectOne('${lightCyan.wrap('?')} What do you want to change?', fields);
+      switch (f) {
+        case 0:
+          projectName = _getProjectName();
+        case 1:
+          org = _getOrganization(projectName, null);
+        case 2:
+          platforms = _getPlatforms();
+        case 3:
+          selectedFlavors = _getFlavors();
+        case 4:
+          includeFastlane = _getFastlaneChoice(platforms);
+        case 5:
+          includeLefthook = _getLefthookChoice();
+        case 6:
+          seedColorHex = _getSeedColor();
+        case 7:
+          iconMasterPath = _getIconMaster();
+        case 8:
+          includeSplash = _getSplashChoice();
+        case 9:
+          desktopWindow = _getDesktopWindowChoice(platforms);
+        case 10:
+          aiAgents = _getAiAgents();
+        case 11:
+          includeLinterRules = _getLinterRulesChoice();
+        default:
+          break; // ← Back: just re-show the summary
+      }
     }
   }
 
@@ -289,6 +333,91 @@ class CliController {
     return index;
   }
 
+  /// Multi-choice selector (arrows/j/k to move, space to toggle, enter to
+  /// confirm), drawn with relative cursor movement so it doesn't stack in
+  /// macOS Terminal.app (mason_logger's chooseAny does). Numbered fallback with
+  /// no TTY. Returns the selected indices in ascending order.
+  List<int> _selectMany(String message, List<String> options, {Set<int>? initial}) {
+    final selected = <int>{...?initial};
+    if (!stdin.hasTerminal) {
+      _logger.info(message);
+      for (var i = 0; i < options.length; i++) {
+        _logger.info('  ${i + 1}) ${selected.contains(i) ? '◉' : '◯'} ${options[i]}');
+      }
+      final def = (selected.toList()..sort()).map((i) => i + 1).join(',');
+      final answer =
+          _logger.prompt('  # (comma-separated):', defaultValue: def).trim();
+      final out = <int>{};
+      for (final tok in answer.split(',')) {
+        final n = int.tryParse(tok.trim());
+        if (n != null && n >= 1 && n <= options.length) out.add(n - 1);
+      }
+      return out.toList()..sort();
+    }
+
+    var cursor = 0;
+    final count = options.length;
+
+    void draw(bool first) {
+      if (!first) stdout.write('\x1B[${count + 1}A');
+      stdout.write('\x1B[0J');
+      stdout.writeln(message);
+      for (var i = 0; i < count; i++) {
+        final isCur = i == cursor;
+        final box = selected.contains(i) ? lightCyan.wrap('◉')! : '◯';
+        final pointer = isCur ? green.wrap('❯')! : ' ';
+        final label = isCur ? lightCyan.wrap(options[i])! : options[i];
+        stdout.writeln('$pointer $box  $label');
+      }
+    }
+
+    stdout.write('\x1B[?25l');
+    stdin
+      ..echoMode = false
+      ..lineMode = false;
+    draw(true);
+    try {
+      var done = false;
+      while (!done) {
+        final b = stdin.readByteSync();
+        if (b == -1) break;
+        if (b == 0x1b) {
+          if (stdin.readByteSync() == 0x5b) {
+            final c = stdin.readByteSync();
+            if (c == 0x41) {
+              cursor = (cursor - 1 + count) % count;
+            } else if (c == 0x42) {
+              cursor = (cursor + 1) % count;
+            }
+          }
+          draw(false);
+        } else if (b == 0x20) {
+          selected.contains(cursor) ? selected.remove(cursor) : selected.add(cursor);
+          draw(false);
+        } else if (b == 0x0a || b == 0x0d) {
+          final chosen = (selected.toList()..sort()).map((i) => options[i]).join(', ');
+          stdout
+            ..write('\x1B[${count + 1}A')
+            ..write('\x1B[0J')
+            ..writeln('$message ${styleDim.wrap(lightCyan.wrap(chosen.isEmpty ? '(none)' : chosen)!)!}');
+          done = true;
+        } else if (b == 0x6b) {
+          cursor = (cursor - 1 + count) % count;
+          draw(false);
+        } else if (b == 0x6a) {
+          cursor = (cursor + 1) % count;
+          draw(false);
+        }
+      }
+    } finally {
+      stdin
+        ..lineMode = true
+        ..echoMode = true;
+      stdout.write('\x1B[?25h');
+    }
+    return selected.toList()..sort();
+  }
+
   List<PlatformType> _getPlatforms() {
     const platformOptions = [
       'Mobile Only (Android & iOS)',
@@ -341,12 +470,13 @@ class CliController {
     const linux = 'Linux';
     const platformOptions = [android, ios, web, windows, macos, linux];
 
-    final selections = _logger.chooseAny(
+    final idx = _selectMany(
       '${lightCyan.wrap('?')} Select platforms '
       '${styleDim.wrap('(space to toggle, enter to confirm)')}',
-      choices: platformOptions,
-      defaultValues: const [android, ios],
+      platformOptions,
+      initial: {0, 1}, // Android, iOS
     );
+    final selections = idx.map((i) => platformOptions[i]).toList();
 
     final platforms = <PlatformType>[];
 
@@ -394,13 +524,13 @@ class CliController {
   }
 
   List<Flavor> _getFlavors() {
-    final selected = _logger.chooseAny<Flavor>(
+    final idx = _selectMany(
       '${lightCyan.wrap('?')} Which flavors do you want to generate? '
       '${styleDim.wrap('(space to toggle, enter to confirm)')}',
-      choices: Flavor.values,
-      defaultValues: Flavor.values,
-      display: (flavor) => flavor.displayName,
+      Flavor.values.map((f) => f.displayName).toList(),
+      initial: {for (var i = 0; i < Flavor.values.length; i++) i},
     );
+    final selected = idx.map((i) => Flavor.values[i]).toSet();
 
     if (selected.isEmpty) {
       _logger.warn(
@@ -503,13 +633,13 @@ class CliController {
     );
     if (!usesAgent) return const [];
 
-    final selected = _logger.chooseAny<AiAgent>(
+    final idx = _selectMany(
       '${lightCyan.wrap('?')} Generate a project-rules file for which agents? '
       '${styleDim.wrap('(space to toggle, enter to confirm)')}',
-      choices: AiAgent.values,
-      defaultValues: const [AiAgent.claude],
-      display: (agent) => agent.displayName,
+      AiAgent.values.map((a) => a.displayName).toList(),
+      initial: {AiAgent.values.indexOf(AiAgent.claude)},
     );
+    final selected = idx.map((i) => AiAgent.values[i]).toSet();
     return AiAgent.values.where(selected.contains).toList();
   }
 
