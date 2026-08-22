@@ -132,6 +132,14 @@
     </div>
 
     <div class="group">
+      <label data-i18n="text_layout">Text — position, align, size</label>
+      <div class="chips" id="textPos"></div>
+      <div class="chips" id="textAlign" style="margin-top:6px"></div>
+      <input type="range" id="textSize" min="0.6" max="1.6" step="0.05" value="1" style="width:100%; margin-top:10px" />
+      <div class="hint" data-i18n="text_tip">Tip: drag the text on the canvas, or double-click it to edit.</div>
+    </div>
+
+    <div class="group">
       <label data-i18n="accent">Accent</label>
       <input type="color" id="accent" value="#39d6e0" />
     </div>
@@ -167,7 +175,7 @@ const DEVICES = {
   android: { label: "Android", w: 1080, h: 1920, notch: "punch" },
   ipad:    { label: "iPad",    w: 2048, h: 2732, notch: null },
 };
-const TEMPLATES = ["poster", "duo", "hero", "frame", "feature_graphic"];
+const TEMPLATES = ["poster", "tilted", "showcase", "duo", "hero", "frame", "feature_graphic"];
 // Store-exact output sizes (label -> [w,h]); null = device default.
 const SIZES = [
   ["Device default", null],
@@ -200,6 +208,10 @@ const state = {
   shot2: null,       // second screenshot (duo template)
   sizeOverride: null,// [w,h] to force an exact store size, or null
   dragX: 0, dragY: 0,
+  textPos: "top",    // top | center | bottom
+  textAlign: "center",
+  textSize: 1,       // font-size multiplier
+  textDX: 0, textDY: 0,
   frameMode: "code", // "code" (drawn) | "real" (image)
   frameImg: null,    // HTMLImageElement of a device frame (transparent screen)
   frameScreen: null, // [x0,y0,x1,y1] fractions of the screen hole within the frame
@@ -216,6 +228,9 @@ const I18N = {
     device_frame: "Device frame", screenshot: "Screenshot", subtitle: "Subtitle",
     accent: "Accent", background: "Background", headline: "Headline",
     headline_hint: "(**word** = accent)",
+    text_layout: "Text — position, align, size", text_tip: "Tip: drag the text on the canvas, or double-click it to edit.",
+    pos_top: "Top", pos_center: "Center", pos_bottom: "Bottom",
+    al_left: "Left", al_center: "Center", al_right: "Right",
     upload: "Upload screenshot…", second_shot: "Second screenshot (duo)…",
     load_frame: "Load frame PNG…", image_btn: "Image…", use_gradient: "Use gradient",
     download: "Download PNG", save: "Save to project (out/)",
@@ -232,6 +247,9 @@ const I18N = {
     device_frame: "Marco del dispositivo", screenshot: "Captura", subtitle: "Subtítulo",
     accent: "Acento", background: "Fondo", headline: "Título",
     headline_hint: "(**palabra** = acento)",
+    text_layout: "Texto — posición, alineación, tamaño", text_tip: "Tip: arrastrá el texto en el canvas, o doble-click para editarlo.",
+    pos_top: "Arriba", pos_center: "Centro", pos_bottom: "Abajo",
+    al_left: "Izq.", al_center: "Centro", al_right: "Der.",
     upload: "Subir captura…", second_shot: "Segunda captura (duo)…",
     load_frame: "Cargar frame PNG…", image_btn: "Imagen…", use_gradient: "Usar gradiente",
     download: "Descargar PNG", save: "Guardar en el proyecto (out/)",
@@ -308,7 +326,51 @@ function drawPhone(x,y,w,h,notch,shot){
   else if(notch==='punch'){ ctx.beginPath(); ctx.arc(x+w/2, sy+w*0.05, w*0.017, 0, Math.PI*2); ctx.fillStyle='#000'; ctx.fill(); }
 }
 
+let textBox=null; // last drawn text block {x,y,w,h} for hit-testing drag/edit
 function tokens(text){ const out=[]; let acc=false; for(const chunk of text.split('**')){ for(const w of chunk.split(' ')){ if(w) out.push([w,acc]); } acc=!acc; } return out; }
+
+// Unified, movable text block (used by poster/tilted/showcase/duo).
+function _wrapHeadline(text, maxW, size){
+  ctx.font=`700 ${size}px -apple-system, "Segoe UI", Roboto, sans-serif`;
+  const spaceW=ctx.measureText(' ').width; const toks=tokens(text); const lines=[]; let cur=[], curW=0;
+  for(const [w,isAcc] of toks){ const ww=ctx.measureText(w).width; if(cur.length && curW+spaceW+ww>maxW){ lines.push(cur); cur=[]; curW=0; } cur.push([w,isAcc,ww]); curW+=(cur.length>1?spaceW:0)+ww; }
+  if(cur.length) lines.push(cur); return {lines, spaceW};
+}
+function _wrapSub(text, maxW, size){
+  ctx.font=`400 ${size}px -apple-system, "Segoe UI", Roboto, sans-serif`;
+  const words=text.split(' '); const lines=[]; let cur='';
+  for(const w of words){ const t=(cur+' '+w).trim(); if(ctx.measureText(t).width>maxW && cur){ lines.push(cur); cur=w; } else cur=t; }
+  if(cur) lines.push(cur); return lines;
+}
+function _alignX(x0, boxW, lineW){
+  if(state.textAlign==='left') return x0;
+  if(state.textAlign==='right') return x0+boxW-lineW;
+  return x0+(boxW-lineW)/2;
+}
+function drawTextBlock(W, H, baseSize){
+  const size=Math.round(baseSize*state.textSize), subSize=Math.round(size*0.52);
+  const marginX=Math.round(W*0.07), boxW=W-marginX*2;
+  const {lines:hLines, spaceW}=_wrapHeadline(state.headline, boxW, size);
+  const sLines=state.subtitle ? _wrapSub(state.subtitle, boxW, subSize) : [];
+  const lineH=size*1.16, subLineH=subSize*1.35, gap=state.subtitle?size*0.28:0;
+  const totalH=hLines.length*lineH + (sLines.length?gap+sLines.length*subLineH:0);
+  let y = state.textPos==='top' ? Math.round(H*0.06)
+        : state.textPos==='bottom' ? Math.round(H*0.94-totalH)
+        : Math.round((H-totalH)/2);
+  y += state.textDY;
+  const x0 = marginX + state.textDX;
+  // headline
+  ctx.font=`700 ${size}px -apple-system, "Segoe UI", Roboto, sans-serif`; ctx.textAlign='left'; ctx.textBaseline='top';
+  let yy=y;
+  for(const line of hLines){ const lineW=line.reduce((s,[,,ww])=>s+ww,0)+spaceW*(line.length-1); let x=_alignX(x0,boxW,lineW);
+    for(const [w,isAcc,ww] of line){ ctx.fillStyle=isAcc?state.accent:'#f4f6f8'; ctx.fillText(w,x,yy); x+=ww+spaceW; } yy+=lineH; }
+  // subtitle
+  if(sLines.length){ ctx.font=`400 ${subSize}px -apple-system, "Segoe UI", Roboto, sans-serif`; yy+=gap-lineH+lineH;
+    yy=y+hLines.length*lineH+gap;
+    for(const ln of sLines){ const tw=ctx.measureText(ln).width; ctx.fillStyle='#9aa2ac'; ctx.fillText(ln,_alignX(x0,boxW,tw),yy); yy+=subLineH; } }
+  textBox={x:x0, y, w:boxW, h:totalH};
+}
+
 function drawHeadline(text, topY, accent, maxW, size, W){
   ctx.font=`700 ${size}px -apple-system, "Segoe UI", Roboto, sans-serif`; ctx.textAlign='left'; ctx.textBaseline='top';
   const spaceW=ctx.measureText(' ').width; const toks=tokens(text); const lines=[]; let cur=[], curW=0;
@@ -361,8 +423,7 @@ function render(){
   // duo: two code-drawn devices side by side
   if (state.template==='duo'){
     background(W,H,state.accent,state.bg,state.bgImage,Math.round(H*0.55));
-    const ey=drawHeadline(state.headline, Math.round(H*0.06), state.accent, W*0.86, Math.round(W*0.06), W);
-    drawSubtitle(state.subtitle, ey+Math.round(H*0.012), Math.round(W*0.032), W*0.8, W);
+    drawTextBlock(W, H, Math.round(W*0.06));
     const sw = W*0.44, sh = sw*(dev.h/dev.w), gap = W*0.03;
     const total = sw*2 + gap, x0 = (W-total)/2 + state.dragX;
     const topArea = Math.round(H*0.26);
@@ -372,8 +433,10 @@ function render(){
     return;
   }
 
-  // poster / frame
+  // poster / tilted / showcase / frame
   const isFrame = state.template==='frame';
+  const isTilt = state.template==='tilted';
+  const isShow = state.template==='showcase';
 
   // Real device-frame image (transparent screen) → composite screenshot in.
   if (state.frameMode==='real' && state.frameImg){
@@ -384,10 +447,7 @@ function render(){
     const fx=(W-fw)/2 + state.dragX;
     const fy=(isFrame ? (H-fh)/2 : (H-fh + H*0.02)) + state.dragY;
     background(W,H,state.accent,state.bg,state.bgImage, fy + fh/3);
-    if(!isFrame){
-      const ey=drawHeadline(state.headline, Math.round(H*0.055), state.accent, W*0.86, Math.round(W*0.072), W);
-      drawSubtitle(state.subtitle, ey+Math.round(H*0.012), Math.round(W*0.038), W*0.8, W);
-    }
+    if(!isFrame) drawTextBlock(W, H, Math.round(W*0.072));
     if(state.shot && state.frameScreen){
       const [x0,y0,x1,y1]=state.frameScreen;
       const rx=fx+x0*fw, ry=fy+y0*fh, rw=(x1-x0)*fw, rh=(y1-y0)*fh;
@@ -397,16 +457,20 @@ function render(){
     return;
   }
 
-  const sw = W * (isFrame ? 0.82 : 0.72);
+  const sw = W * (isFrame ? 0.82 : (isShow ? 0.86 : 0.72));
   const sh = sw * (dev.h/dev.w);
   const dx = (W-sw)/2 + state.dragX;
-  const dy = (isFrame ? (H-sh)/2 : (H-sh + H*0.02)) + state.dragY;
+  const dy = (isFrame ? (H-sh)/2 : (H-sh + (isShow?H*0.10:H*0.02))) + state.dragY;
   background(W,H,state.accent,state.bg,state.bgImage, dy + sh/3);
-  if(!isFrame){
-    const ey=drawHeadline(state.headline, Math.round(H*0.055), state.accent, W*0.86, Math.round(W*0.072), W);
-    drawSubtitle(state.subtitle, ey+Math.round(H*0.012), Math.round(W*0.038), W*0.8, W);
+  if(!isFrame) drawTextBlock(W, H, Math.round(W*0.072));
+  if(isTilt){
+    ctx.save();
+    ctx.translate(dx+sw/2, dy+sh/2); ctx.rotate(-7*Math.PI/180); ctx.translate(-(dx+sw/2), -(dy+sh/2));
+    drawPhone(dx,dy,sw,sh,dev.notch,state.shot);
+    ctx.restore();
+  } else {
+    drawPhone(dx,dy,sw,sh,dev.notch,state.shot);
   }
-  drawPhone(dx,dy,sw,sh,dev.notch,state.shot);
 }
 
 // ---------- UI wiring ----------
@@ -418,6 +482,8 @@ function chip(container, items, current, onPick, labelFn){
 function refreshChips(){
   chip(document.getElementById('templates'), TEMPLATES, state.template, t=>{ state.template=t; refreshChips(); render(); }, t=>t.replace('_',' '));
   document.getElementById('pickShot2').style.display = state.template==='duo' ? 'flex' : 'none';
+  chip(document.getElementById('textPos'), ['top','center','bottom'], state.textPos, v=>{ state.textPos=v; refreshChips(); render(); }, v=>t('pos_'+v));
+  chip(document.getElementById('textAlign'), ['left','center','right'], state.textAlign, v=>{ state.textAlign=v; refreshChips(); render(); }, v=>t('al_'+v));
   chip(document.getElementById('devices'), Object.keys(DEVICES), state.device, d=>{ state.device=d; refreshChips(); render(); }, d=>DEVICES[d].label);
   chip(document.getElementById('presets'), Object.keys(PRESETS), null, name=>{ const p=PRESETS[name]; state.accent=p.accent; state.bg=p.bg; state.bgImage=null;
     document.getElementById('accent').value=p.accent; document.getElementById('bg').value=p.bg; render(); });
@@ -500,12 +566,40 @@ document.getElementById('save').onclick=async()=>{
   } catch(e){ toast(t('save_fail')); }
 };
 
-// drag the device on poster/frame
-let dragging=false, lastX=0, lastY=0;
-canvas.addEventListener('pointerdown', e=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; });
+// font size slider
+document.getElementById('textSize').oninput=e=>{ state.textSize=parseFloat(e.target.value); render(); };
+
+// drag: text block if the pointer is on it, otherwise the device
+function canvasPt(e){ const r=canvas.getBoundingClientRect(); const s=canvas.width/r.width;
+  return {x:(e.clientX-r.left)*s, y:(e.clientY-r.top)*s, r, s}; }
+function inTextBox(x,y){ return textBox && x>=textBox.x && x<=textBox.x+textBox.w && y>=textBox.y && y<=textBox.y+textBox.h; }
+let dragging=false, dragTarget='device', lastX=0, lastY=0;
+canvas.addEventListener('pointerdown', e=>{ const p=canvasPt(e); dragging=true;
+  dragTarget = inTextBox(p.x,p.y) ? 'text' : 'device'; lastX=e.clientX; lastY=e.clientY; });
 window.addEventListener('pointerup', ()=>dragging=false);
 window.addEventListener('pointermove', e=>{ if(!dragging) return; const scale=canvas.width/canvas.getBoundingClientRect().width;
-  state.dragX+=(e.clientX-lastX)*scale; state.dragY+=(e.clientY-lastY)*scale; lastX=e.clientX; lastY=e.clientY; render(); });
+  const dx=(e.clientX-lastX)*scale, dy=(e.clientY-lastY)*scale;
+  if(dragTarget==='text'){ state.textDX+=dx; state.textDY+=dy; } else { state.dragX+=dx; state.dragY+=dy; }
+  lastX=e.clientX; lastY=e.clientY; render(); });
+
+// double-click the text to edit it inline on the canvas
+let inlineEl=null;
+canvas.addEventListener('dblclick', e=>{ const p=canvasPt(e); if(!inTextBox(p.x,p.y) || inlineEl) return;
+  const r=p.r, s=p.s;
+  inlineEl=document.createElement('textarea');
+  inlineEl.value=state.headline;
+  Object.assign(inlineEl.style,{ position:'fixed', zIndex:50,
+    left:(r.left+textBox.x/s)+'px', top:(r.top+textBox.y/s)+'px',
+    width:(textBox.w/s)+'px', minHeight:Math.max(44,textBox.h/s*0.6)+'px',
+    background:'var(--panel)', color:'var(--text)', border:'2px solid var(--accent)',
+    borderRadius:'8px', padding:'6px 8px', font:'600 15px -apple-system, sans-serif', resize:'none' });
+  document.body.appendChild(inlineEl); inlineEl.focus(); inlineEl.select();
+  const sync=()=>{ state.headline=inlineEl.value; document.getElementById('headline').value=inlineEl.value; render(); };
+  const close=()=>{ if(inlineEl){ inlineEl.remove(); inlineEl=null; } };
+  inlineEl.oninput=sync;
+  inlineEl.onblur=close;
+  inlineEl.onkeydown=ev=>{ if(ev.key==='Enter'&&!ev.shiftKey){ ev.preventDefault(); close(); } if(ev.key==='Escape'){ close(); } };
+});
 
 // raw screenshots served by the CLI (if any)
 async function loadRaw(){
@@ -526,6 +620,7 @@ function applyI18n(){
   document.getElementById('frameHint').textContent = t(frameHintKey);
   document.getElementById('rawHint').textContent = rawHintKey ? t(rawHintKey) : '';
   populateSizes();
+  if (typeof refreshChips==='function') refreshChips();
   document.querySelectorAll('.lang').forEach(b=> b.classList.toggle('active', b.dataset.lang===lang));
   document.documentElement.lang = lang;
 }

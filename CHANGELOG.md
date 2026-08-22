@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   picker) and an Output size selector with store-exact presets (iPhone
   1290×2796 / 1260×2736 / 1320×2868, iPad 2048×2732 / 2064×2752, Android
   1080×1920) plus a custom width/height.
+- **Editor: movable text + more templates.** Text block is now fully controllable — drag it on the canvas, double-click to edit inline, position (top/center/bottom), alignment (left/center/right) and a font-size slider. Added `tilted` (angled device) and `showcase` (large device) templates.
 - **Editor: light/dark theme + English/Spanish.** The web editor now has a
   theme toggle (defaults to your system, remembered) and an EN/ES language
   switch — minimalist, persisted in localStorage.
