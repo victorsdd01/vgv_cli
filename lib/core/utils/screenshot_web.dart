@@ -8,6 +8,16 @@ import 'package:path/path.dart' as p;
 import '../templates/builtin_frames.dart';
 import '../templates/screenshot_editor_html.dart';
 
+/// The local frame library the editor auto-loads: `~/.vgv/frames`.
+/// Populated by `vgv screenshots frames`. Full-quality frames without
+/// bloating the published package.
+String defaultFramesDir() {
+  final home = Platform.environment['HOME'] ??
+      Platform.environment['USERPROFILE'] ??
+      Directory.current.path;
+  return p.join(home, '.vgv', 'frames');
+}
+
 /// `vgv screenshots web` — serves the in-browser Canvas editor from a tiny
 /// local server (no Python, no login). The browser renders + previews; on
 /// "Save to project" it POSTs the PNG back and the server writes it to `out/`.
@@ -36,6 +46,9 @@ class ScreenshotWebServer {
 
     final rawDir = res['raw'] as String?;
     final framesDir = res['frames'] as String?;
+    // Local frame library auto-loaded from ~/.vgv/frames (populated by
+    // `vgv screenshots frames`). Full-quality frames without bloating the pkg.
+    final libDir = defaultFramesDir();
     final outDir = (res['out'] as String?) ?? 'out';
     Directory(outDir).createSync(recursive: true);
 
@@ -62,7 +75,7 @@ class ScreenshotWebServer {
 
     await for (final request in server) {
       try {
-        await _handle(request, html, rawDir, framesDir, outDir);
+        await _handle(request, html, rawDir, framesDir, libDir, outDir);
       } catch (_) {
         try {
           request.response.statusCode = HttpStatus.internalServerError;
@@ -78,6 +91,7 @@ class ScreenshotWebServer {
     String html,
     String? rawDir,
     String? framesDir,
+    String libDir,
     String outDir,
   ) async {
     final res = req.response;
@@ -90,30 +104,52 @@ class ScreenshotWebServer {
       return;
     }
 
-    if (path == '/api/raw' || path == '/api/frames') {
-      final dir = path == '/api/raw' ? rawDir : framesDir;
-      final prefix = path == '/api/raw' ? '/raw' : '/frames';
+    if (path == '/api/raw') {
       final images = <Map<String, String>>[];
-      if (dir != null && Directory(dir).existsSync()) {
-        for (final f in Directory(dir).listSync().whereType<File>()) {
+      if (rawDir != null && Directory(rawDir).existsSync()) {
+        for (final f in Directory(rawDir).listSync().whereType<File>()) {
           final name = p.basename(f.path);
-          if (RegExp(r'\.(png|jpg|jpeg)$', caseSensitive: false).hasMatch(name)) {
-            images.add(<String, String>{'name': name, 'url': '$prefix/$name'});
+          if (_isImage(name)) {
+            images.add(<String, String>{'name': name, 'url': '/raw/$name'});
           }
         }
       }
-      // Built-in frames (bundled, credited) are offered on /api/frames.
-      if (path == '/api/frames') {
-        var i = 0;
-        for (final name in builtinFramesBase64.keys) {
+      res.headers.contentType = ContentType.json;
+      res.write(jsonEncode(<String, dynamic>{'images': images}));
+      await res.close();
+      return;
+    }
+
+    if (path == '/api/frames') {
+      final images = <Map<String, String>>[];
+      final seen = <String>{};
+      // User-provided (--frames) first, then the local library (~/.vgv/frames);
+      // both are real Apple/Google bezels the user placed → credited.
+      for (final dir in <String?>[framesDir, libDir]) {
+        if (dir == null || !Directory(dir).existsSync()) continue;
+        for (final f in Directory(dir).listSync().whereType<File>()) {
+          final name = p.basename(f.path);
+          if (!_isImage(name) || !seen.add(name)) continue;
+          images.add(<String, String>{
+            'name': _labelFor(name),
+            'url': '/frames/${Uri.encodeComponent(name)}',
+            'credit': builtinFrameCredit,
+          });
+        }
+      }
+      // Built-in bundled frames last (credited).
+      var i = 0;
+      for (final name in builtinFramesBase64.keys) {
+        if (seen.add('$name.png')) {
           images.add(<String, String>{
             'name': name,
             'url': '/builtin/$i',
             'credit': builtinFrameCredit,
           });
-          i++;
         }
+        i++;
       }
+      images.sort((a, b) => a['name']!.toLowerCase().compareTo(b['name']!.toLowerCase()));
       res.headers.contentType = ContentType.json;
       res.write(jsonEncode(<String, dynamic>{'images': images}));
       await res.close();
@@ -131,15 +167,27 @@ class ScreenshotWebServer {
       }
     }
 
-    if ((path.startsWith('/raw/') && rawDir != null) ||
-        (path.startsWith('/frames/') && framesDir != null)) {
-      final dir = path.startsWith('/raw/') ? rawDir! : framesDir!;
-      final file = File(p.join(dir, p.basename(path)));
+    if (path.startsWith('/raw/') && rawDir != null) {
+      final file = File(p.join(rawDir, p.basename(Uri.decodeComponent(path))));
       if (file.existsSync()) {
         res.headers.contentType = ContentType('image', 'png');
         await res.addStream(file.openRead());
         await res.close();
         return;
+      }
+    }
+
+    if (path.startsWith('/frames/')) {
+      final name = p.basename(Uri.decodeComponent(path));
+      for (final dir in <String?>[framesDir, libDir]) {
+        if (dir == null) continue;
+        final file = File(p.join(dir, name));
+        if (file.existsSync()) {
+          res.headers.contentType = ContentType('image', 'png');
+          await res.addStream(file.openRead());
+          await res.close();
+          return;
+        }
       }
     }
 
@@ -162,6 +210,12 @@ class ScreenshotWebServer {
     res.statusCode = HttpStatus.notFound;
     await res.close();
   }
+
+  bool _isImage(String name) =>
+      RegExp(r'\.(png|jpg|jpeg)$', caseSensitive: false).hasMatch(name);
+
+  String _labelFor(String fileName) =>
+      fileName.replaceAll(RegExp(r'\.(png|jpg|jpeg)$', caseSensitive: false), '');
 
   void _openBrowser(String url) {
     try {

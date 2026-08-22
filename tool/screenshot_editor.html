@@ -68,10 +68,14 @@
   .toast.show { opacity: 1; }
   .divider { height: 1px; background: var(--line); margin: 14px 0; }
   .thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-  .thumb { aspect-ratio: 9/16; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px;
+  .thumb { position: relative; aspect-ratio: 9/16; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px;
     overflow: hidden; cursor: pointer; }
   .thumb img { width: 100%; height: 100%; object-fit: cover; }
   .thumb.active { border-color: var(--accent); }
+  .thumb .cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 3px 3px;
+    font-size: 8.5px; line-height: 1.1; text-align: center; color: #fff;
+    background: linear-gradient(rgba(0,0,0,0), rgba(0,0,0,.75));
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>
 </head>
 <body>
@@ -110,6 +114,7 @@
       <label data-i18n="device_frame">Device frame</label>
       <div class="chips" id="frameModes"></div>
       <div class="thumbs" id="frameThumbs" style="margin-top:8px; display:none"></div>
+      <div class="hint" id="frameEmpty" style="display:none" data-i18n="frame_empty">No frames for this device. Pick another device, or add frames with <code>--frames &lt;dir&gt;</code>.</div>
       <button class="file" id="pickFrame" style="margin-top:8px; display:none" data-i18n="load_frame">Load frame PNG…</button>
       <div class="hint" id="frameHint">“Image” lets you drop a real device frame (transparent screen) — e.g. Apple Product Bezels or Google Device Art. Pass <code>--frames &lt;dir&gt;</code> to list your own.</div>
     </div>
@@ -241,6 +246,7 @@ const I18N = {
     frame_hint_default: "“Image” lets you drop a real device frame (transparent screen) — e.g. Apple Product Bezels or Google Device Art. Pass --frames <dir> to list your own.",
     frame_hint_ok: "Frame loaded — screen detected. Your screenshot composites inside it.",
     frame_hint_none: "Loaded, but no transparent screen detected. Use a frame PNG with a see-through screen.",
+    frame_empty: "No frames for this device. Pick another device, or add frames with --frames <dir>.",
     saved: "Saved → ", save_fail: "Save failed",
   },
   es: {
@@ -260,6 +266,7 @@ const I18N = {
     frame_hint_default: "“Imagen” te deja soltar un marco real (pantalla transparente) — p.ej. Apple Product Bezels o Google Device Art. Pasá --frames <dir> para listar los tuyos.",
     frame_hint_ok: "Marco cargado — pantalla detectada. Tu captura se compone adentro.",
     frame_hint_none: "Cargado, pero no se detectó pantalla transparente. Usá un frame PNG con la pantalla calada.",
+    frame_empty: "No hay frames para este dispositivo. Elegí otro, o agregá frames con --frames <dir>.",
     saved: "Guardado → ", save_fail: "No se pudo guardar",
   },
 };
@@ -548,7 +555,7 @@ function refreshChips(){
   document.getElementById('pickShot2').style.display = state.template==='duo' ? 'flex' : 'none';
   chip(document.getElementById('textPos'), ['top','center','bottom'], state.textPos, v=>{ state.textPos=v; refreshChips(); render(); }, v=>t('pos_'+v));
   chip(document.getElementById('textAlign'), ['left','center','right'], state.textAlign, v=>{ state.textAlign=v; refreshChips(); render(); }, v=>t('al_'+v));
-  chip(document.getElementById('devices'), Object.keys(DEVICES), state.device, d=>{ state.device=d; refreshChips(); render(); }, d=>DEVICES[d].label);
+  chip(document.getElementById('devices'), Object.keys(DEVICES), state.device, d=>{ state.device=d; refreshChips(); filterFrames(); render(); }, d=>DEVICES[d].label);
   chip(document.getElementById('presets'), Object.keys(PRESETS), null, name=>{ const p=PRESETS[name]; state.accent=p.accent; state.bg=p.bg; state.bgImage=null;
     document.getElementById('accent').value=p.accent; document.getElementById('bg').value=p.bg; render(); });
   const modeLabel = state.frameMode==='code' ? 'Drawn' : 'Image';
@@ -557,6 +564,7 @@ function refreshChips(){
     const show = state.frameMode==='real';
     document.getElementById('pickFrame').style.display = show ? 'flex' : 'none';
     document.getElementById('frameThumbs').style.display = show ? 'grid' : 'none';
+    filterFrames();
     refreshChips(); render();
   });
 }
@@ -617,18 +625,45 @@ function useFrame(img, credit, name){
 }
 document.getElementById('pickFrame').onclick=()=>pick(useFrame);
 
-// Real device frames served by the CLI (--frames <dir>).
+// Classify a frame by its file name so device chips can filter the list.
+function frameCategory(name){
+  const n=(name||'').toLowerCase();
+  if(n.includes('iphone')) return 'iphone';
+  if(n.includes('ipad')) return 'ipad';
+  if(n.includes('watch')) return 'watch';
+  if(/pixel|galaxy|android|nexus/.test(n)) return 'android';
+  // Mac family + big screens live under the "MacBook" chip.
+  if(/macbook|imac|mac\b|studio display|pro display|apple tv|display/.test(n)) return 'macbook';
+  return 'other';
+}
+// Show only the frames that match the selected device chip.
+function filterFrames(){
+  const box=document.getElementById('frameThumbs'); if(!box) return;
+  let shown=0;
+  for(const d of box.querySelectorAll('.thumb')){
+    const match = d.dataset.cat===state.device || (state.device==='macbook' && d.dataset.cat==='other');
+    d.style.display = match ? '' : 'none';
+    if(match) shown++;
+  }
+  const empty=document.getElementById('frameEmpty');
+  const framesVisible = box.style.display!=='none';
+  if(empty) empty.style.display = (framesVisible && !shown) ? 'block':'none';
+}
+// Real device frames served by the CLI (built-in + --frames + ~/.vgv/frames).
 async function loadFrames(){
   try {
     const res=await fetch('/api/frames'); const j=await res.json();
     const box=document.getElementById('frameThumbs');
     if(!j.images || !j.images.length) return;
     for(const fr of j.images){ const d=document.createElement('div'); d.className='thumb';
+      d.dataset.cat=frameCategory(fr.name);
       const img=document.createElement('img'); img.src=fr.url; img.style.objectFit='contain'; d.appendChild(img);
+      const cap=document.createElement('span'); cap.className='cap'; cap.textContent=fr.name; d.appendChild(cap);
       d.title=fr.name;
       d.onclick=()=>{ const full=new Image(); full.onload=()=>useFrame(full, fr.credit, fr.name); full.src=fr.url; };
       box.appendChild(d); }
-  } catch(e){ /* no --frames */ }
+    filterFrames();
+  } catch(e){ /* no frames available */ }
 }
 document.getElementById('pickBg').onclick=()=>pick(img=>{ state.bgImage=img; render(); });
 document.getElementById('clearBg').onclick=()=>{ state.bgImage=null; render(); };
