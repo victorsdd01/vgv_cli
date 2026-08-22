@@ -282,6 +282,9 @@ Alternativa al motor Python: un **editor Canvas en el navegador**, servido por u
 ### 13. Editor web — paridad con el motor (✅ parcial)
 Al editor (`tool/screenshot_editor.html`, re-embebido) se le agregó el template **`duo`** (dos devices code-drawn lado a lado, con segundo screenshot `pickShot2`) y un **selector de tamaño de salida** (`SIZES`: presets store-exactos iPhone/iPad/Android + Custom `width`/`height`), que setea `state.sizeOverride` y ajusta el canvas. Verificado en browser (duo compone, override 1290×2796/1080×1920). **Pendiente de paridad**: multi-idioma (`locales`) y frame real en feature_graphic — quedan solo en el motor Python.
 
+### 14. Frames reales built-in (Apple) (✅ HECHO)
+Los Product Bezels de Apple vienen como `.dmg` con SLA (carpeta `PNG/` adentro). Pipeline: PNGs curados en `tool/frames_builtin/` → `tool/generate_builtin_frames.dart` (redimensiona ≤1200, preserva pantalla transparente, base64) → `lib/core/templates/builtin_frames.dart`. El server los sirve en `/api/frames` (con `credit`) + `/builtin/<i>`; el editor los lista como thumbs y muestra el crédito. Set inicial: iPhone 17 Pro, iPad Pro 13", MacBook Pro. **Atribución**: `NOTICE` en el repo + línea en el editor ("Device frames © Apple Inc. Used with permission…"). El usuario confirmó permiso con soporte de Apple; no reclamar como propios. TCC de macOS bloquea `~/Downloads` (por eso se copian desde `~/Desktop`).
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Limpiar artefactos de build versionados en `templates/blocs/build/`.

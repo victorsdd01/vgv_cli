@@ -5,6 +5,7 @@ import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as p;
 
+import '../templates/builtin_frames.dart';
 import '../templates/screenshot_editor_html.dart';
 
 /// `vgv screenshots web` — serves the in-browser Canvas editor from a tiny
@@ -101,10 +102,33 @@ class ScreenshotWebServer {
           }
         }
       }
+      // Built-in frames (bundled, credited) are offered on /api/frames.
+      if (path == '/api/frames') {
+        var i = 0;
+        for (final name in builtinFramesBase64.keys) {
+          images.add(<String, String>{
+            'name': name,
+            'url': '/builtin/$i',
+            'credit': builtinFrameCredit,
+          });
+          i++;
+        }
+      }
       res.headers.contentType = ContentType.json;
       res.write(jsonEncode(<String, dynamic>{'images': images}));
       await res.close();
       return;
+    }
+
+    if (path.startsWith('/builtin/')) {
+      final i = int.tryParse(p.basename(path));
+      final values = builtinFramesBase64.values.toList();
+      if (i != null && i >= 0 && i < values.length) {
+        res.headers.contentType = ContentType('image', 'png');
+        res.add(base64.decode(values[i]));
+        await res.close();
+        return;
+      }
     }
 
     if ((path.startsWith('/raw/') && rawDir != null) ||

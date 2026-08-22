@@ -528,11 +528,11 @@ function populateSizes(){
   document.getElementById('sizeW').oninput=applyCustom;
   document.getElementById('sizeH').oninput=applyCustom;
 })();
-function useFrame(img){
+function useFrame(img, credit){
   const rect=detectFrameScreen(img);
   state.frameMode='real'; state.frameImg=img; state.frameScreen=rect;
   frameHintKey = rect ? 'frame_hint_ok' : 'frame_hint_none';
-  document.getElementById('frameHint').textContent = t(frameHintKey);
+  document.getElementById('frameHint').textContent = t(frameHintKey) + (credit ? '  ·  '+credit : '');
   render();
 }
 document.getElementById('pickFrame').onclick=()=>pick(useFrame);
@@ -546,7 +546,7 @@ async function loadFrames(){
     for(const fr of j.images){ const d=document.createElement('div'); d.className='thumb';
       const img=document.createElement('img'); img.src=fr.url; img.style.objectFit='contain'; d.appendChild(img);
       d.title=fr.name;
-      d.onclick=()=>{ const full=new Image(); full.onload=()=>useFrame(full); full.src=fr.url; };
+      d.onclick=()=>{ const full=new Image(); full.onload=()=>useFrame(full, fr.credit); full.src=fr.url; };
       box.appendChild(d); }
   } catch(e){ /* no --frames */ }
 }
