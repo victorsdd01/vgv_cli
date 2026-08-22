@@ -441,13 +441,17 @@ function render(){
   // Real device-frame image (transparent screen) → composite screenshot in.
   if (state.frameMode==='real' && state.frameImg){
     const fAsp = state.frameImg.width/state.frameImg.height;
-    let fw = W*(isFrame?0.9:0.86), fh = fw/fAsp;
-    const maxH = isFrame ? H*0.94 : H*0.82;
-    if (fh>maxH){ fh=maxH; fw=fh*fAsp; }
+    // Contain-fit inside the canvas, reserving space for the text band.
+    const hasText = !isFrame && (state.headline || state.subtitle);
+    const topR = (hasText && state.textPos!=='bottom') ? 0.20 : 0.04;
+    const botR = (hasText && state.textPos==='bottom') ? 0.20 : 0.04;
+    const availW = W*0.92, availH = H*(1-topR-botR);
+    let fw = availW, fh = fw/fAsp;
+    if (fh>availH){ fh=availH; fw=fh*fAsp; }
     const fx=(W-fw)/2 + state.dragX;
-    const fy=(isFrame ? (H-fh)/2 : (H-fh + H*0.02)) + state.dragY;
+    const fy=topR*H + (availH-fh)/2 + state.dragY;
     background(W,H,state.accent,state.bg,state.bgImage, fy + fh/3);
-    if(!isFrame) drawTextBlock(W, H, Math.round(W*0.072));
+    if(!isFrame) drawTextBlock(W, H, Math.round(W*0.06));
     if(state.shot && state.frameScreen){
       const [x0,y0,x1,y1]=state.frameScreen;
       const rx=fx+x0*fw, ry=fy+y0*fh, rw=(x1-x0)*fw, rh=(y1-y0)*fh;
@@ -528,11 +532,27 @@ function populateSizes(){
   document.getElementById('sizeW').oninput=applyCustom;
   document.getElementById('sizeH').oninput=applyCustom;
 })();
-function useFrame(img, credit){
+// Official App Store Connect screenshot size for a frame's device (by name).
+function storeSizeForFrame(name){
+  const n=(name||'').toLowerCase();
+  if(n.includes('iphone')) return [1290,2796];       // 6.9"
+  if(n.includes('ipad')) return [2064,2752];         // 13"
+  if(n.includes('watch')) return [416,496];          // Series 11/10
+  if(n.includes('macbook')||n.includes('imac')||n.includes('studio')||n.includes('mac')) return [2880,1800]; // Mac 16:10
+  return null;                                        // unknown / user upload
+}
+function useFrame(img, credit, name){
   const rect=detectFrameScreen(img);
   state.frameMode='real'; state.frameImg=img; state.frameScreen=rect;
+  // Match the canvas to the device: exact App Store Connect size when known,
+  // otherwise fit the frame's own aspect so nothing looks squished.
+  const store=storeSizeForFrame(name);
+  if(store){ state.sizeOverride=store; }
+  else { const a=img.width/img.height; const cw=a>=1.2?2560:(a>=0.85?1600:1290);
+    state.sizeOverride=[cw, Math.round(cw*1.05/a)]; }
   frameHintKey = rect ? 'frame_hint_ok' : 'frame_hint_none';
-  document.getElementById('frameHint').textContent = t(frameHintKey) + (credit ? '  ·  '+credit : '');
+  const dim = state.sizeOverride ? `  ·  ${state.sizeOverride[0]}×${state.sizeOverride[1]}` : '';
+  document.getElementById('frameHint').textContent = t(frameHintKey) + (credit ? '  ·  '+credit : '') + dim;
   render();
 }
 document.getElementById('pickFrame').onclick=()=>pick(useFrame);
@@ -546,7 +566,7 @@ async function loadFrames(){
     for(const fr of j.images){ const d=document.createElement('div'); d.className='thumb';
       const img=document.createElement('img'); img.src=fr.url; img.style.objectFit='contain'; d.appendChild(img);
       d.title=fr.name;
-      d.onclick=()=>{ const full=new Image(); full.onload=()=>useFrame(full, fr.credit); full.src=fr.url; };
+      d.onclick=()=>{ const full=new Image(); full.onload=()=>useFrame(full, fr.credit, fr.name); full.src=fr.url; };
       box.appendChild(d); }
   } catch(e){ /* no --frames */ }
 }

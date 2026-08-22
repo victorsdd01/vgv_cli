@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   picker) and an Output size selector with store-exact presets (iPhone
   1290×2796 / 1260×2736 / 1320×2868, iPad 2048×2732 / 2064×2752, Android
   1080×1920) plus a custom width/height.
+- **Frame ↔ device match + store-exact canvas.** Selecting a device frame now sets the canvas to that device's exact App Store Connect size (iPhone 1290×2796, iPad 2064×2752, Mac 2880×1800, Apple Watch 416×496) and contain-fits the frame — so Mac/Watch/iMac frames render correctly instead of squished on a phone canvas.
 - **Built-in real device frames (Apple).** Bundles a set of Apple Product Bezels (iPhone 17 Pro, iPhone 16, iPad Pro 13", iPad Air, iPad mini, MacBook Pro, MacBook Air, iMac, Studio Display, Apple Watch) as built-in frames in the editor — the screen is auto-detected and your screenshot composites inside. Credited in `NOTICE` and shown in the editor (“Device frames © Apple Inc.”). Regenerate/extend by dropping PNGs in `tool/frames_builtin/` and running `dart run tool/generate_builtin_frames.dart`.
 - **Editor: movable text + more templates.** Text block is now fully controllable — drag it on the canvas, double-click to edit inline, position (top/center/bottom), alignment (left/center/right) and a font-size slider. Added `tilted` (angled device) and `showcase` (large device) templates.
 - **Editor: light/dark theme + English/Spanish.** The web editor now has a
