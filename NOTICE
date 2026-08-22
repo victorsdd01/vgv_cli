@@ -1,0 +1,13 @@
+vgv_cli — third-party notices
+=============================
+
+Bundled device frames (lib/core/templates/builtin_frames.dart)
+--------------------------------------------------------------
+Device frames © Apple Inc. Used with permission. Not affiliated with or
+endorsed by Apple. The frames originate from Apple Design Resources
+(https://developer.apple.com/design/resources/). They are included solely to
+help the community frame their app screenshots; Apple retains all rights to
+these assets. Do not represent them as your own.
+
+The vgv_cli source code is released under the repository's LICENSE. This NOTICE
+covers only the bundled third-party assets above.

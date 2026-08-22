@@ -171,9 +171,11 @@
 <script>
 "use strict";
 const DEVICES = {
-  iphone:  { label: "iPhone",  w: 1290, h: 2796, notch: "island" },
-  android: { label: "Android", w: 1080, h: 1920, notch: "punch" },
-  ipad:    { label: "iPad",    w: 2048, h: 2732, notch: null },
+  iphone:  { label: "iPhone",  w: 1290, h: 2796, notch: "island", kind: "phone" },
+  android: { label: "Android", w: 1080, h: 1920, notch: "punch",  kind: "phone" },
+  ipad:    { label: "iPad",    w: 2048, h: 2732, notch: null,     kind: "phone" },
+  macbook: { label: "MacBook", w: 2880, h: 1800, notch: null,     kind: "laptop" },
+  watch:   { label: "Watch",   w: 416,  h: 496,  notch: null,     kind: "watch" },
 };
 const TEMPLATES = ["poster", "tilted", "showcase", "duo", "hero", "frame", "feature_graphic"];
 // Store-exact output sizes (label -> [w,h]); null = device default.
@@ -326,6 +328,43 @@ function drawPhone(x,y,w,h,notch,shot){
   else if(notch==='punch'){ ctx.beginPath(); ctx.arc(x+w/2, sy+w*0.05, w*0.017, 0, Math.PI*2); ctx.fillStyle='#000'; ctx.fill(); }
 }
 
+function drawLaptop(x,y,w,h,shot){
+  const lidW=w*0.82, lidH=h*0.84, lx=x+(w-lidW)/2, ly=y, r=Math.min(lidW,lidH)*0.05;
+  ctx.save(); ctx.shadowColor='rgba(0,0,0,.5)'; ctx.shadowBlur=w*0.02; ctx.shadowOffsetY=w*0.008;
+  roundRect(lx,ly,lidW,lidH,r); ctx.fillStyle='#0b0d10'; ctx.fill(); ctx.restore();
+  roundRect(lx,ly,lidW,lidH,r); ctx.lineWidth=Math.max(2,w*0.003); ctx.strokeStyle='rgba(255,255,255,.10)'; ctx.stroke();
+  const bz=lidW*0.018, sx=lx+bz, sy=ly+bz, sw=lidW-2*bz, sh=lidH-2*bz;
+  ctx.save(); roundRect(sx,sy,sw,sh,r*0.6); ctx.clip();
+  if(shot){ drawCover(shot,sx,sy,sw,sh); } else { ctx.fillStyle='#12151b'; ctx.fillRect(sx,sy,sw,sh);
+    ctx.fillStyle='#3a414d'; ctx.font=`${Math.round(sw*0.04)}px sans-serif`; ctx.textAlign='center'; ctx.fillText('your screenshot', sx+sw/2, sy+sh/2); }
+  ctx.restore();
+  const baseY=ly+lidH, baseH=h*0.06;
+  const g=ctx.createLinearGradient(0,baseY,0,baseY+baseH); g.addColorStop(0,'#c7ccd2'); g.addColorStop(1,'#9aa1a9');
+  roundRect(x, baseY, w, baseH, baseH*0.4); ctx.fillStyle=g; ctx.fill();
+  const nW=w*0.14, nH=baseH*0.4; roundRect(x+w/2-nW/2, baseY, nW, nH, nH/2); ctx.fillStyle='#868d96'; ctx.fill();
+}
+
+function drawWatch(x,y,w,h,shot){
+  const bandW=w*0.44, bx=x+(w-bandW)/2;
+  ctx.fillStyle='#2a2f37';
+  roundRect(bx, y, bandW, h*0.30, w*0.05); ctx.fill();
+  roundRect(bx, y+h*0.70, bandW, h*0.30, w*0.05); ctx.fill();
+  const bw=w*0.74, bh=h*0.62, bx2=x+(w-bw)/2, by=y+(h-bh)/2, r=Math.min(bw,bh)*0.28;
+  ctx.save(); ctx.shadowColor='rgba(0,0,0,.5)'; ctx.shadowBlur=w*0.04; ctx.shadowOffsetY=w*0.01;
+  roundRect(bx2,by,bw,bh,r); ctx.fillStyle='#0b0d10'; ctx.fill(); ctx.restore();
+  const bz=bw*0.06, sx=bx2+bz, sy=by+bz, sw=bw-2*bz, sh=bh-2*bz, sr=r-bz;
+  ctx.save(); roundRect(sx,sy,sw,sh,sr); ctx.clip();
+  if(shot){ drawCover(shot,sx,sy,sw,sh); } else { ctx.fillStyle='#000'; ctx.fillRect(sx,sy,sw,sh); }
+  ctx.restore();
+  roundRect(bx2+bw, by+bh*0.4, w*0.03, bh*0.18, w*0.01); ctx.fillStyle='#3a3f47'; ctx.fill();
+}
+
+function drawDevice(x,y,w,h,dev,shot){
+  if(dev.kind==='laptop') return drawLaptop(x,y,w,h,shot);
+  if(dev.kind==='watch') return drawWatch(x,y,w,h,shot);
+  return drawPhone(x,y,w,h,dev.notch,shot);
+}
+
 let textBox=null; // last drawn text block {x,y,w,h} for hit-testing drag/edit
 function tokens(text){ const out=[]; let acc=false; for(const chunk of text.split('**')){ for(const w of chunk.split(' ')){ if(w) out.push([w,acc]); } acc=!acc; } return out; }
 
@@ -428,8 +467,8 @@ function render(){
     const total = sw*2 + gap, x0 = (W-total)/2 + state.dragX;
     const topArea = Math.round(H*0.26);
     const y = topArea + (H - topArea - sh)/2 + state.dragY;
-    drawPhone(x0, y, sw, sh, dev.notch, state.shot);
-    drawPhone(x0+sw+gap, y, sw, sh, dev.notch, state.shot2 || state.shot);
+    drawDevice(x0, y, sw, sh, dev, state.shot);
+    drawDevice(x0+sw+gap, y, sw, sh, dev, state.shot2 || state.shot);
     return;
   }
 
@@ -441,13 +480,17 @@ function render(){
   // Real device-frame image (transparent screen) → composite screenshot in.
   if (state.frameMode==='real' && state.frameImg){
     const fAsp = state.frameImg.width/state.frameImg.height;
-    let fw = W*(isFrame?0.9:0.86), fh = fw/fAsp;
-    const maxH = isFrame ? H*0.94 : H*0.82;
-    if (fh>maxH){ fh=maxH; fw=fh*fAsp; }
+    // Contain-fit inside the canvas, reserving space for the text band.
+    const hasText = !isFrame && (state.headline || state.subtitle);
+    const topR = (hasText && state.textPos!=='bottom') ? 0.20 : 0.04;
+    const botR = (hasText && state.textPos==='bottom') ? 0.20 : 0.04;
+    const availW = W*0.92, availH = H*(1-topR-botR);
+    let fw = availW, fh = fw/fAsp;
+    if (fh>availH){ fh=availH; fw=fh*fAsp; }
     const fx=(W-fw)/2 + state.dragX;
-    const fy=(isFrame ? (H-fh)/2 : (H-fh + H*0.02)) + state.dragY;
+    const fy=topR*H + (availH-fh)/2 + state.dragY;
     background(W,H,state.accent,state.bg,state.bgImage, fy + fh/3);
-    if(!isFrame) drawTextBlock(W, H, Math.round(W*0.072));
+    if(!isFrame) drawTextBlock(W, H, Math.round(W*0.06));
     if(state.shot && state.frameScreen){
       const [x0,y0,x1,y1]=state.frameScreen;
       const rx=fx+x0*fw, ry=fy+y0*fh, rw=(x1-x0)*fw, rh=(y1-y0)*fh;
@@ -457,20 +500,41 @@ function render(){
     return;
   }
 
-  const sw = W * (isFrame ? 0.82 : (isShow ? 0.86 : 0.72));
-  const sh = sw * (dev.h/dev.w);
-  const dx = (W-sw)/2 + state.dragX;
-  const dy = (isFrame ? (H-sh)/2 : (H-sh + (isShow?H*0.10:H*0.02))) + state.dragY;
-  background(W,H,state.accent,state.bg,state.bgImage, dy + sh/3);
-  if(!isFrame) drawTextBlock(W, H, Math.round(W*0.072));
-  if(isTilt){
-    ctx.save();
-    ctx.translate(dx+sw/2, dy+sh/2); ctx.rotate(-7*Math.PI/180); ctx.translate(-(dx+sw/2), -(dy+sh/2));
-    drawPhone(dx,dy,sw,sh,dev.notch,state.shot);
-    ctx.restore();
-  } else {
-    drawPhone(dx,dy,sw,sh,dev.notch,state.shot);
+  const isPhone = (dev.kind || 'phone') === 'phone';
+
+  if (isPhone) {
+    const sw = W * (isFrame ? 0.82 : (isShow ? 0.86 : 0.72));
+    const sh = sw * (dev.h/dev.w);
+    const dx = (W-sw)/2 + state.dragX;
+    const dy = (isFrame ? (H-sh)/2 : (H-sh + (isShow?H*0.10:H*0.02))) + state.dragY;
+    background(W,H,state.accent,state.bg,state.bgImage, dy + sh/3);
+    if(!isFrame) drawTextBlock(W, H, Math.round(W*0.072));
+    if(isTilt){
+      ctx.save();
+      ctx.translate(dx+sw/2, dy+sh/2); ctx.rotate(-7*Math.PI/180); ctx.translate(-(dx+sw/2), -(dy+sh/2));
+      drawDevice(dx,dy,sw,sh,dev,state.shot);
+      ctx.restore();
+    } else {
+      drawDevice(dx,dy,sw,sh,dev,state.shot);
+    }
+    return;
   }
+
+  // laptop / watch: draw text first, then place the device below it (no overlap)
+  background(W,H,state.accent,state.bg,state.bgImage, H*0.5);
+  if(!isFrame) drawTextBlock(W, H, Math.round(W*0.05));
+  const aspect = dev.w/dev.h;
+  const bottomText = (!isFrame && state.textPos==='bottom');
+  const top = (isFrame) ? H*0.05
+            : bottomText ? H*0.05
+            : (textBox ? textBox.y + textBox.h + H*0.04 : H*0.10);
+  const bot = bottomText ? H*0.24 : H*0.05;
+  const availW = W*0.9, availH = Math.max(H*0.2, H - top - bot);
+  let sw = availW, sh = sw/aspect;
+  if (sh>availH){ sh=availH; sw=sh*aspect; }
+  const dx = (W-sw)/2 + state.dragX;
+  const dy = top + (availH-sh)/2 + state.dragY;
+  drawDevice(dx,dy,sw,sh,dev,state.shot);
 }
 
 // ---------- UI wiring ----------
@@ -528,11 +592,27 @@ function populateSizes(){
   document.getElementById('sizeW').oninput=applyCustom;
   document.getElementById('sizeH').oninput=applyCustom;
 })();
-function useFrame(img){
+// Official App Store Connect screenshot size for a frame's device (by name).
+function storeSizeForFrame(name){
+  const n=(name||'').toLowerCase();
+  if(n.includes('iphone')) return [1290,2796];       // 6.9"
+  if(n.includes('ipad')) return [2064,2752];         // 13"
+  if(n.includes('watch')) return [416,496];          // Series 11/10
+  if(n.includes('macbook')||n.includes('imac')||n.includes('studio')||n.includes('mac')) return [2880,1800]; // Mac 16:10
+  return null;                                        // unknown / user upload
+}
+function useFrame(img, credit, name){
   const rect=detectFrameScreen(img);
   state.frameMode='real'; state.frameImg=img; state.frameScreen=rect;
+  // Match the canvas to the device: exact App Store Connect size when known,
+  // otherwise fit the frame's own aspect so nothing looks squished.
+  const store=storeSizeForFrame(name);
+  if(store){ state.sizeOverride=store; }
+  else { const a=img.width/img.height; const cw=a>=1.2?2560:(a>=0.85?1600:1290);
+    state.sizeOverride=[cw, Math.round(cw*1.05/a)]; }
   frameHintKey = rect ? 'frame_hint_ok' : 'frame_hint_none';
-  document.getElementById('frameHint').textContent = t(frameHintKey);
+  const dim = state.sizeOverride ? `  ·  ${state.sizeOverride[0]}×${state.sizeOverride[1]}` : '';
+  document.getElementById('frameHint').textContent = t(frameHintKey) + (credit ? '  ·  '+credit : '') + dim;
   render();
 }
 document.getElementById('pickFrame').onclick=()=>pick(useFrame);
@@ -546,7 +626,7 @@ async function loadFrames(){
     for(const fr of j.images){ const d=document.createElement('div'); d.className='thumb';
       const img=document.createElement('img'); img.src=fr.url; img.style.objectFit='contain'; d.appendChild(img);
       d.title=fr.name;
-      d.onclick=()=>{ const full=new Image(); full.onload=()=>useFrame(full); full.src=fr.url; };
+      d.onclick=()=>{ const full=new Image(); full.onload=()=>useFrame(full, fr.credit, fr.name); full.src=fr.url; };
       box.appendChild(d); }
   } catch(e){ /* no --frames */ }
 }
