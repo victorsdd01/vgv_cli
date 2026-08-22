@@ -195,7 +195,9 @@ class FramesExtractor {
     var downloaded = 0;
     var skipped = 0;
     var failed = 0;
-    final progress = _logger.progress('Downloading ${frames.length} frames');
+    var done = 0;
+    final total = frames.length;
+    final progress = _logger.progress(_bar(0, total));
     for (final entry in frames) {
       if (entry is! Map) continue;
       final file = entry['file'] as String?;
@@ -203,6 +205,8 @@ class FramesExtractor {
       final dest = File(p.join(outDir, file));
       if (dest.existsSync() && !force) {
         skipped++;
+        done++;
+        progress.update(_bar(done, total));
         continue;
       }
       final url = Uri.parse('$base${Uri.encodeComponent(file)}');
@@ -224,7 +228,8 @@ class FramesExtractor {
         }
       }
       if (!ok) failed++;
-      progress.update('Downloaded $downloaded / ${frames.length}');
+      done++;
+      progress.update(_bar(done, total));
     }
     progress.complete('Downloaded $downloaded frame(s)'
         '${skipped > 0 ? ', $skipped already present' : ''}'
@@ -239,6 +244,16 @@ class FramesExtractor {
       ..info('  ${styleDim.wrap('Open the editor: vgv screenshots web')}')
       ..info('');
     return failed > 0 && downloaded == 0 ? 1 : 0;
+  }
+
+  /// A simple textual progress bar: `[████████░░░░░░░░]  45%  (80/178)`.
+  String _bar(int done, int total) {
+    if (total <= 0) return 'Downloading…';
+    final pct = (done / total * 100).clamp(0, 100).round();
+    const width = 20;
+    final filled = (done / total * width).round().clamp(0, width);
+    final bar = '█' * filled + '░' * (width - filled);
+    return 'Frames  [$bar] ${pct.toString().padLeft(3)}%  ($done/$total)';
   }
 
   /// Decode, downscale (alpha preserved), and write a PNG into [outDir].

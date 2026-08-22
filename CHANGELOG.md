@@ -12,8 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   178-frame Apple bezel set from a public repo served via the free jsDelivr CDN
   into `~/.vgv/frames` (which the editor auto-loads) — so any user gets every
   frame at full quality without the CLI bundling ~130 MB. Skips frames already
-  present (re-run to fill gaps), `--force` re-downloads, and each file retries a
-  few times to survive CDN bursts.
+  present (re-run to fill gaps), `--force` re-downloads, each file retries a few
+  times to survive CDN bursts, and a textual progress bar shows `%`/count.
 - **Frame library: bundled + local.** The editor's frames now come from three
   sources merged and filtered: a **curated ~40-frame bundle** (iPhone/iPad/Watch/
   MacBook/iMac/Studio Display/Apple TV, good quality, ships to everyone), any
