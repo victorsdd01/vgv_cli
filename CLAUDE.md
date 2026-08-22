@@ -279,6 +279,9 @@ Alternativa al motor Python: un **editor Canvas en el navegador**, servido por u
 - **Multi-select sin apilar**: los `chooseAny` de mason_logger (flavors, agentes IA, custom platforms) apilaban en Terminal.app (usan guardar/restaurar cursor). Reemplazados por `_selectMany` en `cli_controller.dart` (render con **movimiento relativo** + clear-to-end, flechas/j/k, espacio togglea, fallback numérico sin TTY) — mismo enfoque que el `_selectOne` de plataformas.
 - **Review & edit en el resumen**: tras el summary, `_selectOne` de Crear / Cambiar algo / Cancelar; "Cambiar algo" abre un menú de campos (name/org/platforms/flavors/fastlane/lefthook/seed/icon/splash/window/agents/linter/← Back) y re-pregunta ese campo, reconstruyendo el config en un loop (`buildConfig()` closure). No más reiniciar todo por un error.
 
+### 13. Editor web — paridad con el motor (✅ parcial)
+Al editor (`tool/screenshot_editor.html`, re-embebido) se le agregó el template **`duo`** (dos devices code-drawn lado a lado, con segundo screenshot `pickShot2`) y un **selector de tamaño de salida** (`SIZES`: presets store-exactos iPhone/iPad/Android + Custom `width`/`height`), que setea `state.sizeOverride` y ajusta el canvas. Verificado en browser (duo compone, override 1290×2796/1080×1920). **Pendiente de paridad**: multi-idioma (`locales`) y frame real en feature_graphic — quedan solo en el motor Python.
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Limpiar artefactos de build versionados en `templates/blocs/build/`.

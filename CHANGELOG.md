@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   upload a screenshot (or pick from `--raw <dir>`). "Save to project" posts the
   PNG back and the CLI writes it to `out/`. The manifest/Python path stays for
   CI/headless.
+- **Editor parity: `duo` template + exact store sizes.** The web editor now
+  has a `duo` template (two devices side by side, with a second screenshot
+  picker) and an Output size selector with store-exact presets (iPhone
+  1290×2796 / 1260×2736 / 1320×2868, iPad 2048×2732 / 2064×2752, Android
+  1080×1920) plus a custom width/height.
 - **Real device frames in the editor** (Device frame → Image): load any device
   frame PNG that has a transparent screen (e.g. Apple Product Bezels or Google
   Device Art) and the editor auto-detects the screen cut-out and composites your

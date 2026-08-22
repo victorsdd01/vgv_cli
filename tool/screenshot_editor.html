@@ -75,6 +75,15 @@
     </div>
 
     <div class="group">
+      <label>Output size</label>
+      <select id="sizeSel"></select>
+      <div class="row" id="customSize" style="display:none; margin-top:8px">
+        <input type="text" id="sizeW" placeholder="width" />
+        <input type="text" id="sizeH" placeholder="height" />
+      </div>
+    </div>
+
+    <div class="group">
       <label>Device frame</label>
       <div class="chips" id="frameModes"></div>
       <div class="thumbs" id="frameThumbs" style="margin-top:8px; display:none"></div>
@@ -85,6 +94,7 @@
     <div class="group">
       <label>Screenshot</label>
       <button class="file" id="pickShot">Upload screenshot…</button>
+      <button class="file" id="pickShot2" style="margin-top:8px; display:none">Second screenshot (duo)…</button>
       <div class="thumbs" id="rawThumbs" style="margin-top:8px"></div>
       <div class="hint" id="rawHint"></div>
     </div>
@@ -134,7 +144,18 @@ const DEVICES = {
   android: { label: "Android", w: 1080, h: 1920, notch: "punch" },
   ipad:    { label: "iPad",    w: 2048, h: 2732, notch: null },
 };
-const TEMPLATES = ["poster", "hero", "frame", "feature_graphic"];
+const TEMPLATES = ["poster", "duo", "hero", "frame", "feature_graphic"];
+// Store-exact output sizes (label -> [w,h]); null = device default.
+const SIZES = [
+  ["Device default", null],
+  ["iPhone 6.7/6.9\" · 1290×2796", [1290,2796]],
+  ["iPhone 6.9\" · 1260×2736", [1260,2736]],
+  ["iPhone 6.9\" · 1320×2868", [1320,2868]],
+  ["iPad 12.9\" · 2048×2732", [2048,2732]],
+  ["iPad 13\" · 2064×2752", [2064,2752]],
+  ["Android · 1080×1920", [1080,1920]],
+  ["Custom…", "custom"],
+];
 const PRESETS = {
   ocean:  { accent: "#39d6e0", bg: "#0b1f2a" },
   sunset: { accent: "#ff7a59", bg: "#241019" },
@@ -153,6 +174,8 @@ const state = {
   bg: "#0e0f11",
   bgImage: null,     // HTMLImageElement or null
   shot: null,        // HTMLImageElement or null
+  shot2: null,       // second screenshot (duo template)
+  sizeOverride: null,// [w,h] to force an exact store size, or null
   dragX: 0, dragY: 0,
   frameMode: "code", // "code" (drawn) | "real" (image)
   frameImg: null,    // HTMLImageElement of a device frame (transparent screen)
@@ -246,8 +269,9 @@ function drawSubtitle(text, topY, size, maxW, W){
 function render(){
   const isFeature = state.template==='feature_graphic';
   const dev = DEVICES[state.device];
-  const W = isFeature ? 1024 : dev.w;
-  const H = isFeature ? 500 : dev.h;
+  const ov = state.sizeOverride;
+  const W = isFeature ? 1024 : (ov ? ov[0] : dev.w);
+  const H = isFeature ? 500 : (ov ? ov[1] : dev.h);
   canvas.width = W; canvas.height = H;
 
   if (isFeature){
@@ -267,6 +291,20 @@ function render(){
     else { roundRect(ix,iy,s,s,s*0.22); ctx.fillStyle='#12151b'; ctx.fill(); }
     const ey=drawHeadline(state.headline, iy+s+Math.round(H*0.04), state.accent, W*0.82, Math.round(W*0.085), W);
     drawSubtitle(state.subtitle, ey+Math.round(H*0.012), Math.round(W*0.042), W*0.8, W);
+    return;
+  }
+
+  // duo: two code-drawn devices side by side
+  if (state.template==='duo'){
+    background(W,H,state.accent,state.bg,state.bgImage,Math.round(H*0.55));
+    const ey=drawHeadline(state.headline, Math.round(H*0.06), state.accent, W*0.86, Math.round(W*0.06), W);
+    drawSubtitle(state.subtitle, ey+Math.round(H*0.012), Math.round(W*0.032), W*0.8, W);
+    const sw = W*0.44, sh = sw*(dev.h/dev.w), gap = W*0.03;
+    const total = sw*2 + gap, x0 = (W-total)/2 + state.dragX;
+    const topArea = Math.round(H*0.26);
+    const y = topArea + (H - topArea - sh)/2 + state.dragY;
+    drawPhone(x0, y, sw, sh, dev.notch, state.shot);
+    drawPhone(x0+sw+gap, y, sw, sh, dev.notch, state.shot2 || state.shot);
     return;
   }
 
@@ -315,6 +353,7 @@ function chip(container, items, current, onPick, labelFn){
 }
 function refreshChips(){
   chip(document.getElementById('templates'), TEMPLATES, state.template, t=>{ state.template=t; refreshChips(); render(); }, t=>t.replace('_',' '));
+  document.getElementById('pickShot2').style.display = state.template==='duo' ? 'flex' : 'none';
   chip(document.getElementById('devices'), Object.keys(DEVICES), state.device, d=>{ state.device=d; refreshChips(); render(); }, d=>DEVICES[d].label);
   chip(document.getElementById('presets'), Object.keys(PRESETS), null, name=>{ const p=PRESETS[name]; state.accent=p.accent; state.bg=p.bg; state.bgImage=null;
     document.getElementById('accent').value=p.accent; document.getElementById('bg').value=p.bg; render(); });
@@ -336,6 +375,21 @@ document.getElementById('subtitle').oninput=e=>{ state.subtitle=e.target.value; 
 document.getElementById('accent').oninput=e=>{ state.accent=e.target.value; render(); };
 document.getElementById('bg').oninput=e=>{ state.bg=e.target.value; state.bgImage=null; render(); };
 document.getElementById('pickShot').onclick=()=>pick(img=>{ state.shot=img; render(); });
+document.getElementById('pickShot2').onclick=()=>pick(img=>{ state.shot2=img; render(); });
+
+// Output size selector
+(function(){
+  const sel=document.getElementById('sizeSel');
+  SIZES.forEach((s,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=s[0]; sel.appendChild(o); });
+  const custom=document.getElementById('customSize');
+  const applyCustom=()=>{ const w=parseInt(document.getElementById('sizeW').value,10), h=parseInt(document.getElementById('sizeH').value,10);
+    state.sizeOverride = (w>0 && h>0) ? [w,h] : null; render(); };
+  sel.onchange=()=>{ const v=SIZES[+sel.value][1];
+    if(v==='custom'){ custom.style.display='flex'; applyCustom(); }
+    else { custom.style.display='none'; state.sizeOverride = v; render(); } };
+  document.getElementById('sizeW').oninput=applyCustom;
+  document.getElementById('sizeH').oninput=applyCustom;
+})();
 function useFrame(img){
   const rect=detectFrameScreen(img);
   state.frameMode='real'; state.frameImg=img; state.frameScreen=rect;
