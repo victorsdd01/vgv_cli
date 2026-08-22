@@ -23,6 +23,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Merge pull request #68 from victorsdd01/develop
 
 ### Added
+- **`vgv screenshots web`** — a **visual, in-browser editor** for store
+  screenshots (no Python). The CLI starts a tiny local server, opens the editor,
+  and you design live on a Canvas: pick device (iPhone/Android/iPad) + template
+  (poster/hero/frame/feature-graphic), edit headline/subtitle (with accent
+  words), colors/presets/gradient or image background, drag the device, and
+  upload a screenshot (or pick from `--raw <dir>`). "Save to project" posts the
+  PNG back and the CLI writes it to `out/`. The manifest/Python path stays for
+  CI/headless.
+- **Editor parity: `duo` template + exact store sizes.** The web editor now
+  has a `duo` template (two devices side by side, with a second screenshot
+  picker) and an Output size selector with store-exact presets (iPhone
+  1290×2796 / 1260×2736 / 1320×2868, iPad 2048×2732 / 2064×2752, Android
+  1080×1920) plus a custom width/height.
+- **Real device frames in the editor** (Device frame → Image): load any device
+  frame PNG that has a transparent screen (e.g. Apple Product Bezels or Google
+  Device Art) and the editor auto-detects the screen cut-out and composites your
+  screenshot inside it. Nothing copyrighted is bundled — you supply the frame
+  (its license is between you and the provider); the built-in frames stay
+  code-drawn. Pass `vgv screenshots web --frames <dir>` to list your own local
+  frame collection as pickable thumbnails (they live only on your machine, never
+  in the published package).
+- **`vgv gen` runs build_runner for you**: `gen feature`, `gen bloc`, `gen model`
+  and `gen api` now run `dart run build_runner build -d` after generating (so the
+  `*.freezed.dart` / `*.g.dart` files are ready) — no manual step. Skip with
+  `--no-build-runner`.
 - **App icon set from a master** (prompted): point at a 1024×1024 image and the
   CLI copies it to `assets/icon/`, writes a `flutter_launcher_icons.yaml` for the
   selected platforms, adds the dev dependency, and tells you to run
@@ -120,6 +145,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TStateless/TStatefull, no `setState`, intl_utils, GoRouter).
 
 ### Changed
+- **Interactive wizard: review & edit before creating.** After the summary you
+  now choose Create / Change something / Cancel, and "Change something" lets you
+  jump back to any field (name, org, platforms, flavors, colors, …) and re-answer
+  — no more restarting the whole flow to fix one choice.
 - **Adaptive navigation shell** in the generated project: Home and Settings now
   live under a `StatefulShellRoute` with an `AppShell` that shows a
   `NavigationRail` on wide viewports (desktop/web/large tablets) and a
@@ -138,6 +167,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   via `tool/generate_version.dart`); "latest" reads the `main` `pubspec.yaml`.
 
 ### Fixed
+- **All multi-select prompts** (flavors, AI agents, custom platforms) no longer
+  stack on each keypress in macOS Terminal.app — replaced mason_logger's
+  `chooseAny` (save/restore-cursor) with a selector that redraws using relative
+  cursor movement (matching the earlier single-select fix). Arrow keys, j/k, and
+  space-to-toggle; numbered fallback with no TTY.
 - `-o/--output` and `--no-git` are now honored (+ `git init`); `--org/-o/--no-git`
   are respected even when falling back to interactive mode.
 - `addDependencies` no longer places the Flutter SDK and `cupertino_icons`

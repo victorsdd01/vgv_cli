@@ -58,6 +58,8 @@ class GenRunner {
       ..addFlag('wire',
           defaultsTo: true,
           help: 'Auto-register DI + route (needs the vgv injector/routes).')
+      ..addFlag('build-runner',
+          defaultsTo: true, help: 'Run build_runner after generating.')
       ..addFlag('force',
           abbr: 'f', defaultsTo: false, help: 'Overwrite existing files.')
       ..addFlag('yes',
@@ -147,7 +149,40 @@ class GenRunner {
 
     final wired = (res['wire'] as bool) ? _wireFeature(options) : <String>[];
     _report(options, files.keys.toList()..sort(), wired);
+    await _afterCodegen(needsFreezed: true, skip: !(res['build-runner'] as bool));
     return 0;
+  }
+
+  /// Runs `dart run build_runner build -d` after generating freezed code so the
+  /// user doesn't have to. On failure (or when skipped) it prints the command.
+  Future<void> _afterCodegen({required bool needsFreezed, required bool skip}) async {
+    if (!needsFreezed) return;
+    if (skip || !File('pubspec.yaml').existsSync()) {
+      _logger
+        ..info('  ${styleDim.wrap('Then run build_runner:')}')
+        ..info('       ${lightCyan.wrap('dart run build_runner build -d')}')
+        ..info('');
+      return;
+    }
+    final progress =
+        _logger.progress('Running build_runner (dart run build_runner build -d)');
+    try {
+      final result = await Process.run(
+        'dart',
+        <String>['run', 'build_runner', 'build', '-d'],
+        runInShell: true,
+      );
+      if (result.exitCode == 0) {
+        progress.complete('Generated code is ready (build_runner).');
+      } else {
+        progress.fail('build_runner failed — run it manually:');
+        _logger.info('       ${lightCyan.wrap('dart run build_runner build -d')}');
+      }
+    } catch (_) {
+      progress.fail('Could not run build_runner — run it manually:');
+      _logger.info('       ${lightCyan.wrap('dart run build_runner build -d')}');
+    }
+    _logger.info('');
   }
 
   /// Best-effort auto-wiring into a vgv-generated project: registers the
@@ -249,6 +284,7 @@ class GenRunner {
       ..addOption('from', help: 'Path to an OpenAPI/Swagger spec (.json/.yaml).')
       ..addOption('feature',
           help: 'Place under lib/features/<f>/data (else lib/api/).')
+      ..addFlag('build-runner', defaultsTo: true)
       ..addFlag('force', abbr: 'f', defaultsTo: false)
       ..addFlag('yes', abbr: 'y', defaultsTo: false);
 
@@ -317,10 +353,9 @@ class GenRunner {
     }
     _logger
       ..info('')
-      ..info('  ${styleDim.wrap('Models use freezed — run build_runner:')}')
-      ..info('       ${lightCyan.wrap('dart run build_runner build --delete-conflicting-outputs')}')
       ..info('  ${styleDim.wrap('Then implement the stubbed methods in the generated *_api.dart.')}')
       ..info('');
+    await _afterCodegen(needsFreezed: true, skip: !(res['build-runner'] as bool));
     return 0;
   }
 
@@ -330,6 +365,7 @@ class GenRunner {
       ..addOption('feature', help: 'Target feature (under lib/features/).')
       ..addFlag('stateful', defaultsTo: false, help: 'page: StatefulWidget.')
       ..addOption('bloc', help: 'page: wire this Bloc into the page.')
+      ..addFlag('build-runner', defaultsTo: true)
       ..addFlag('force', abbr: 'f', defaultsTo: false)
       ..addFlag('yes', abbr: 'y', defaultsTo: false);
 
@@ -406,11 +442,12 @@ class GenRunner {
     for (final p in files.keys.toList()..sort()) {
       _logger.info('    ${styleDim.wrap(p)}');
     }
-    _logger
-      ..info('')
-      ..info('  ${styleDim.wrap('Then run build_runner if it uses freezed:')}')
-      ..info('       ${lightCyan.wrap('dart run build_runner build --delete-conflicting-outputs')}')
-      ..info('');
+    _logger.info('');
+    // Only the bloc uses freezed.
+    await _afterCodegen(
+      needsFreezed: kind == 'bloc',
+      skip: !(res['build-runner'] as bool),
+    );
     return 0;
   }
 
@@ -419,6 +456,7 @@ class GenRunner {
       ..addOption('from', help: 'Path to a sample .json file.')
       ..addOption('feature',
           help: 'Place under lib/features/<feature>/ (else lib/models/).')
+      ..addFlag('build-runner', defaultsTo: true)
       ..addFlag('force',
           abbr: 'f', defaultsTo: false, help: 'Overwrite existing files.')
       ..addFlag('yes', abbr: 'y', defaultsTo: false, help: 'No prompts.');
@@ -497,11 +535,8 @@ class GenRunner {
     for (final path in files.keys.toList()..sort()) {
       _logger.info('    ${styleDim.wrap(path)}');
     }
-    _logger
-      ..info('')
-      ..info('  ${styleDim.wrap('Then run build_runner:')}')
-      ..info('       ${lightCyan.wrap('dart run build_runner build --delete-conflicting-outputs')}')
-      ..info('');
+    _logger.info('');
+    await _afterCodegen(needsFreezed: true, skip: !(res['build-runner'] as bool));
     return 0;
   }
 
@@ -524,11 +559,7 @@ class GenRunner {
       for (final w in wired) {
         _logger.info('    ${styleDim.wrap(w)}');
       }
-      _logger
-        ..info('')
-        ..info('  ${styleDim.wrap('Run build_runner:')}')
-        ..info('       ${lightCyan.wrap('dart run build_runner build --delete-conflicting-outputs')}')
-        ..info('');
+      _logger.info('');
       return;
     }
 
@@ -557,10 +588,7 @@ class GenRunner {
       _logger.info(
           '  ${styleDim.wrap('2. Add a route in application/routes/routes.dart pointing to ${o.page.pascalCase}Page.')}');
     }
-    _logger
-      ..info('  ${styleDim.wrap('3. Run build_runner:')}')
-      ..info('       ${lightCyan.wrap('dart run build_runner build --delete-conflicting-outputs')}')
-      ..info('');
+    _logger.info('');
   }
 
   void _usage() {
@@ -582,6 +610,7 @@ class GenRunner {
       ..info('    ${lightCyan.wrap('--page-name <Name>')}     ${styleDim.wrap('custom page class name')}')
       ..info('    ${lightCyan.wrap('--stateful')}             ${styleDim.wrap('StatefulWidget page (default: stateless)')}')
       ..info('    ${lightCyan.wrap('--no-bloc-in-page')}      ${styleDim.wrap('do not wire the Bloc into the page')}')
+      ..info('    ${lightCyan.wrap('--no-build-runner')}      ${styleDim.wrap("don't run build_runner after generating")}')
       ..info('    ${lightCyan.wrap('-y, --yes')}              ${styleDim.wrap('accept defaults (no prompts)')}')
       ..info('    ${lightCyan.wrap('-f, --force')}            ${styleDim.wrap('overwrite existing files')}')
       ..info('');

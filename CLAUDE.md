@@ -265,6 +265,23 @@ Todas verificadas (`analyze` limpio, 49 tests; los proyectos generados pasan `fl
 
 Prompts nuevos en `cli_controller.dart`: `_getSeedColor`, `_getIconMaster` (path absoluto resuelto antes de cambiar CWD), `_getSplashChoice`, `_getDesktopWindowChoice(platforms)`. Campos nuevos en `ProjectConfig`: `seedColorHex`, `iconMasterPath`, `includeSplash`, `desktopWindow`.
 
+### 11. `vgv screenshots web` — editor visual en el browser (✅ HECHO)
+Alternativa al motor Python: un **editor Canvas en el navegador**, servido por un **mini server local** (sin login, sin backend, offline). `screenshot_web.dart` (`ScreenshotWebServer`) levanta `HttpServer` en `127.0.0.1`, sirve el editor (`GET /`), lista raw (`GET /api/raw` desde `--raw <dir>`), sirve imágenes (`GET /raw/<f>`), y recibe el PNG renderizado (`POST /api/save`) escribiéndolo en `out/`. El "link" CLI↔web es localhost.
+- Editor: `tool/screenshot_editor.html` (HTML+CSS+JS+Canvas, editable), embebido en base64 en `lib/core/templates/screenshot_editor_html.dart` vía `tool/generate_editor_html.dart` (regenerar: `dart run tool/generate_editor_html.dart`).
+- Devices iPhone/Android/iPad **dibujados por código** en Canvas (frames premium, sin assets con licencia dudosa). Templates poster/hero/frame/feature_graphic. Controles: headline/subtitle (con `**acento**`), color/presets/gradiente o **imagen de fondo**, **drag** del device, upload de screenshot o pick de `--raw`. Botones Download y "Save to project (out/)".
+- **Frames reales (Device frame → Image)**: `detectFrameScreen()` hace flood-fill de transparencia desde los bordes → el hueco transparente encerrado = pantalla; compone la captura ahí y dibuja el frame encima. Funciona con cualquier frame PNG de pantalla transparente (Apple Product Bezels, Google Device Art, kits Figma). **No se embebe nada con copyright** — el user carga su frame (licencia entre el user y el proveedor; los Product Bezels de Apple NO se pueden redistribuir en el paquete, pero el user sí puede usarlos localmente). Built-in queda code-drawn/CC0.
+- **`--frames <dir>`**: carpeta local de frames del usuario → el server los lista (`GET /api/frames`, sirve `/frames/<f>`) y el editor los muestra como thumbs seleccionables (modo Image). Los assets viven solo en la máquina del user, nunca en el paquete. (Distinción legal clave: embeber en el paquete = redistribución prohibida; leer de carpeta local del user = OK.)
+- Ruteado en `screenshot_runner.dart` como subcomando `web`. El motor por manifest (Python) queda para CI/headless.
+- Verificado end-to-end en el browser (in-app): sirve, lista raw, compone la captura en el frame, y `POST /api/save` escribe el PNG. `analyze` limpio, 49 tests.
+- **Futuro (pedido del usuario)**: más plantillas/efectos, mockups PNG reales, y eventualmente deploy público con cuentas (Pattern C).
+
+### 12. Fix multi-select + wizard review-and-edit (✅ HECHO)
+- **Multi-select sin apilar**: los `chooseAny` de mason_logger (flavors, agentes IA, custom platforms) apilaban en Terminal.app (usan guardar/restaurar cursor). Reemplazados por `_selectMany` en `cli_controller.dart` (render con **movimiento relativo** + clear-to-end, flechas/j/k, espacio togglea, fallback numérico sin TTY) — mismo enfoque que el `_selectOne` de plataformas.
+- **Review & edit en el resumen**: tras el summary, `_selectOne` de Crear / Cambiar algo / Cancelar; "Cambiar algo" abre un menú de campos (name/org/platforms/flavors/fastlane/lefthook/seed/icon/splash/window/agents/linter/← Back) y re-pregunta ese campo, reconstruyendo el config en un loop (`buildConfig()` closure). No más reiniciar todo por un error.
+
+### 13. Editor web — paridad con el motor (✅ parcial)
+Al editor (`tool/screenshot_editor.html`, re-embebido) se le agregó el template **`duo`** (dos devices code-drawn lado a lado, con segundo screenshot `pickShot2`) y un **selector de tamaño de salida** (`SIZES`: presets store-exactos iPhone/iPad/Android + Custom `width`/`height`), que setea `state.sizeOverride` y ajusta el canvas. Verificado en browser (duo compone, override 1290×2796/1080×1920). **Pendiente de paridad**: multi-idioma (`locales`) y frame real en feature_graphic — quedan solo en el motor Python.
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Limpiar artefactos de build versionados en `templates/blocs/build/`.
