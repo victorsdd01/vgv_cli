@@ -5,6 +5,7 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as p;
 
 import '../templates/screenshot_script.dart';
+import 'frames_extractor.dart';
 import 'screenshot_web.dart';
 
 /// Runs `vgv screenshots`: frames raw app screenshots into store-ready
@@ -29,6 +30,9 @@ class ScreenshotRunner {
     }
     if (args.first == 'web') {
       return ScreenshotWebServer(logger: _logger).run(args.sublist(1));
+    }
+    if (args.first == 'frames') {
+      return FramesExtractor(logger: _logger).run(args.sublist(1));
     }
 
     final manifest = args.first;
@@ -281,6 +285,7 @@ Requires Python 3 + Pillow (`python3 -m pip install --user pillow`).
       ..info(styleBold.wrap('  vgv screenshots — store marketing screenshots'))
       ..info('')
       ..info('  ${lightCyan.wrap('vgv screenshots web [--raw d] [--frames d]')} ${styleDim.wrap('visual editor (browser, no Python)')}')
+      ..info('  ${lightCyan.wrap('vgv screenshots frames <dir>')}       ${styleDim.wrap('build local frame library from Apple bezels (.dmg/.png)')}')
       ..info('  ${lightCyan.wrap('vgv screenshots --init [dir]')}       ${styleDim.wrap('scaffold a manifest + folders')}')
       ..info('  ${lightCyan.wrap('vgv screenshots <manifest>')}         ${styleDim.wrap('render framed posters from a manifest')}')
       ..info('  ${lightCyan.wrap('vgv screenshots capture --init')}     ${styleDim.wrap('scaffold a golden harness to auto-capture raw screens')}')

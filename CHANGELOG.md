@@ -38,6 +38,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Merge pull request #68 from victorsdd01/develop
 
 ### Added
+- **Cloud frame library (`vgv screenshots frames --cloud`).** Downloads the full
+  178-frame Apple bezel set from a public repo served via the free jsDelivr CDN
+  into `~/.vgv/frames` (which the editor auto-loads) — so any user gets every
+  frame at full quality without the CLI bundling ~130 MB. Skips frames already
+  present (re-run to fill gaps), `--force` re-downloads, each file retries a few
+  times to survive CDN bursts, and a textual progress bar shows `%`/count.
+- **Frame library: bundled + local.** The editor's frames now come from three
+  sources merged and filtered: a **curated ~40-frame bundle** (iPhone/iPad/Watch/
+  MacBook/iMac/Studio Display/Apple TV, good quality, ships to everyone), any
+  `--frames <dir>`, and a **local library at `~/.vgv/frames`** the editor
+  auto-loads. New command **`vgv screenshots frames <dir>`** builds that library
+  from Apple Product Bezel `.dmg` files (mounted, SLA auto-accepted) or loose
+  `.png` frames — every frame at full quality (≤2000px), without bloating the
+  published package (the full 178-frame set is ~130 MB, over pub.dev's limit).
+- **Editor: frame names + device filtering.** Each frame thumbnail now shows its
+  name, and the Device chips filter the frame list — selecting iPad shows only
+  iPad frames, iPhone only iPhone, etc. (Mac family + Studio Display + Apple TV
+  live under the MacBook chip.) An empty-state hint shows when a device has no
+  frames.
 - **`vgv screenshots web`** — a **visual, in-browser editor** for store
   screenshots (no Python). The CLI starts a tiny local server, opens the editor,
   and you design live on a Canvas: pick device (iPhone/Android/iPad) + template
