@@ -1,11 +1,18 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
 import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as p;
 
 import 'screenshot_web.dart' show defaultFramesDir;
+
+/// Cloud frame library (public repo, served via the free jsDelivr CDN).
+/// `vgv screenshots frames --cloud` downloads it into ~/.vgv/frames.
+const String cloudFramesManifestUrl =
+    'https://cdn.jsdelivr.net/gh/victorsdd01/vgv_cli_frames@v1/manifest.json';
 
 /// `vgv screenshots frames <source>` — builds a local frame library at
 /// ~/.vgv/frames from the device bezels you downloaded (e.g. Apple Product
@@ -24,11 +31,17 @@ class FramesExtractor {
     final positional = <String>[];
     String? outArg;
     var maxSide = 2000;
+    var cloud = false;
+    var force = false;
     for (var i = 0; i < args.length; i++) {
       final a = args[i];
       if (a == '-h' || a == '--help') {
         _usage();
         return 0;
+      } else if (a == '--cloud') {
+        cloud = true;
+      } else if (a == '--force' || a == '-f') {
+        force = true;
       } else if (a == '--out') {
         outArg = i + 1 < args.length ? args[++i] : null;
       } else if (a == '--max') {
@@ -40,6 +53,12 @@ class FramesExtractor {
       } else {
         positional.add(a);
       }
+    }
+
+    if (cloud) {
+      final outDir = outArg ?? defaultFramesDir();
+      Directory(outDir).createSync(recursive: true);
+      return _runCloud(outDir, force: force);
     }
 
     if (positional.isEmpty) {
@@ -140,6 +159,88 @@ class FramesExtractor {
     return 0;
   }
 
+  /// `--cloud`: download the hosted frame library (jsDelivr) into [outDir].
+  Future<int> _runCloud(String outDir, {required bool force}) async {
+    _logger
+      ..info('')
+      ..info(styleBold.wrap(lightCyan.wrap('  ☁  Downloading frame library'))!)
+      ..info('  ${styleDim.wrap('→ $outDir')}')
+      ..info('');
+
+    final Map<String, dynamic> manifest;
+    try {
+      final res = await http
+          .get(Uri.parse(cloudFramesManifestUrl))
+          .timeout(const Duration(seconds: 20));
+      if (res.statusCode != 200) {
+        _logger.err('  Could not fetch the frame manifest (HTTP ${res.statusCode}).');
+        return 1;
+      }
+      manifest = jsonDecode(res.body) as Map<String, dynamic>;
+    } catch (e) {
+      _logger
+        ..err('  Could not reach the frame library: $e')
+        ..info(styleDim.wrap('  Check your connection, or build a local library '
+            'from your own bezels: vgv screenshots frames <dir>'));
+      return 1;
+    }
+
+    final base = (manifest['base'] as String?) ?? '';
+    final frames = (manifest['frames'] as List?) ?? const [];
+    if (base.isEmpty || frames.isEmpty) {
+      _logger.err('  The frame manifest looks empty or malformed.');
+      return 1;
+    }
+
+    var downloaded = 0;
+    var skipped = 0;
+    var failed = 0;
+    final progress = _logger.progress('Downloading ${frames.length} frames');
+    for (final entry in frames) {
+      if (entry is! Map) continue;
+      final file = entry['file'] as String?;
+      if (file == null) continue;
+      final dest = File(p.join(outDir, file));
+      if (dest.existsSync() && !force) {
+        skipped++;
+        continue;
+      }
+      final url = Uri.parse('$base${Uri.encodeComponent(file)}');
+      var ok = false;
+      // Retry a few times — the CDN can drop requests under a burst.
+      for (var attempt = 0; attempt < 3 && !ok; attempt++) {
+        if (attempt > 0) {
+          await Future<void>.delayed(Duration(milliseconds: 400 * attempt));
+        }
+        try {
+          final res = await http.get(url).timeout(const Duration(seconds: 30));
+          if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
+            dest.writeAsBytesSync(res.bodyBytes);
+            downloaded++;
+            ok = true;
+          }
+        } catch (_) {
+          // fall through to retry
+        }
+      }
+      if (!ok) failed++;
+      progress.update('Downloaded $downloaded / ${frames.length}');
+    }
+    progress.complete('Downloaded $downloaded frame(s)'
+        '${skipped > 0 ? ', $skipped already present' : ''}'
+        '${failed > 0 ? ', $failed failed' : ''}');
+
+    if (manifest['credit'] != null) {
+      _logger.info('  ${styleDim.wrap(manifest['credit'] as String)}');
+    }
+    _logger
+      ..info('')
+      ..info(green.wrap('  ✓ Frame library ready in $outDir')!)
+      ..info('  ${styleDim.wrap('Open the editor: vgv screenshots web')}')
+      ..info('');
+    return failed > 0 && downloaded == 0 ? 1 : 0;
+  }
+
   /// Decode, downscale (alpha preserved), and write a PNG into [outDir].
   bool _processPng(Uint8List bytes, String name, String outDir, int maxSide) {
     try {
@@ -182,12 +283,15 @@ class FramesExtractor {
       ..info('')
       ..info(styleBold.wrap('  vgv screenshots frames — build a local frame library'))
       ..info('')
-      ..info('  ${lightCyan.wrap('vgv screenshots frames <source-dir>')} ${styleDim.wrap('extract frames → ~/.vgv/frames')}')
+      ..info('  ${lightCyan.wrap('vgv screenshots frames --cloud')}      ${styleDim.wrap('download the hosted library → ~/.vgv/frames')}')
+      ..info('  ${lightCyan.wrap('vgv screenshots frames <source-dir>')} ${styleDim.wrap('extract from your own bezels → ~/.vgv/frames')}')
       ..info('')
+      ..info('  ${styleDim.wrap('--cloud')}      download the hosted frame library (jsDelivr CDN).')
       ..info('  ${styleDim.wrap('<source-dir>')} a folder with Apple Product Bezel .dmg files (macOS)')
       ..info('  ${styleDim.wrap('             ')} and/or device-frame .png files (transparent screen).')
       ..info('  ${styleDim.wrap('--out <dir>')}  where to write (default: ~/.vgv/frames).')
       ..info('  ${styleDim.wrap('--max <px>')}   max long side, downscaled (default: 2000).')
+      ..info('  ${styleDim.wrap('--force/-f')}   re-download frames already present.')
       ..info('')
       ..info(styleDim.wrap('  The editor (vgv screenshots web) auto-loads ~/.vgv/frames,'))
       ..info(styleDim.wrap('  full quality, without bloating the published package.'))
