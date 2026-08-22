@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   picker) and an Output size selector with store-exact presets (iPhone
   1290×2796 / 1260×2736 / 1320×2868, iPad 2048×2732 / 2064×2752, Android
   1080×1920) plus a custom width/height.
+- **Editor: light/dark theme + English/Spanish.** The web editor now has a
+  theme toggle (defaults to your system, remembered) and an EN/ES language
+  switch — minimalist, persisted in localStorage.
 - **Real device frames in the editor** (Device frame → Image): load any device
   frame PNG that has a transparent screen (e.g. Apple Product Bezels or Google
   Device Art) and the editor auto-detects the screen cut-out and composites your

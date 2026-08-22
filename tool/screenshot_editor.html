@@ -8,6 +8,12 @@
   :root {
     --bg: #0e0f13; --panel: #16181e; --panel2: #1d2027; --line: #262a33;
     --text: #e8ebf0; --muted: #949bab; --accent: #39d6e0;
+    --stage1: #15171d; --stage2: #0e0f13;
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f6fa; --panel: #ffffff; --panel2: #eef1f6; --line: #d9dee7;
+    --text: #1a1d24; --muted: #667085; --accent: #0aa2ad;
+    --stage1: #eef1f6; --stage2: #f4f6fa;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
@@ -15,7 +21,16 @@
   #app { display: grid; grid-template-columns: 320px 1fr; height: 100vh; }
   #sidebar { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; padding: 16px; }
   #stage { display: flex; align-items: center; justify-content: center; overflow: auto; padding: 24px;
-    background: radial-gradient(1200px 600px at 50% 0%, #15171d, #0e0f13); }
+    background: radial-gradient(1200px 600px at 50% 0%, var(--stage1), var(--stage2)); }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .iconbtn { width: 30px; height: 30px; display: grid; place-items: center; background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-size: 14px; line-height: 1;
+    transition: border-color .15s; }
+  .iconbtn:hover { border-color: var(--accent); }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg .lang { border: 0; background: transparent; color: var(--muted); padding: 5px 11px;
+    cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; letter-spacing: .3px; }
+  .seg .lang.active { background: var(--accent); color: #05222a; }
   h1 { font-size: 15px; margin: 0 0 4px; letter-spacing: .2px; }
   .sub { color: var(--muted); font-size: 12px; margin: 0 0 16px; }
   .group { margin-bottom: 18px; }
@@ -47,7 +62,8 @@
     box-shadow: 0 30px 80px rgba(0,0,0,.5); cursor: grab; }
   canvas#c:active { cursor: grabbing; }
   .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
-    background: #1d2027; border: 1px solid var(--line); padding: 10px 16px; border-radius: 10px;
+    background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    padding: 10px 16px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
     opacity: 0; transition: opacity .2s; pointer-events: none; }
   .toast.show { opacity: 1; }
   .divider { height: 1px; background: var(--line); margin: 14px 0; }
@@ -61,21 +77,28 @@
 <body>
 <div id="app">
   <aside id="sidebar">
+    <div class="topbar">
+      <button class="iconbtn" id="themeToggle" title="Theme">🌙</button>
+      <div class="seg">
+        <button class="lang" data-lang="en">EN</button>
+        <button class="lang" data-lang="es">ES</button>
+      </div>
+    </div>
     <h1>vgv screenshots</h1>
-    <p class="sub">Frame your app screenshots — no Python needed.</p>
+    <p class="sub" data-i18n="tagline">Frame your app screenshots — no Python needed.</p>
 
     <div class="group">
-      <label>Template</label>
+      <label data-i18n="template">Template</label>
       <div class="chips" id="templates"></div>
     </div>
 
     <div class="group">
-      <label>Device</label>
+      <label data-i18n="device">Device</label>
       <div class="chips" id="devices"></div>
     </div>
 
     <div class="group">
-      <label>Output size</label>
+      <label data-i18n="output_size">Output size</label>
       <select id="sizeSel"></select>
       <div class="row" id="customSize" style="display:none; margin-top:8px">
         <input type="text" id="sizeW" placeholder="width" />
@@ -84,49 +107,49 @@
     </div>
 
     <div class="group">
-      <label>Device frame</label>
+      <label data-i18n="device_frame">Device frame</label>
       <div class="chips" id="frameModes"></div>
       <div class="thumbs" id="frameThumbs" style="margin-top:8px; display:none"></div>
-      <button class="file" id="pickFrame" style="margin-top:8px; display:none">Load frame PNG…</button>
+      <button class="file" id="pickFrame" style="margin-top:8px; display:none" data-i18n="load_frame">Load frame PNG…</button>
       <div class="hint" id="frameHint">“Image” lets you drop a real device frame (transparent screen) — e.g. Apple Product Bezels or Google Device Art. Pass <code>--frames &lt;dir&gt;</code> to list your own.</div>
     </div>
 
     <div class="group">
-      <label>Screenshot</label>
-      <button class="file" id="pickShot">Upload screenshot…</button>
-      <button class="file" id="pickShot2" style="margin-top:8px; display:none">Second screenshot (duo)…</button>
+      <label data-i18n="screenshot">Screenshot</label>
+      <button class="file" id="pickShot" data-i18n="upload">Upload screenshot…</button>
+      <button class="file" id="pickShot2" style="margin-top:8px; display:none" data-i18n="second_shot">Second screenshot (duo)…</button>
       <div class="thumbs" id="rawThumbs" style="margin-top:8px"></div>
       <div class="hint" id="rawHint"></div>
     </div>
 
     <div class="group">
-      <label>Headline <span class="hint">(**word** = accent)</span></label>
+      <label><span data-i18n="headline">Headline</span> <span class="hint" data-i18n="headline_hint">(**word** = accent)</span></label>
       <textarea id="headline">Catch **stick drift** in real time</textarea>
     </div>
     <div class="group">
-      <label>Subtitle</label>
+      <label data-i18n="subtitle">Subtitle</label>
       <textarea id="subtitle">Live per-stick offset and max deflection.</textarea>
     </div>
 
     <div class="group">
-      <label>Accent</label>
+      <label data-i18n="accent">Accent</label>
       <input type="color" id="accent" value="#39d6e0" />
     </div>
 
     <div class="group">
-      <label>Background</label>
+      <label data-i18n="background">Background</label>
       <div class="chips" id="presets"></div>
       <div class="row" style="margin-top:8px">
         <input type="color" id="bg" value="#0e0f11" />
-        <button class="file" id="pickBg">Image…</button>
+        <button class="file" id="pickBg" data-i18n="image_btn">Image…</button>
       </div>
-      <button class="btn" id="clearBg" style="margin-top:8px">Use gradient</button>
+      <button class="btn" id="clearBg" style="margin-top:8px" data-i18n="use_gradient">Use gradient</button>
     </div>
 
     <div class="divider"></div>
     <div class="group">
-      <button class="btn" id="download">Download PNG</button>
-      <button class="btn primary" id="save" style="margin-top:8px">Save to project (out/)</button>
+      <button class="btn" id="download" data-i18n="download">Download PNG</button>
+      <button class="btn primary" id="save" style="margin-top:8px" data-i18n="save">Save to project (out/)</button>
       <div class="hint" id="saveHint"></div>
     </div>
   </aside>
@@ -184,6 +207,47 @@ const state = {
 
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
+
+// i18n data + state (declared early so populateSizes()/t() are safe to call).
+const I18N = {
+  en: {
+    tagline: "Frame your app screenshots — no Python needed.",
+    template: "Template", device: "Device", output_size: "Output size",
+    device_frame: "Device frame", screenshot: "Screenshot", subtitle: "Subtitle",
+    accent: "Accent", background: "Background", headline: "Headline",
+    headline_hint: "(**word** = accent)",
+    upload: "Upload screenshot…", second_shot: "Second screenshot (duo)…",
+    load_frame: "Load frame PNG…", image_btn: "Image…", use_gradient: "Use gradient",
+    download: "Download PNG", save: "Save to project (out/)",
+    size_default: "Device default", size_custom: "Custom…",
+    raw_hint: "Tip: pass --raw <dir> to pick from your screenshots.",
+    frame_hint_default: "“Image” lets you drop a real device frame (transparent screen) — e.g. Apple Product Bezels or Google Device Art. Pass --frames <dir> to list your own.",
+    frame_hint_ok: "Frame loaded — screen detected. Your screenshot composites inside it.",
+    frame_hint_none: "Loaded, but no transparent screen detected. Use a frame PNG with a see-through screen.",
+    saved: "Saved → ", save_fail: "Save failed",
+  },
+  es: {
+    tagline: "Enmarcá las capturas de tu app — sin Python.",
+    template: "Plantilla", device: "Dispositivo", output_size: "Tamaño de salida",
+    device_frame: "Marco del dispositivo", screenshot: "Captura", subtitle: "Subtítulo",
+    accent: "Acento", background: "Fondo", headline: "Título",
+    headline_hint: "(**palabra** = acento)",
+    upload: "Subir captura…", second_shot: "Segunda captura (duo)…",
+    load_frame: "Cargar frame PNG…", image_btn: "Imagen…", use_gradient: "Usar gradiente",
+    download: "Descargar PNG", save: "Guardar en el proyecto (out/)",
+    size_default: "Tamaño del dispositivo", size_custom: "Personalizado…",
+    raw_hint: "Tip: pasá --raw <dir> para elegir de tus capturas.",
+    frame_hint_default: "“Imagen” te deja soltar un marco real (pantalla transparente) — p.ej. Apple Product Bezels o Google Device Art. Pasá --frames <dir> para listar los tuyos.",
+    frame_hint_ok: "Marco cargado — pantalla detectada. Tu captura se compone adentro.",
+    frame_hint_none: "Cargado, pero no se detectó pantalla transparente. Usá un frame PNG con la pantalla calada.",
+    saved: "Guardado → ", save_fail: "No se pudo guardar",
+  },
+};
+let lang = localStorage.getItem('vgvLang') || (navigator.language || 'en').slice(0,2);
+if (!I18N[lang]) lang = 'en';
+let frameHintKey = 'frame_hint_default';
+let rawHintKey = null;
+function t(k){ return (I18N[lang] && I18N[lang][k]) || I18N.en[k] || k; }
 
 // ---------- helpers ----------
 function hexToRgb(h) { h = h.replace('#',''); return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; }
@@ -378,9 +442,17 @@ document.getElementById('pickShot').onclick=()=>pick(img=>{ state.shot=img; rend
 document.getElementById('pickShot2').onclick=()=>pick(img=>{ state.shot2=img; render(); });
 
 // Output size selector
+function populateSizes(){
+  const sel=document.getElementById('sizeSel'); const cur=sel.value;
+  sel.innerHTML='';
+  SIZES.forEach((s,i)=>{ const o=document.createElement('option'); o.value=i;
+    o.textContent = i===0 ? t('size_default') : (s[1]==='custom' ? t('size_custom') : s[0]);
+    sel.appendChild(o); });
+  if(cur) sel.value=cur;
+}
 (function(){
   const sel=document.getElementById('sizeSel');
-  SIZES.forEach((s,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=s[0]; sel.appendChild(o); });
+  populateSizes();
   const custom=document.getElementById('customSize');
   const applyCustom=()=>{ const w=parseInt(document.getElementById('sizeW').value,10), h=parseInt(document.getElementById('sizeH').value,10);
     state.sizeOverride = (w>0 && h>0) ? [w,h] : null; render(); };
@@ -393,9 +465,8 @@ document.getElementById('pickShot2').onclick=()=>pick(img=>{ state.shot2=img; re
 function useFrame(img){
   const rect=detectFrameScreen(img);
   state.frameMode='real'; state.frameImg=img; state.frameScreen=rect;
-  document.getElementById('frameHint').textContent = rect
-    ? 'Frame loaded — screen detected. Your screenshot composites inside it.'
-    : 'Loaded, but no transparent screen detected. Use a frame PNG with a see-through screen (e.g. Apple Product Bezels).';
+  frameHintKey = rect ? 'frame_hint_ok' : 'frame_hint_none';
+  document.getElementById('frameHint').textContent = t(frameHintKey);
   render();
 }
 document.getElementById('pickFrame').onclick=()=>pick(useFrame);
@@ -425,8 +496,8 @@ document.getElementById('save').onclick=async()=>{
     const res=await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({name, dataUrl:canvas.toDataURL('image/png')})});
     const j=await res.json();
-    toast(j.ok?`Saved → ${j.path}`:'Save failed');
-  } catch(e){ toast('Save failed (is the CLI server running?)'); }
+    toast(j.ok? t('saved')+j.path : t('save_fail'));
+  } catch(e){ toast(t('save_fail')); }
 };
 
 // drag the device on poster/frame
@@ -441,7 +512,7 @@ async function loadRaw(){
   try {
     const res=await fetch('/api/raw'); const j=await res.json();
     const box=document.getElementById('rawThumbs');
-    if(!j.images || !j.images.length){ document.getElementById('rawHint').textContent='Tip: pass --raw <dir> to pick from your screenshots.'; return; }
+    if(!j.images || !j.images.length){ rawHintKey='raw_hint'; document.getElementById('rawHint').textContent=t('raw_hint'); return; }
     for(const im of j.images){ const d=document.createElement('div'); d.className='thumb';
       const img=document.createElement('img'); img.src=im.url; d.appendChild(img);
       d.onclick=()=>{ const full=new Image(); full.onload=()=>{ state.shot=full; render(); }; full.src=im.url; };
@@ -449,7 +520,29 @@ async function loadRaw(){
   } catch(e){ /* no server / no raw */ }
 }
 
-refreshChips(); loadRaw(); loadFrames(); render();
+// ---------- theme + i18n (data hoisted to the top of the script) ----------
+function applyI18n(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.getAttribute('data-i18n')); });
+  document.getElementById('frameHint').textContent = t(frameHintKey);
+  document.getElementById('rawHint').textContent = rawHintKey ? t(rawHintKey) : '';
+  populateSizes();
+  document.querySelectorAll('.lang').forEach(b=> b.classList.toggle('active', b.dataset.lang===lang));
+  document.documentElement.lang = lang;
+}
+document.querySelectorAll('.lang').forEach(b=> b.onclick=()=>{ lang=b.dataset.lang; localStorage.setItem('vgvLang', lang); applyI18n(); });
+
+function applyTheme(mode){
+  document.documentElement.dataset.theme = mode;
+  document.getElementById('themeToggle').textContent = mode==='light' ? '☀️' : '🌙';
+  localStorage.setItem('vgvTheme', mode);
+}
+document.getElementById('themeToggle').onclick=()=>
+  applyTheme(document.documentElement.dataset.theme==='light' ? 'dark' : 'light');
+const savedTheme = localStorage.getItem('vgvTheme')
+  || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+
+applyTheme(savedTheme);
+refreshChips(); loadRaw(); loadFrames(); applyI18n(); render();
 </script>
 </body>
 </html>
