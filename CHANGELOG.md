@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Docs
+- **`USAGE.md` aligned with the real flow.** Removed stale state-management
+  choices (Cubit/Provider) — the stack is fixed (BLoC + Freezed + Clean
+  Architecture + GoRouter + intl_utils). Updated the interactive prompts and
+  example to what the CLI actually asks (platforms, native flavors, fastlane,
+  lefthook, seed color, icon, splash, desktop window, AI agent rules, linter),
+  added a section for the non-interactive flags and the `gen` / `screenshots` /
+  `doctor` / `config` commands, and corrected the generated project structure.
+
 ### Added
 - **Cloud frame library (`vgv screenshots frames --cloud`).** Downloads the full
   178-frame Apple bezel set from a public repo served via the free jsDelivr CDN

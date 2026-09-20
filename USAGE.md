@@ -55,40 +55,32 @@ vgv
 dart pub global run vgv
 ```
 
+### The stack is fixed (opinionated)
+
+Every project is generated with the author's production setup — **you don't pick these**:
+
+- **BLoC + Freezed** for state management (immutable states)
+- **Clean Architecture** (domain / data / presentation layers)
+- **GoRouter** for navigation
+- **intl_utils** for internationalization
+
 ### Follow the Interactive Prompts
 
-The CLI will guide you through:
+The CLI asks you for:
 
-1. **Project Details**
-   - Project name (e.g., `my_awesome_app`)
-   - Organization name (e.g., `com.example`)
+1. **Project details** — name (e.g. `my_awesome_app`) + organization (e.g. `com.example`)
+2. **Platforms** — Mobile (Android/iOS), Web, Desktop (Windows/macOS/Linux), or a custom selection
+3. **Native flavors** *(mobile)* — `dev` / `staging` / `prod` with native build configs + a bundle-id suffix per flavor; pick 1, 2 or 3
+4. **Fastlane** *(mobile, optional)* — CI/CD lanes for Play Store / TestFlight
+5. **lefthook** *(optional)* — pre-commit / pre-push git hooks
+6. **Seed color** *(optional)* — a hex color for `ColorScheme.fromSeed` (light + dark)
+7. **App icon** *(optional)* — a 1024px master → launcher icons (with a per-flavor banner on dev/staging)
+8. **Splash screen** *(optional)* — native splash from the seed color + icon
+9. **Desktop window** *(desktop, optional)* — min size + title via `window_manager`
+10. **AI agent rules** *(optional)* — a rules file per agent (Claude / Cursor / Copilot / Gemini / Windsurf / Codex)
+11. **Linter rules** — custom analysis options
 
-2. **Platform Selection**
-   - Mobile (Android/iOS)
-   - Web
-   - Desktop (Windows/macOS/Linux)
-   - Custom selection
-
-3. **State Management**
-   - BLoC (Business Logic Component)
-   - Cubit (Simplified BLoC)
-   - Provider
-   - None
-
-4. **Freezed Configuration** (if BLoC selected)
-   - Enable Freezed for immutable data classes
-
-5. **Navigation**
-   - Go Router integration
-
-6. **Architecture**
-   - Clean Architecture structure
-
-7. **Code Quality**
-   - Custom linter rules
-
-8. **Internationalization**
-   - Multi-language support
+At the end you get a **review-and-edit summary**: create, tweak any field, or cancel.
 
 ## 🔧 Post-Generation Steps
 
@@ -121,11 +113,8 @@ vgv
 #    Project name: my_app
 #    Organization: com.example
 #    Platforms: Mobile (Android & iOS)
-#    State Management: BLoC
-#    Freezed: Yes
-#    Go Router: Yes
-#    Clean Architecture: Yes
-#    Linter Rules: Yes
+#    Flavors: dev, staging, prod
+#    (BLoC + Freezed + Clean Architecture + GoRouter come baked in)
 
 # 4. Navigate to project
 cd my_app
@@ -133,53 +122,79 @@ cd my_app
 # 5. Get dependencies
 flutter pub get
 
-# 6. Generate Freezed files (if enabled)
+# 6. Generate Freezed files
 dart run build_runner build -d
 
-# 7. Run the app
-flutter run
+# 7. Run the app (with a flavor if you enabled them)
+flutter run --flavor dev -t lib/main_dev.dart
 ```
+
+## ⚡ Non-interactive & other commands
+
+```bash
+# Quick create with flags (skips the prompts)
+vgv -q -n my_app --org com.example --flavors dev,prod
+vgv --dry-run -n my_app            # preview without writing files
+
+# Scaffold into an existing project
+vgv gen feature profile            # full Clean-Architecture feature
+vgv gen model User --from user.json # freezed model + entity from JSON
+vgv gen api Store --from openapi.yaml
+vgv gen bloc Cart --feature cart   # also: page, usecase
+
+# Store screenshots
+vgv screenshots web                # visual editor in the browser
+vgv screenshots frames --cloud     # download the device-frame library
+vgv screenshots --init             # scaffold a manifest for the CLI renderer
+
+# Utilities
+vgv doctor                         # check the toolchain (Flutter/Dart/git + optional)
+vgv config init                    # create a vgv.yaml with default flags
+vgv -u                             # update the CLI
+vgv -h                             # full help
+```
+
+Useful create flags: `--name/-n`, `--org`, `--output/-o`, `--flavors`, `--quick/-q`,
+`--no-git`, `--dry-run`. Precedence for presets: **flags > `vgv.yaml` > `~/.vgvrc`**.
 
 ## 🎨 Generated Project Structure
 
 ```
 my_app/
 ├── lib/
+│   ├── application/                # app wiring
+│   │   ├── injector.dart           # DI (get_it)
+│   │   ├── routes/                 # GoRouter config
+│   │   ├── app_shell.dart          # adaptive navigation shell
+│   │   └── l10n/ + generated/      # intl_utils
 │   ├── core/
-│   │   ├── constants/
-│   │   ├── errors/
-│   │   ├── utils/
-│   │   └── di/
-│   ├── domain/
-│   │   ├── entities/
-│   │   ├── repositories/
-│   │   └── usecases/
-│   ├── data/
-│   │   ├── datasources/
-│   │   ├── repositories/
-│   │   └── models/
-│   ├── presentation/
-│   │   ├── pages/
-│   │   ├── widgets/
-│   │   └── controllers/
-│   ├── application/
-│   │   ├── l10n/
-│   │   └── generated/
-│   └── main.dart
+│   │   ├── config/                 # AppConfiguration / environments
+│   │   ├── states/                 # TStateless / TStatefull
+│   │   └── utils/
+│   ├── features/                   # one folder per feature
+│   │   └── <feature>/
+│   │       ├── domain/             # entities, repositories, use_cases
+│   │       ├── data/               # datasources, models, repositories
+│   │       └── presentation/       # blocs (freezed), pages
+│   ├── shared/widgets/             # e.g. ResponsiveCenter
+│   ├── main_dev.dart               # entry point per flavor
+│   ├── main_staging.dart
+│   └── main_production.dart
+├── android/ + ios/                 # native flavors (build configs, schemes)
 ├── pubspec.yaml
 ├── analysis_options.yaml
-├── build.yaml (if Freezed enabled)
+├── build.yaml                      # freezed / json_serializable
 └── README.md
 ```
 
 ## 🚀 Happy Coding!
 
-Your Flutter project is now ready with:
-- ✅ Clean Architecture structure
-- ✅ State management setup
-- ✅ Navigation configuration
-- ✅ Internationalization
-- ✅ Code quality rules
-- ✅ Latest dependencies
+Your Flutter project is ready with:
+- ✅ BLoC + Freezed
+- ✅ Clean Architecture
+- ✅ GoRouter navigation
+- ✅ Internationalization (intl_utils)
+- ✅ Native flavors (dev / staging / prod)
+- ✅ Linter rules & latest dependencies
 
 Start building amazing Flutter apps! 🎉 

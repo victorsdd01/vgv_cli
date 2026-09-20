@@ -297,10 +297,13 @@ Para que **todos** tengan los 178 sin bundlear ~130 MB: repo público aparte **`
 - Comando: **`vgv screenshots frames --cloud`** (`frames_extractor.dart`, const `cloudFramesManifestUrl`) baja el manifest → descarga cada frame a `~/.vgv/frames` (default `defaultFramesDir()`), **saltea los ya presentes** (re-run rellena huecos), `--force` re-baja, **3 reintentos** por archivo con backoff (jsDelivr tira algunos en ráfaga). Verificado end-to-end: 155/178 en el 1er run (23 fallaron por ráfaga), re-run bajó los 23 ("155 already present") → 178/178, PNGs válidos RGBA alpha 2000px. `analyze` limpio, 49 tests.
 - Editor: el empty-state ahora sugiere `vgv screenshots frames --cloud`. Descarga es secuencial (~1-2/s); para config inicial ok. **Futuro**: descargas en paralelo; que el editor liste directo del CDN sin bajar.
 
+### 17. Limpieza de docs + artefactos (✅ HECHO, 2026-09-20)
+- **`USAGE.md` alineado**: quitadas las opciones obsoletas de state management (Cubit/Provider) — el stack es **fijo** (BLoC+Freezed+Clean Arch+GoRouter+intl_utils). Prompts y ejemplo reescritos a lo que el CLI realmente pregunta (platforms, flavors nativos, fastlane, lefthook, seed, icon, splash, desktop window, AI agents, linter) + review-and-edit. Nueva sección de flags no-interactivos y comandos `gen`/`screenshots`/`doctor`/`config`. Estructura del proyecto generado corregida (`application/`, `features/<f>/{domain,data,presentation}`, `main_<flavor>.dart`).
+- **Artefactos de build**: ya no existen — `lib/core/templates/blocs/build/` no está en disco ni trackeado (0 archivos), y `.gitignore` cubre `build/` + `.dart_tool/`. Sin cruft trackeado (ni `.DS_Store`/`.freezed.dart`/`.g.dart`/`.log`).
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
-- Limpiar artefactos de build versionados en `templates/blocs/build/`.
-- Alinear docs (`USAGE.md` menciona Cubit/Provider/MVVM que el flujo actual no expone).
+- Descargas de `--cloud` en paralelo (bajar los 178 en ~15s en vez de ~2 min); editor listando directo del CDN.
 
 ---
 
