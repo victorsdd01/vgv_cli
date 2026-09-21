@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.63] - 2026-09-21
+
+### Changes
+- Merge pull request #82 from victorsdd01/develop
+
 ### Docs
 - **`USAGE.md` aligned with the real flow.** Removed stale state-management
   choices (Cubit/Provider) — the stack is fixed (BLoC + Freezed + Clean
