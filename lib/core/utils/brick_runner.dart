@@ -20,14 +20,16 @@ class BrickRunner {
   final Logger _logger;
   final bool _interactive;
 
-  /// `stdin.hasTerminal` can be true where prompting still fails (piped or
-  /// redirected stdin), so prompts degrade to the non-interactive path instead
-  /// of crashing with a StdinException.
+  /// `stdin.hasTerminal` can be true where prompting still fails: mason_logger
+  /// throws StdinException (no echo mode) or StateError (stdout not attached).
+  /// Prompts degrade to the non-interactive path instead of crashing.
   String? _ask(String message, {String? defaultValue}) {
     if (!_interactive) return null;
     try {
       return _logger.prompt(message, defaultValue: defaultValue);
     } on StdinException {
+      return null;
+    } on StateError {
       return null;
     }
   }
@@ -37,6 +39,8 @@ class BrickRunner {
     try {
       return _logger.chooseOne(message, choices: choices);
     } on StdinException {
+      return null;
+    } on StateError {
       return null;
     }
   }

@@ -89,6 +89,18 @@ Generators auto-wire DI + routes and run `build_runner` for you
 | `vgv screenshots <manifest>` | Render framed store screenshots (needs Python + Pillow) |
 | `vgv screenshots capture --init` | Scaffold a golden harness to auto-capture raw screens |
 
+### Adding Configuration to an Existing Project
+
+| Command | Description |
+|---------|-------------|
+| `vgv add flavors` | Add native dev/staging/prod flavors to a project you already have |
+
+Run it inside the project. It reads your current application id, refuses to
+touch a project that already declares product flavors, and writes the Android
+product flavors, iOS build configs and schemes, per-flavor launcher icons and
+a `lib/main_<flavor>.dart` per flavor that calls your existing `main()`.
+Flags: `--flavors dev,prod`, `--bundle-id <id>`, `--force`.
+
 ### Utilities
 
 | Command | Description |

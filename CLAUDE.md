@@ -97,6 +97,7 @@ vgv screenshots frames --cloud      # biblioteca de frames desde el CDN → ~/.v
 vgv screenshots <manifest>  # render batch (Python + Pillow)
 vgv doctor                  # chequeo del toolchain
 vgv deps                    # audita los pins de dependencias vs pub.dev
+vgv add flavors             # agrega flavors nativos a un proyecto YA existente
 vgv config init|show        # presets (vgv.yaml / ~/.vgvrc)
 ```
 
@@ -113,7 +114,7 @@ Flags: `--help/-h`, `--version/-v`, `--update/-u`, `--quick/-q`, `--name/-n`, `-
 - Herramientas externas opcionales (se **instruye**, no se auto-instalan): `fvm` (SDK pineado), `mason` (bricks propios), `python3`+Pillow (screenshots), `ruby`+bundler (fastlane), `lefthook`, `cocoapods`
 - Dev: `lints`, `test`
 - **UI interactiva**: `cli_controller.dart` usa `mason_logger` (`prompt`, `confirm`, `chooseOne`, `chooseAny` multi-select ◉/◯, `progress`). Los prompts requieren un TTY real (no se pueden verificar con stdout redirigido).
-- Tests en `test/` (7 archivos, 57 tests: project config, version checker, vgv config/presets, feature generator, model generator, api generator, flutter toolchain/FVM)
+- Tests en `test/` (8 archivos, 67 tests: project config, version checker, vgv config/presets, feature generator, model generator, api generator, flutter toolchain/FVM, add runner)
 - CI: `.github/workflows/auto-version-bump.yml` (bump automático de versión con `[skip ci]` para evitar loops)
 
 ---
@@ -354,11 +355,21 @@ Pedido del usuario (usa FVM; notó paquetes atrasados; quiere usar sus bricks). 
 - `const` inválido en subclases de `State`; import de use_cases sin `.snakeCase()` (rompía con `userProfile`); freezed 3 (state `abstract class`, event `sealed class`, ignore `invalid_annotation_target`); handler por variante (`on<_SomeEvent>`) en vez de switch sobre la unión; `NONE` → `none`.
 - Verificado E2E: renderizados los 3 bricks en un proyecto vgv recién creado → `build_runner` OK y `flutter analyze` **0 errores** (incluido el caso `bloc_name != feature_name` y el caso sin bloc).
 
+### 20. `vgv add` — configurar proyectos existentes (✅ flavors, 2026-09-21)
+Hueco que detectó el usuario: *"si tengo un proyecto Flutter y le falta X configuración, ¿puedo correr solo eso?"*. **No se podía**: los generadores de configuración (flavors, fastlane, lefthook, icon, splash, seed, window, agents, fvm) se invocan **únicamente** desde `createProject` en `project_repository_impl.dart`. Sobre un proyecto existente solo servían `gen` (código) y los standalone (`screenshots`/`doctor`/`deps`/`config`).
+- **`vgv add flavors [--flavors dev,staging,prod] [--bundle-id <id>] [--force]`** (`core/utils/add_runner.dart`, ruteado en `vgv_cli.dart`). Detecta el `applicationId` actual (gradle kts/groovy, fallback al `PRODUCT_BUNDLE_IDENTIFIER` del pbxproj), **aborta si el proyecto ya declara `productFlavors`** (salvo `--force`), y reusa `configureFlavors` del datasource.
+- ⚠️ **Restricción de diseño**: `configureFlavors` arma sus paths como `<projectName>/android|ios` y `baseBundleId` = `<org>.<projectName>` → el comando hace `Directory.current = <padre>` y pasa el nombre de la carpeta como `projectName`. Por eso **exige que el app id termine en `.<nombre-de-carpeta>`**; si no, aborta con un mensaje que explica cómo resolverlo (renombrar la carpeta o pasar `--bundle-id`). No hay forma de expresar otro caso con la entidad actual sin refactorizar `ProjectConfig`.
+- **Entry points genéricos**: como el proyecto no es de vgv, `lib/main_<flavor>.dart` no puede usar la plantilla de vgv → se generan wrappers mínimos (`import 'package:<pkg>/main.dart' as app; void main() => app.main();`) que no asumen nada del proyecto. No pisa los que ya existan.
+- ⚠️ **Prompts**: mason_logger tira **`StateError`** ("No terminal attached to stdout"), no solo `StdinException`. Hay que capturar **los dos** — se endureció también `brick_runner.dart`, que solo atrapaba `StdinException`.
+- Verificado **E2E sobre un proyecto Flutter limpio (no-vgv)**: `flutter create --org com.acme legacy_app` → `vgv add flavors --flavors dev,prod` → gradle con `productFlavors` + `resValues = true`, 6 xcconfig, schemes `dev`/`prod`, `main_dev.dart`/`main_production.dart` → **`✓ Built app-dev-debug.apk`** con package id real **`com.acme.legacy_app.dev`** (verificado con `aapt2 dump packagename`). Casos de error probados (sin pubspec, paquete Dart puro, sin carpetas nativas, flavor inválido, app id que no matchea, app id indetectable, re-ejecución). 67 tests.
+- **Pendiente**: el resto de `vgv add <cosa>` (fastlane, lefthook, fvm, icon, splash, seed, agents, window) — los generadores ya están desacoplados y reciben `ProjectConfig`, así que es el mismo patrón.
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Revisar los pins cuando se suba de Flutter (con Dart ≥3.13 se destraban freezed 4, go_router 18, build_runner 2.16, drift 2.35): correr `vgv deps` y re-verificar con build real.
 - Descargas de `--cloud` en paralelo (bajar los 178 en ~15s en vez de ~2 min); editor listando directo del CDN.
 - Automatizar el merge-back `main` → `develop` tras cada release (ver #18).
+- Completar `vgv add` con el resto de configuraciones (ver #20).
 
 ---
 

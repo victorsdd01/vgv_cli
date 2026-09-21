@@ -5,6 +5,7 @@ import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/utils/ansi_colors.dart';
+import 'core/utils/add_runner.dart';
 import 'core/utils/deps_runner.dart';
 import 'core/utils/doctor_runner.dart';
 import 'core/utils/gen_runner.dart';
@@ -108,6 +109,9 @@ class VgvCli {
     if (arguments.isNotEmpty && arguments.first == 'gen') {
       final code = await GenRunner().run(arguments.sublist(1));
       exit(code);
+    }
+    if (arguments.isNotEmpty && arguments.first == 'add') {
+      exit(await AddRunner().run(arguments.sublist(1)));
     }
     if (arguments.isNotEmpty && arguments.first == 'deps') {
       exit(await DepsRunner().run(arguments.sublist(1)));
