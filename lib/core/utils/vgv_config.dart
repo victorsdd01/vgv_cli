@@ -16,6 +16,8 @@ class VgvConfig {
     this.flavors,
     this.git,
     this.fvm,
+    this.bricksUrl,
+    this.bricksRef,
   });
 
   final String? organization;
@@ -26,10 +28,24 @@ class VgvConfig {
   /// Force FVM on/off. When null the CLI auto-detects an FVM-pinned project.
   final bool? fvm;
 
+  /// Default git repository for `vgv gen brick`.
+  final String? bricksUrl;
+
+  /// Default branch/ref for [bricksUrl].
+  final String? bricksRef;
+
   static String get _home =>
       Platform.environment['HOME'] ??
       Platform.environment['USERPROFILE'] ??
       '';
+
+  /// Reads `bricks: { url:, ref: }`; missing/odd shapes are ignored.
+  static String? _brick(Map<dynamic, dynamic> doc, String key) {
+    final bricks = doc['bricks'];
+    if (bricks is! Map) return null;
+    final value = bricks[key];
+    return value is String && value.trim().isNotEmpty ? value.trim() : null;
+  }
 
   /// Global config path (`~/.vgvrc`).
   static String get globalPath => p.join(_home, '.vgvrc');
@@ -48,6 +64,8 @@ class VgvConfig {
       flavors: proj.flavors ?? g.flavors,
       git: proj.git ?? g.git,
       fvm: proj.fvm ?? g.fvm,
+      bricksUrl: proj.bricksUrl ?? g.bricksUrl,
+      bricksRef: proj.bricksRef ?? g.bricksRef,
     );
   }
 
@@ -70,6 +88,8 @@ class VgvConfig {
         flavors: _parseFlavors(doc['flavors']),
         git: gitValue is bool ? gitValue : null,
         fvm: doc['fvm'] is bool ? doc['fvm'] as bool : null,
+        bricksUrl: _brick(doc, 'url'),
+        bricksRef: _brick(doc, 'ref'),
       );
     } catch (_) {
       return const VgvConfig();
@@ -114,6 +134,11 @@ git: true
 # Run Flutter/Dart through FVM. Omit to auto-detect (uses FVM when the project
 # is pinned with .fvmrc/.fvm and `fvm` is installed).
 # fvm: true
+
+# Your own Mason bricks, used by `vgv gen brick`.
+# bricks:
+#   url: https://github.com/you/your_bricks
+#   ref: main
 ''';
 
   /// Writes the starter template to the global or project path (does not

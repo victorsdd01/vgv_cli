@@ -6,6 +6,7 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:yaml/yaml.dart';
 
 import 'api_generator.dart';
+import 'brick_runner.dart';
 import 'feature_generator.dart';
 import 'model_generator.dart';
 import 'recase.dart';
@@ -38,6 +39,8 @@ class GenRunner {
         return _unit(rest, 'usecase');
       case 'api':
         return _api(rest);
+      case 'brick':
+        return BrickRunner(logger: _logger, interactive: _interactive).run(rest);
       default:
         _logger.err('Unknown subcommand: gen ${args.first}');
         _usage();
@@ -602,6 +605,7 @@ class GenRunner {
       ..info('  ${lightCyan.wrap('vgv gen page <Name> --feature <f>')}  ${styleDim.wrap('a TStateless/TStateful page (--stateful, --bloc)')}')
       ..info('  ${lightCyan.wrap('vgv gen usecase <feature>')}          ${styleDim.wrap('domain repository interface + use cases')}')
       ..info('  ${lightCyan.wrap('vgv gen api <Name> --from api.yaml')} ${styleDim.wrap('freezed models + API client from an OpenAPI spec')}')
+      ..info('  ${lightCyan.wrap('vgv gen brick [name]')}               ${styleDim.wrap('render one of your own Mason bricks (see --help)')}')
       ..info('')
       ..info(styleDim.wrap('  Options for feature:'))
       ..info('    ${lightCyan.wrap('--no-bloc')}              ${styleDim.wrap('skip the Bloc')}')

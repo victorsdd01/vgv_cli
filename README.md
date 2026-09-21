@@ -61,6 +61,7 @@ vgv -q -n my_app
 | `--org <org>` | | Organization identifier (e.g., com.example) |
 | `--output <dir>` | `-o` | Output directory |
 | `--flavors <list>` | | Native flavors to set up (e.g. `dev,staging,prod`) |
+| `--fvm` / `--no-fvm` | | Run through FVM (auto-detected on FVM-pinned projects) |
 | `--no-git` | | Skip git initialization |
 | `--dry-run` | | Preview without creating files |
 
@@ -72,6 +73,7 @@ vgv -q -n my_app
 | `vgv gen model <Name> --from <file.json>` | Freezed model + domain entity from a JSON sample |
 | `vgv gen api <Name> --from <openapi.yaml>` | Typed API client + models from an OpenAPI spec |
 | `vgv gen bloc <Name> --feature <f>` | Just a BLoC (also: `gen page`, `gen usecase`) |
+| `vgv gen brick [name]` | Render one of **your own** Mason bricks from a git repo |
 
 Generators auto-wire DI + routes and run `build_runner` for you
 (`--no-wire` / `--no-build-runner` to skip).
@@ -92,10 +94,21 @@ Generators auto-wire DI + routes and run `build_runner` for you
 | Command | Description |
 |---------|-------------|
 | `vgv doctor` | Check the toolchain (Flutter, Dart, git + optional tools) |
+| `vgv deps` | Audit the dependency versions the CLI pins against pub.dev |
 | `vgv config init` | Create a `vgv.yaml` with your default flags |
 | `vgv config show` | Show the effective presets |
 
 Presets precedence: **flags > `vgv.yaml` > `~/.vgvrc`**.
+
+### FVM
+
+If you pin Flutter with [FVM](https://fvm.app), vgv uses it automatically: when
+`fvm` is installed and the project has `.fvmrc`/`.fvm/`, every `flutter`/`dart`
+call runs through it. Force it either way with `--fvm` / `--no-fvm`.
+
+Creating a project with `--fvm` also pins the new project — it writes `.fvmrc`,
+points the editor at `.fvm/flutter_sdk`, and ignores the SDK symlink — so the
+whole team builds with the same SDK.
 
 ---
 
@@ -178,6 +191,7 @@ Would create:
 | **Fastlane** | Optional CI/CD lanes for Play Store (per flavor) and TestFlight |
 | **lefthook Git Hooks** | Optional pre-commit (format + analyze) and pre-push (test) |
 | **AI Agent Rules** | Optional rules file per agent (Claude, Cursor, Copilot, Gemini, Windsurf, Codex) |
+| **FVM-ready** | With `--fvm`, the project is pinned to an FVM-managed SDK (`.fvmrc` + editor config) |
 | **VSCode Integration** | Flavor-aware launch configurations for all environments |
 | **Dependency Injection** | GetIt setup with all services registered |
 

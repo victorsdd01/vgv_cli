@@ -91,14 +91,16 @@ vgv gen feature <name>      # feature Clean Architecture completa (+ auto-wiring
 vgv gen model <N> --from x.json     # model freezed + entity
 vgv gen api <N> --from openapi.yaml # cliente tipado + models
 vgv gen bloc|page|usecase …         # sub-generadores
+vgv gen brick [name]        # renderiza TUS bricks de Mason (repo git)
 vgv screenshots web         # editor visual en el browser
 vgv screenshots frames --cloud      # biblioteca de frames desde el CDN → ~/.vgv/frames
 vgv screenshots <manifest>  # render batch (Python + Pillow)
 vgv doctor                  # chequeo del toolchain
+vgv deps                    # audita los pins de dependencias vs pub.dev
 vgv config init|show        # presets (vgv.yaml / ~/.vgvrc)
 ```
 
-Flags: `--help/-h`, `--version/-v`, `--update/-u`, `--quick/-q`, `--name/-n`, `--org`, `--output/-o`, `--flavors`, `--no-git`, `--dry-run`.
+Flags: `--help/-h`, `--version/-v`, `--update/-u`, `--quick/-q`, `--name/-n`, `--org`, `--output/-o`, `--flavors`, `--no-git`, `--dry-run`, `--fvm/--no-fvm`.
 
 `--flavors <lista>` (ej. `dev,staging,prod`) permite elegir flavors **sin** modo interactivo (por defecto los 3); tokens tolerantes (`dev/development`, `stg/stage/staging`, `prod/production`); token inválido → error + `exit(1)`. También sirve como pre-selección en modo interactivo (salta el prompt de flavors). Además `--org/-o/--no-git` ahora se honran aunque caigas a interactivo (antes se ignoraban).
 
@@ -108,9 +110,10 @@ Flags: `--help/-h`, `--version/-v`, `--update/-u`, `--quick/-q`, `--name/-n`, `-
 
 - Dart SDK `>=3.7.0 <4.0.0`
 - Deps: `args`, `path`, `http`, `mason_logger` (UI de terminal estilo Mason), `image` (iconos por flavor + reescalado de frames), `yaml` (presets)
+- Herramientas externas opcionales (se **instruye**, no se auto-instalan): `fvm` (SDK pineado), `mason` (bricks propios), `python3`+Pillow (screenshots), `ruby`+bundler (fastlane), `lefthook`, `cocoapods`
 - Dev: `lints`, `test`
 - **UI interactiva**: `cli_controller.dart` usa `mason_logger` (`prompt`, `confirm`, `chooseOne`, `chooseAny` multi-select ◉/◯, `progress`). Los prompts requieren un TTY real (no se pueden verificar con stdout redirigido).
-- Tests en `test/` (6 archivos, 49 tests: project config, version checker, vgv config/presets, feature generator, model generator, api generator)
+- Tests en `test/` (7 archivos, 57 tests: project config, version checker, vgv config/presets, feature generator, model generator, api generator, flutter toolchain/FVM)
 - CI: `.github/workflows/auto-version-bump.yml` (bump automático de versión con `[skip ci]` para evitar loops)
 
 ---
@@ -318,8 +321,33 @@ El auto-bump commitea en `main` (pubspec + `lib/src/version.dart` + headers de v
 - **Cómo resolver el CHANGELOG**: dejar el contenido rico de develop bajo `## [Unreleased]` y mover los headers de versión que trae main (`## [1.10.xx]` con los stubs "Merge pull request") **abajo**, antes del primer header de versión que ya tenía develop. Nunca borrar ninguno de los dos lados.
 - **Recomendación a futuro**: hacer el merge-back apenas se publica (o que el workflow abra un PR main→develop automático) para no acumular divergencia.
 
+### 19. FVM + refresh de dependencias + bricks propios (✅ HECHO, 2026-09-21)
+Pedido del usuario (usa FVM; notó paquetes atrasados; quiere usar sus bricks). Las tres verificadas **E2E real** (proyecto temporal → pub get → build_runner → `flutter analyze` → `flutter build apk`).
+
+**FVM** (`core/utils/flutter_toolchain.dart` + `core/utils/fvm_generator.dart`)
+- Antes `flutter`/`dart` estaban hardcodeados en ~8 llamadas → un proyecto pineado con FVM compilaba con el SDK global. Ahora `FlutterToolchain` resuelve: `--fvm`/`--no-fvm` mandan; si no, auto-detecta (`fvm` en PATH + `.fvmrc`/`.fvm/`). Inyectado por DI (`DependencyInjection.initialize(toolchain:)`, re-inicializado en `run()` tras parsear args).
+- Con FVM el proyecto generado queda **pineado**: `.fvmrc` (via `pinSdk`, justo tras `flutter create`) + `dart.flutterSdkPath` y `.fvm/` ignorado (via `configureEditor`, **después** de `createVSCodeLaunchConfig`/`createGitIgnore` — ⚠️ si corre antes, esos pasos lo pisan; ese bug lo detectó el E2E).
+- La versión global de FVM se detecta por el symlink `~/fvm/default` (el JSON de `fvm api list` **no** trae la clave `global`). `vgv doctor` reporta fvm + versión pineada. Clave `fvm:` en `vgv.yaml`.
+
+**Dependencias** (`core/templates/dependency_versions.dart` = fuente única; `addDependencies` renderiza con `_pinned()`)
+- ⚠️ **Lección central: "lo último de pub.dev" ≠ "lo instalable".** Hay tres trampas, y las tres las encontró el E2E, no el análisis estático:
+  1. **SDK de Dart**: freezed 4 exige Dart ≥3.13; Flutter 3.44.8 trae **3.12.2** → queda en `^3.2.5`.
+  2. **Pins del SDK de Flutter**: Flutter fija `meta 1.18.0`, lo que capa `analyzer` → `build_runner` ≤2.15.1 y `drift_dev` ≤2.34 (freezed 3 pide analyzer ≤12 y drift_dev 2.35 pide ≥13: incompatibles entre sí).
+  3. **Falla solo en compilación**: `go_router 18` arrastra `material_ui`/`cupertino_ui`, que usan `awaitNotRequired` (meta nuevo) → **resuelve y pasa `flutter analyze`, y recién revienta en el build del APK**. Por eso queda en `^17.5.0`.
+- Método correcto para re-pinear: poner las deps en `any` en un proyecto de prueba, `flutter pub get`, y leer las versiones reales del `pubspec.lock` (ojo: preservar `environment: sdk`, y usar caret para que pub pueda retroceder — forzar `^2.35.0` en drift_dev fue lo que rompió).
+- `sqlite3_flutter_libs` quedó **EOL** ("update to version 3.x of package:sqlite3") → reemplazado por `sqlite3 ^3.5.2`, que trae el nativo por **Dart native assets** (`hooks`/`code_assets`/`native_toolchain_c`).
+- Ajustes de template que exigieron los bumps: uniones freezed pasan a **`sealed class`** (freezed 3+; los `abstract class` con factories nombrados como `.fromJson`/`.fromModel` están bien), y `AndroidOptions()` sin `encryptedSharedPreferences` (flutter_secure_storage 10+ cifra por defecto).
+- Comando nuevo **`vgv deps`** (`core/utils/deps_runner.dart`): compara los pins contra pub.dev y lista lo atrasado, con la advertencia de verificar con build real.
+
+**Bricks propios** (`core/utils/brick_runner.dart`, subcomando `gen brick`)
+- `vgv gen brick [name] [--url --ref --path -o -c]`. Sin nombre: clona shallow y **lista los bricks** del repo (dirs con `brick.yaml`) para elegir. Defaults recordados en `vgv.yaml` bajo `bricks: {url, ref}`.
+- Render delegado al **`mason` CLI** (si falta, instruye `dart pub global activate mason_cli`, igual que hacemos con python/ruby/lefthook). `mason add` se hace **global** (`-g`) porque el local exige un `mason.yaml` en el repo del usuario; y se corre `mason remove -g` antes para que sea **idempotente** (si no, mason prompt-ea "ya existe"). `mason make` va con `inheritStdio` para que los prompts del brick funcionen; `-c <json>` permite usarlo en CI.
+- ⚠️ `stdin.hasTerminal` puede dar `true` con stdin redirigido y `chooseOne`/`prompt` tiran `StdinException` → los prompts están envueltos y degradan al modo no-interactivo.
+- Verificado con el repo real del usuario (`victorsdd01/flutter_bricks`): listó `base_page`, `bloc_with_freezed`, `feature_structure` y renderizó `base_page` con vars sustituidas.
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
+- Revisar los pins cuando se suba de Flutter (con Dart ≥3.13 se destraban freezed 4, go_router 18, build_runner 2.16, drift 2.35): correr `vgv deps` y re-verificar con build real.
 - Descargas de `--cloud` en paralelo (bajar los 178 en ~15s en vez de ~2 min); editor listando directo del CDN.
 - Automatizar el merge-back `main` → `develop` tras cada release (ver #18).
 

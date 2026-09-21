@@ -141,6 +141,7 @@ vgv gen feature profile            # full Clean-Architecture feature
 vgv gen model User --from user.json # freezed model + entity from JSON
 vgv gen api Store --from openapi.yaml
 vgv gen bloc Cart --feature cart   # also: page, usecase
+vgv gen brick                      # render your own Mason bricks (lists them)
 
 # Store screenshots
 vgv screenshots web                # visual editor in the browser
@@ -149,13 +150,19 @@ vgv screenshots --init             # scaffold a manifest for the CLI renderer
 
 # Utilities
 vgv doctor                         # check the toolchain (Flutter/Dart/git + optional)
+vgv deps                           # audit the pinned dependency versions
 vgv config init                    # create a vgv.yaml with default flags
 vgv -u                             # update the CLI
 vgv -h                             # full help
 ```
 
 Useful create flags: `--name/-n`, `--org`, `--output/-o`, `--flavors`, `--quick/-q`,
-`--no-git`, `--dry-run`. Precedence for presets: **flags > `vgv.yaml` > `~/.vgvrc`**.
+`--no-git`, `--dry-run`, `--fvm`/`--no-fvm`. Precedence for presets:
+**flags > `vgv.yaml` > `~/.vgvrc`**.
+
+**FVM:** if `fvm` is installed and the project is pinned (`.fvmrc`/`.fvm/`), vgv
+runs Flutter/Dart through it automatically. Creating with `--fvm` pins the new
+project too (`.fvmrc` + editor SDK path).
 
 ## 🎨 Generated Project Structure
 
