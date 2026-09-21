@@ -7,31 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.10.63] - 2026-09-21
-
-### Changes
-- Merge pull request #82 from victorsdd01/develop
-
-### Docs
-- **`USAGE.md` aligned with the real flow.** Removed stale state-management
-  choices (Cubit/Provider) — the stack is fixed (BLoC + Freezed + Clean
-  Architecture + GoRouter + intl_utils). Updated the interactive prompts and
-  example to what the CLI actually asks (platforms, native flavors, fastlane,
-  lefthook, seed color, icon, splash, desktop window, AI agent rules, linter),
-  added a section for the non-interactive flags and the `gen` / `screenshots` /
-  `doctor` / `config` commands, and corrected the generated project structure.
-- **`README.md` brought up to date.** Documented the `--flavors` flag and added
-  command tables for the scaffolding generators (`gen feature/model/api/bloc`),
-  the store-screenshot commands (`screenshots web` / `frames --cloud` /
-  manifest / `capture`) and the utilities (`doctor`, `config`). Expanded
-  "What's Included" with native flavors, per-flavor icons, adaptive navigation,
-  responsive UI, seed color, launcher icon & splash, Fastlane, lefthook and AI
-  agent rules.
-- **Release history consolidated** in this changelog (the version headers the
-  release job writes on `main` now live alongside the detailed entries kept on
-  `develop`).
 
 ### Added
+- **FVM support.** Flutter/Dart were invoked directly, so an FVM-pinned project
+  silently built with whatever global SDK was on the PATH. The CLI now resolves
+  the toolchain: `--fvm` / `--no-fvm` win, otherwise it auto-detects (`fvm` on
+  PATH plus `.fvmrc`/`.fvm/`). With FVM the generated project is pinned too —
+  `.fvmrc`, `dart.flutterSdkPath` for the editor, and `.fvm/` ignored — and
+  `vgv doctor` reports fvm and the pinned version. Also settable as `fvm:` in
+  `vgv.yaml` / `~/.vgvrc`.
+- **`vgv gen brick [name]`** — render your own Mason bricks from any git repo.
+  Omit the name to list the bricks in the repo and pick one; `--url`, `--ref`,
+  `--path`, `-o`, and `-c` (a JSON of the brick's variables, for CI). The repo
+  and ref can be remembered under `bricks:` in `vgv.yaml`. Rendering goes
+  through the `mason` CLI, so bricks behave exactly as with `mason make`.
+- **`vgv deps`** — audits the versions the CLI pins into generated projects
+  against pub.dev and lists what has fallen behind.
 - **Cloud frame library (`vgv screenshots frames --cloud`).** Downloads the full
   178-frame Apple bezel set from a public repo served via the free jsDelivr CDN
   into `~/.vgv/frames` (which the editor auto-loads) — so any user gets every
@@ -180,6 +171,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TStateless/TStatefull, no `setState`, intl_utils, GoRouter).
 
 ### Changed
+- **Refreshed the generated project's dependencies.** Pins had drifted badly;
+  they now live in one place (`core/templates/dependency_versions.dart`) and
+  were moved to the newest versions that actually resolve against the target
+  Flutter: go_router 17.5, get_it 9, hydrated_bloc 11, flutter_secure_storage
+  11, talker 5, package_info_plus 10, equatable 3, dio 5.11, drift 2.34,
+  freezed 3.2.5. "Latest" is not always installable — freezed 4 needs Dart
+  >= 3.13 (Flutter 3.44 ships 3.12), the SDK's `meta` pin caps analyzer (so
+  build_runner 2.15 / drift_dev 2.34), and go_router 18 pulls `material_ui`,
+  which fails to compile against that same pinned `meta`.
+- Replaced the end-of-life `sqlite3_flutter_libs` with `sqlite3` 3.x, which
+  bundles the native library through Dart native assets.
 - **Interactive wizard: review & edit before creating.** After the summary you
   now choose Create / Change something / Cancel, and "Change something" lets you
   jump back to any field (name, org, platforms, flavors, colors, …) and re-answer
@@ -202,6 +204,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   via `tool/generate_version.dart`); "latest" reads the `main` `pubspec.yaml`.
 
 ### Fixed
+- Generated freezed unions are now `sealed class` (required by freezed 3+).
+- `SecureStorageUtils` drops `encryptedSharedPreferences`, removed in
+  flutter_secure_storage 10+ (which encrypts by default).
 - **All multi-select prompts** (flavors, AI agents, custom platforms) no longer
   stack on each keypress in macOS Terminal.app — replaced mason_logger's
   `chooseAny` (save/restore-cursor) with a selector that redraws using relative
@@ -222,10 +227,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Organization validation rejects consecutive dots; `compareVersions` parses
   defensively; version checks have a network timeout.
 
+
 ### Removed
 - Dead code (unused domain use cases, `VersionChecker` recommendation helpers,
   unused `AnsiColors` constants, the fake update progress bar), versioned build
   artifacts under `templates/blocs/build/`, and stale root dev scripts.
+
+## [1.10.63] - 2026-09-21
+
+### Changes
+- Merge pull request #82 from victorsdd01/develop
+
+### Docs
+- **`USAGE.md` aligned with the real flow.** Removed stale state-management
+  choices (Cubit/Provider) — the stack is fixed (BLoC + Freezed + Clean
+  Architecture + GoRouter + intl_utils). Updated the interactive prompts and
+  example to what the CLI actually asks (platforms, native flavors, fastlane,
+  lefthook, seed color, icon, splash, desktop window, AI agent rules, linter),
+  added a section for the non-interactive flags and the `gen` / `screenshots` /
+  `doctor` / `config` commands, and corrected the generated project structure.
+- **`README.md` brought up to date.** Documented the `--flavors` flag and added
+  command tables for the scaffolding generators (`gen feature/model/api/bloc`),
+  the store-screenshot commands (`screenshots web` / `frames --cloud` /
+  manifest / `capture`) and the utilities (`doctor`, `config`). Expanded
+  "What's Included" with native flavors, per-flavor icons, adaptive navigation,
+  responsive UI, seed color, launcher icon & splash, Fastlane, lefthook and AI
+  agent rules.
+- **Release history consolidated** in this changelog (the version headers the
+  release job writes on `main` now live alongside the detailed entries kept on
+  `develop`).
 
 ## [1.10.62] - 2026-08-22
 

@@ -5,10 +5,12 @@ import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/utils/ansi_colors.dart';
+import 'core/utils/deps_runner.dart';
 import 'core/utils/doctor_runner.dart';
 import 'core/utils/gen_runner.dart';
 import 'core/utils/screenshot_runner.dart';
 import 'core/utils/version_checker.dart';
+import 'core/utils/flutter_toolchain.dart';
 import 'core/utils/vgv_config.dart';
 import 'domain/entities/project_config.dart';
 import 'presentation/controllers/cli_controller.dart';
@@ -84,6 +86,11 @@ class VgvCli {
         'dry-run',
         help: 'Show what would be created without creating files',
         negatable: false,
+      )
+      ..addFlag(
+        'fvm',
+        help: 'Run Flutter/Dart through FVM (auto-detected when the project '
+            'is FVM-pinned; use --no-fvm to force the global SDK)',
       );
   }
 
@@ -101,6 +108,9 @@ class VgvCli {
     if (arguments.isNotEmpty && arguments.first == 'gen') {
       final code = await GenRunner().run(arguments.sublist(1));
       exit(code);
+    }
+    if (arguments.isNotEmpty && arguments.first == 'deps') {
+      exit(await DepsRunner().run(arguments.sublist(1)));
     }
     if (arguments.isNotEmpty && arguments.first == 'config') {
       exit(_runConfig(arguments.sublist(1)));
@@ -133,6 +143,16 @@ class VgvCli {
 
       // Presets (vgv.yaml / ~/.vgvrc) fill in anything not passed as a flag.
       final config = VgvConfig.load();
+
+      // Resolve the toolchain (global SDK vs FVM) and rebuild the graph with
+      // it, so every flutter/dart invocation honors the project's pinned SDK.
+      final toolchain = await FlutterToolchain.resolve(
+        explicit: _argResults.wasParsed('fvm')
+            ? _argResults['fvm'] as bool
+            : config.fvm,
+      );
+      DependencyInjection.initialize(toolchain: toolchain);
+      _cliController = DependencyInjection.instance.cliController;
 
       // Handle quick mode or flags
       final projectName = _argResults['name'] as String?;
