@@ -27,8 +27,11 @@ const Map<String, String> kDependencyVersions = <String, String>{
   'dartz': '^0.10.1',
   'equatable': '^3.0.0',
   // DI, routing
+  // go_router is held at 17.x on purpose: 18.x pulls in the new `material_ui`
+  // / `cupertino_ui` packages, which need a newer `meta` than the Flutter SDK
+  // pins — it resolves and analyzes fine, then fails at compile time.
   'get_it': '^9.3.0',
-  'go_router': '^18.0.1',
+  'go_router': '^17.5.0',
   // Networking + logging
   'dio': '^5.11.1',
   'pretty_dio_logger': '^1.4.0',
