@@ -99,7 +99,11 @@ Run it inside the project. It reads your current application id, refuses to
 touch a project that already declares product flavors, and writes the Android
 product flavors, iOS build configs and schemes, per-flavor launcher icons and
 a `lib/main_<flavor>.dart` per flavor that calls your existing `main()`.
-Flags: `--flavors dev,prod`, `--bundle-id <id>`, `--force`.
+It also reads the display name your app already uses and asks whether to keep
+it (the flavors just append their suffix) or change it — so adding flavors
+never renames your app behind your back.
+
+Flags: `--flavors dev,prod`, `--app-name <name>`, `--bundle-id <id>`, `--force`.
 
 ### Utilities
 

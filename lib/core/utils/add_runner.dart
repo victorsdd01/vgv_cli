@@ -47,6 +47,7 @@ class AddRunner {
   Future<int> _flavors(List<String> args) async {
     String? flavorsArg;
     String? bundleId;
+    String? appNameArg;
     var force = false;
     for (var i = 0; i < args.length; i++) {
       final a = args[i];
@@ -55,6 +56,10 @@ class AddRunner {
         flavorsArg = next();
       } else if (a.startsWith('--flavors=')) {
         flavorsArg = a.substring('--flavors='.length);
+      } else if (a == '--app-name') {
+        appNameArg = next();
+      } else if (a.startsWith('--app-name=')) {
+        appNameArg = a.substring('--app-name='.length);
       } else if (a == '--bundle-id') {
         bundleId = next();
       } else if (a.startsWith('--bundle-id=')) {
@@ -113,9 +118,20 @@ class AddRunner {
       return 1;
     }
 
+    _logger
+      ..info('')
+      ..info(styleBold.wrap(lightCyan.wrap('  🍨 Adding native flavors'))!)
+      ..info('  ${styleDim.wrap(project.dirName)}')
+      ..info('');
+
+    // Ask before touching the name: an existing app already has one, and the
+    // flavors only append a suffix to it.
+    final appName = _resolveAppName(appNameArg, project.dirName);
+
     final config = ProjectConfig(
       projectName: project.dirName,
       organizationName: baseId,
+      appName: appName,
       platforms: const <PlatformType>[PlatformType.mobile],
       mobilePlatform: MobilePlatform.both,
       flavors: flavors,
@@ -125,14 +141,12 @@ class AddRunner {
       architecture: ArchitectureType.cleanArchitecture,
     );
 
-    _logger
-      ..info('')
-      ..info(styleBold.wrap(lightCyan.wrap('  🍨 Adding native flavors'))!)
-      ..info('  ${styleDim.wrap(project.dirName)}')
-      ..info('');
+    _logger.info('');
     for (final f in flavors) {
       final id = '$baseId${f.bundleIdSuffix}';
-      _logger.info('    ${f.displayName.padRight(12)} ${styleDim.wrap(id)}');
+      final label = '${config.effectiveAppName}${f.appNameSuffix}';
+      _logger.info('    ${f.displayName.padRight(12)} '
+          '${label.padRight(22)} ${styleDim.wrap(id)}');
     }
     _logger.info('');
 
@@ -187,6 +201,7 @@ class AddRunner {
     for (final f in flavors) {
       final file = File(p.join('lib', 'main_${f.entryPoint}.dart'));
       if (file.existsSync()) continue;
+      file.parent.createSync(recursive: true);
       file.writeAsStringSync('''// Entry point for the ${f.displayName} flavor.
 //
 // Run with:
@@ -293,6 +308,66 @@ void main() => app.main();
     return null;
   }
 
+  /// The display name the app currently uses, read from the Android manifest
+  /// (following `@string/...` into strings.xml) or the iOS Info.plist.
+  /// Returns null when it is only a build variable or nothing is set.
+  String? _detectAppName() {
+    final manifest = File(
+        p.join('android', 'app', 'src', 'main', 'AndroidManifest.xml'));
+    if (manifest.existsSync()) {
+      final label = RegExp(r'android:label\s*=\s*"([^"]*)"')
+          .firstMatch(manifest.readAsStringSync())
+          ?.group(1);
+      if (label != null && label.isNotEmpty) {
+        if (!label.startsWith('@')) return label;
+        final resource = label.split('/').last;
+        final strings = File(p.join(
+            'android', 'app', 'src', 'main', 'res', 'values', 'strings.xml'));
+        if (strings.existsSync()) {
+          final value = RegExp('<string name="$resource">([^<]*)</string>')
+              .firstMatch(strings.readAsStringSync())
+              ?.group(1);
+          if (value != null && value.trim().isNotEmpty) return value.trim();
+        }
+      }
+    }
+
+    final plist = File(p.join('ios', 'Runner', 'Info.plist'));
+    if (plist.existsSync()) {
+      final content = plist.readAsStringSync();
+      for (final key in <String>['CFBundleDisplayName', 'CFBundleName']) {
+        final value = RegExp('<key>$key</key>\\s*<string>([^<]*)</string>')
+            .firstMatch(content)
+            ?.group(1)
+            ?.trim();
+        // `$(PRODUCT_NAME)` and friends are placeholders, not a real name.
+        if (value != null && value.isNotEmpty && !value.contains(r'$(')) {
+          return value;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Settles on the display name the flavors will be built from: the flag if
+  /// given, otherwise what the project already uses — confirmed with you, so
+  /// `add flavors` never renames an app behind your back.
+  String? _resolveAppName(String? fromFlag, String fallback) {
+    if (fromFlag != null && fromFlag.trim().isNotEmpty) return fromFlag.trim();
+    final detected = _detectAppName() ?? fallback;
+    if (!_interactive) return detected;
+
+    _logger.info('  ${styleDim.wrap('Current app name:')} '
+        '${styleBold.wrap(detected)}');
+    final keep = _confirm('Keep "$detected" and just add the flavor suffixes?');
+    if (keep != false) return detected;
+
+    final entered = _ask('App name:', defaultValue: detected);
+    return (entered == null || entered.trim().isEmpty)
+        ? detected
+        : entered.trim();
+  }
+
   List<Flavor>? _parseFlavors(String? raw) {
     if (raw == null || raw.trim().isEmpty) {
       return const <Flavor>[Flavor.dev, Flavor.staging, Flavor.production];
@@ -329,6 +404,17 @@ void main() => app.main();
   /// `stdin.hasTerminal` can be true where prompting still fails: mason_logger
   /// throws StdinException (no echo mode) or StateError (stdout not attached).
   /// Treat both as "not interactive" instead of crashing.
+  String? _ask(String message, {String? defaultValue}) {
+    if (!_interactive) return null;
+    try {
+      return _logger.prompt(message, defaultValue: defaultValue);
+    } on StdinException {
+      return null;
+    } on StateError {
+      return null;
+    }
+  }
+
   bool? _confirm(String message) {
     try {
       return _logger.confirm(message, defaultValue: true);
@@ -347,6 +433,7 @@ void main() => app.main();
       ..info('  ${lightCyan.wrap('vgv add flavors [--flavors dev,staging,prod]')}')
       ..info('')
       ..info('  ${styleDim.wrap('--flavors <list>')}   which flavors (default: all three)')
+      ..info('  ${styleDim.wrap('--app-name <name>')}  display name under the icon (detected/asked by default)')
       ..info('  ${styleDim.wrap('--bundle-id <id>')}   base application id (detected by default)')
       ..info('  ${styleDim.wrap('--force, -f')}        skip the confirmation and the "already has flavors" guard')
       ..info('')

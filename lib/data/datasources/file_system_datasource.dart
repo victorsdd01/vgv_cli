@@ -1973,24 +1973,13 @@ key.properties
     );
   }
 
-  /// Converts a package name into a human friendly app name.
-  /// e.g. `my_awesome_app` -> `My Awesome App`
-  String _humanizeName(String projectName) {
-    return path
-        .basename(projectName)
-        .split(RegExp(r'[_\s]+'))
-        .where((word) => word.isNotEmpty)
-        .map((word) => word[0].toUpperCase() + word.substring(1))
-        .join(' ');
-  }
-
   Future<void> _configureAndroidFlavors(ProjectConfig config) async {
     final androidAppDir =
         Directory(path.join(config.projectName, 'android', 'app'));
     // Android platform was not generated for this project.
     if (!androidAppDir.existsSync()) return;
 
-    final appName = _humanizeName(config.projectName);
+    final appName = config.effectiveAppName;
     final gradleKts = File(path.join(androidAppDir.path, 'build.gradle.kts'));
     final gradleGroovy = File(path.join(androidAppDir.path, 'build.gradle'));
 
@@ -2143,7 +2132,7 @@ key.properties
     final firstFlavor = config.flavors.first.flavorName;
     if (pbx.contains('/* Debug-$firstFlavor */')) return; // idempotent
 
-    final appName = _humanizeName(config.projectName);
+    final appName = config.effectiveAppName;
     final baseBundleId = _iosBaseBundleId(pbx) ??
         '${config.organizationName}.${config.projectName}';
     const buildTypes = ['Debug', 'Release', 'Profile'];

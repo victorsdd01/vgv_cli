@@ -48,6 +48,7 @@ class ProjectConfig {
   const ProjectConfig({
     required this.projectName,
     required this.organizationName,
+    this.appName,
     required this.stateManagement,
     required this.architecture,
     this.includeGoRouter = false,
@@ -79,6 +80,26 @@ class ProjectConfig {
   /// Flavors are only wired natively for mobile; web and (Windows/Linux)
   /// desktop do not support `flutter run --flavor`.
   bool get usesNativeFlavors => platforms.contains(PlatformType.mobile);
+
+  /// Display name shown under the launcher icon, before the per-flavor
+  /// suffix. Null means "derive it from [projectName]", which is what
+  /// creating a project does; `vgv add flavors` sets it so an existing app
+  /// keeps the name it already has.
+  final String? appName;
+
+  /// The display name to write, humanizing [projectName] when none was given
+  /// (`my_awesome_app` -> `My Awesome App`).
+  String get effectiveAppName {
+    final given = appName?.trim();
+    if (given != null && given.isNotEmpty) return given;
+    return projectName
+        .split(RegExp(r'[/\\]'))
+        .last
+        .split(RegExp(r'[_\s]+'))
+        .where((String w) => w.isNotEmpty)
+        .map((String w) => w[0].toUpperCase() + w.substring(1))
+        .join(' ');
+  }
 
   /// Production base bundle id (`flutter create` appends the project name to
   /// `--org`). If the org already ends with the project name we avoid the
