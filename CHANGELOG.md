@@ -7,40 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.10.62] - 2026-08-22
-
-### Changes
-- Merge pull request #80 from victorsdd01/develop
-
-## [1.10.61] - 2026-08-22
-
-### Changes
-- Merge pull request #78 from victorsdd01/develop
-
-## [1.10.60] - 2026-08-22
-
-### Changes
-- Merge pull request #76 from victorsdd01/develop
-
-## [1.10.59] - 2026-08-22
-
-### Changes
-- Merge pull request #74 from victorsdd01/develop
-
-## [1.10.58] - 2026-08-08
-
-### Changes
-- Merge pull request #72 from victorsdd01/develop
-
-## [1.10.57] - 2026-08-08
-
-### Changes
-- Merge pull request #70 from victorsdd01/develop
-
-## [1.10.56] - 2026-08-08
-
-### Changes
-- Merge pull request #68 from victorsdd01/develop
+### Docs
+- **`USAGE.md` aligned with the real flow.** Removed stale state-management
+  choices (Cubit/Provider) — the stack is fixed (BLoC + Freezed + Clean
+  Architecture + GoRouter + intl_utils). Updated the interactive prompts and
+  example to what the CLI actually asks (platforms, native flavors, fastlane,
+  lefthook, seed color, icon, splash, desktop window, AI agent rules, linter),
+  added a section for the non-interactive flags and the `gen` / `screenshots` /
+  `doctor` / `config` commands, and corrected the generated project structure.
+- **`README.md` brought up to date.** Documented the `--flavors` flag and added
+  command tables for the scaffolding generators (`gen feature/model/api/bloc`),
+  the store-screenshot commands (`screenshots web` / `frames --cloud` /
+  manifest / `capture`) and the utilities (`doctor`, `config`). Expanded
+  "What's Included" with native flavors, per-flavor icons, adaptive navigation,
+  responsive UI, seed color, launcher icon & splash, Fastlane, lefthook and AI
+  agent rules.
+- **Release history consolidated** in this changelog (the version headers the
+  release job writes on `main` now live alongside the detailed entries kept on
+  `develop`).
 
 ### Added
 - **Cloud frame library (`vgv screenshots frames --cloud`).** Downloads the full
@@ -237,6 +221,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dead code (unused domain use cases, `VersionChecker` recommendation helpers,
   unused `AnsiColors` constants, the fake update progress bar), versioned build
   artifacts under `templates/blocs/build/`, and stale root dev scripts.
+
+## [1.10.62] - 2026-08-22
+
+### Changes
+- Merge pull request #80 from victorsdd01/develop
+
+## [1.10.61] - 2026-08-22
+
+### Changes
+- Merge pull request #78 from victorsdd01/develop
+
+## [1.10.60] - 2026-08-22
+
+### Changes
+- Merge pull request #76 from victorsdd01/develop
+
+## [1.10.59] - 2026-08-22
+
+### Changes
+- Merge pull request #74 from victorsdd01/develop
+
+## [1.10.58] - 2026-08-08
+
+### Changes
+- Merge pull request #72 from victorsdd01/develop
+
+## [1.10.57] - 2026-08-08
+
+### Changes
+- Merge pull request #70 from victorsdd01/develop
+
+## [1.10.56] - 2026-08-08
+
+### Changes
+- Merge pull request #68 from victorsdd01/develop
 
 ## [1.10.54] - 2026-08-07
 
