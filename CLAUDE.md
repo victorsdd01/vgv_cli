@@ -345,6 +345,15 @@ Pedido del usuario (usa FVM; notó paquetes atrasados; quiere usar sus bricks). 
 - ⚠️ `stdin.hasTerminal` puede dar `true` con stdin redirigido y `chooseOne`/`prompt` tiran `StdinException` → los prompts están envueltos y degradan al modo no-interactivo.
 - Verificado con el repo real del usuario (`victorsdd01/flutter_bricks`): listó `base_page`, `bloc_with_freezed`, `feature_structure` y renderizó `base_page` con vars sustituidas.
 
+**Arreglo de los bricks del usuario** (repo aparte `victorsdd01/flutter_bricks`, commit `07b313f`, bricks v0.2.0). Estaban rotos: **nada de lo que generaban compilaba** en un proyecto vgv. Bugs y fixes:
+- **Barrels inexistentes**: importaban `package:<app>/core/core.dart`, `shared/shared.dart`, `application/application.dart` — vgv no genera barrels. Ahora: `dartz` (Either), `package:<app>/core/errors/failures.dart` (Failure), `hydrated_bloc`/`freezed_annotation` en el bloc, `package:flutter/material.dart` en páginas, y rutas relativas dentro de la feature. Todo derivado de `project_name`/`feature_name`/`bloc_name` (por eso son "dinámicos": un brick no sabe dónde se renderiza, así que los `package:` son la opción robusta; los relativos solo sirven dentro de la propia feature).
+- **Clases base equivocadas**: `BaseLessState`/`BasePageState` → **`TStateless`/`TStateful`**; `BasePage` (no existe) → `Scaffold`.
+- **`Null get bloc => throw UnimplementedError()`** → `=> null` (la convención de vgv; el throw crasheaba en runtime).
+- **`part of` apuntaba a `{{feature_name}}_bloc.dart`** pero el archivo se llama `{{bloc_name}}_bloc.dart` → cualquier bloc con nombre distinto a la feature **no compilaba**.
+- **`ExampleFailure`** no existe → `ServerFailure`/`CacheFailure`.
+- `const` inválido en subclases de `State`; import de use_cases sin `.snakeCase()` (rompía con `userProfile`); freezed 3 (state `abstract class`, event `sealed class`, ignore `invalid_annotation_target`); handler por variante (`on<_SomeEvent>`) en vez de switch sobre la unión; `NONE` → `none`.
+- Verificado E2E: renderizados los 3 bricks en un proyecto vgv recién creado → `build_runner` OK y `flutter analyze` **0 errores** (incluido el caso `bloc_name != feature_name` y el caso sin bloc).
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Revisar los pins cuando se suba de Flutter (con Dart ≥3.13 se destraban freezed 4, go_router 18, build_runner 2.16, drift 2.35): correr `vgv deps` y re-verificar con build real.
