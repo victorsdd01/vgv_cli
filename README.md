@@ -60,8 +60,42 @@ vgv -q -n my_app
 | `--name <name>` | `-n` | Project name (lowercase, underscores) |
 | `--org <org>` | | Organization identifier (e.g., com.example) |
 | `--output <dir>` | `-o` | Output directory |
+| `--flavors <list>` | | Native flavors to set up (e.g. `dev,staging,prod`) |
 | `--no-git` | | Skip git initialization |
 | `--dry-run` | | Preview without creating files |
+
+### Scaffolding into an Existing Project
+
+| Command | Description |
+|---------|-------------|
+| `vgv gen feature <name>` | Full Clean Architecture feature (domain/data/presentation) |
+| `vgv gen model <Name> --from <file.json>` | Freezed model + domain entity from a JSON sample |
+| `vgv gen api <Name> --from <openapi.yaml>` | Typed API client + models from an OpenAPI spec |
+| `vgv gen bloc <Name> --feature <f>` | Just a BLoC (also: `gen page`, `gen usecase`) |
+
+Generators auto-wire DI + routes and run `build_runner` for you
+(`--no-wire` / `--no-build-runner` to skip).
+
+### Store Screenshots
+
+| Command | Description |
+|---------|-------------|
+| `vgv screenshots web` | Visual editor in your browser (Canvas, no Python) |
+| `vgv screenshots frames --cloud` | Download the device-frame library to `~/.vgv/frames` |
+| `vgv screenshots frames <dir>` | Build the frame library from your own bezels (`.dmg`/`.png`) |
+| `vgv screenshots --init` | Scaffold a manifest for the batch renderer |
+| `vgv screenshots <manifest>` | Render framed store screenshots (needs Python + Pillow) |
+| `vgv screenshots capture --init` | Scaffold a golden harness to auto-capture raw screens |
+
+### Utilities
+
+| Command | Description |
+|---------|-------------|
+| `vgv doctor` | Check the toolchain (Flutter, Dart, git + optional tools) |
+| `vgv config init` | Create a `vgv.yaml` with your default flags |
+| `vgv config show` | Show the effective presets |
+
+Presets precedence: **flags > `vgv.yaml` > `~/.vgvrc`**.
 
 ---
 
@@ -131,11 +165,20 @@ Would create:
 |---------|---------|
 | **Clean Architecture** | Domain, Data, and Presentation layers properly structured |
 | **BLoC Pattern** | State management with Freezed for immutable states |
+| **Native Flavors** | Real dev/staging/prod flavors — Android `productFlavors` + iOS build configs & schemes, with a bundle-id suffix and app name per flavor |
+| **Per-flavor App Icons** | dev/staging get a diagonal banner on the icon so you can tell builds apart |
 | **Environment Configuration** | Dev, Staging, and Production environments ready to use |
-| **Internationalization** | English and Spanish translations pre-configured |
+| **Internationalization** | English and Spanish translations pre-configured (intl_utils) |
 | **Authentication Flow** | Login and Registration screens with local persistence |
 | **Settings** | Theme and language preferences with HydratedBloc persistence |
-| **VSCode Integration** | Launch configurations for all environments |
+| **Adaptive Navigation** | `NavigationRail` on wide screens, `NavigationBar` on mobile |
+| **Responsive UI** | Forms and content constrained/centered on desktop & web |
+| **Brand Seed Color** | Material 3 light + dark schemes from `ColorScheme.fromSeed` |
+| **Launcher Icon & Splash** | Optional icon set + native splash wired from a 1024px master |
+| **Fastlane** | Optional CI/CD lanes for Play Store (per flavor) and TestFlight |
+| **lefthook Git Hooks** | Optional pre-commit (format + analyze) and pre-push (test) |
+| **AI Agent Rules** | Optional rules file per agent (Claude, Cursor, Copilot, Gemini, Windsurf, Codex) |
+| **VSCode Integration** | Flavor-aware launch configurations for all environments |
 | **Dependency Injection** | GetIt setup with all services registered |
 
 ---

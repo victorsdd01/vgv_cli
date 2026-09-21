@@ -40,7 +40,7 @@ El CLI mismo está estructurado en capas dentro de `lib/`:
 | Capa | Ubicación | Responsabilidad |
 |------|-----------|-----------------|
 | **Entry** | `bin/vgv.dart` → `lib/vgv_cli.dart` | Parseo de args (`args`), help/version/update, dry-run, orquestación |
-| **Presentation** | `lib/presentation/controllers/cli_controller.dart` | UI interactiva (paquete `interact`), modo por flags, resumen de config |
+| **Presentation** | `lib/presentation/controllers/cli_controller.dart` | UI interactiva (`mason_logger` + selectores propios `_selectOne`/`_selectMany`), modo por flags, resumen con review-and-edit |
 | **Domain** | `lib/domain/` | `entities/project_config.dart` (entidad + enums), `usecases/` (crear + validar), `repositories/project_repository.dart` (interfaz) |
 | **Data** | `lib/data/` | `repositories/project_repository_impl.dart`, `datasources/file_system_datasource.dart`, `datasources/flutter_command_datasource.dart` |
 | **Core** | `lib/core/` | DI manual (`di/dependency_injection.dart`), `utils/version_checker.dart`, `utils/ansi_colors.dart`, y el sistema de **templates** |
@@ -51,7 +51,7 @@ El CLI mismo está estructurado en capas dentro de `lib/`:
 - `lib/core/templates/template_generator.dart` — orquesta la escritura de esos contenidos.
 - `lib/core/templates/blocs/` — **proyecto Flutter completo de referencia** que sirve de base de las plantillas (features `auth`, `home`, `settings`, con capas domain/data/presentation, l10n, theme, routes, config de entornos, etc.).
 
-> Nota: hay artefactos de build commiteados en `lib/core/templates/blocs/build/` que probablemente no deberían estar versionados (candidato a limpieza).
+> Nota: los artefactos de build que había en `lib/core/templates/blocs/build/` ya **no** están versionados (limpiado; `.gitignore` cubre `build/` y `.dart_tool/`).
 
 ---
 
@@ -85,6 +85,17 @@ vgv --dry-run -n my_app     # preview sin crear archivos
 vgv -h                      # help
 vgv -v                      # versión + check de updates
 vgv -u                      # auto-update (reinstala desde git)
+
+# Subcomandos (ruteados en vgv_cli.dart ANTES del parseo de flags)
+vgv gen feature <name>      # feature Clean Architecture completa (+ auto-wiring + build_runner)
+vgv gen model <N> --from x.json     # model freezed + entity
+vgv gen api <N> --from openapi.yaml # cliente tipado + models
+vgv gen bloc|page|usecase …         # sub-generadores
+vgv screenshots web         # editor visual en el browser
+vgv screenshots frames --cloud      # biblioteca de frames desde el CDN → ~/.vgv/frames
+vgv screenshots <manifest>  # render batch (Python + Pillow)
+vgv doctor                  # chequeo del toolchain
+vgv config init|show        # presets (vgv.yaml / ~/.vgvrc)
 ```
 
 Flags: `--help/-h`, `--version/-v`, `--update/-u`, `--quick/-q`, `--name/-n`, `--org`, `--output/-o`, `--flavors`, `--no-git`, `--dry-run`.
@@ -96,10 +107,10 @@ Flags: `--help/-h`, `--version/-v`, `--update/-u`, `--quick/-q`, `--name/-n`, `-
 ## Stack del CLI
 
 - Dart SDK `>=3.7.0 <4.0.0`
-- Deps: `args`, `path`, `http`, `mason_logger` (UI de terminal estilo Mason)
+- Deps: `args`, `path`, `http`, `mason_logger` (UI de terminal estilo Mason), `image` (iconos por flavor + reescalado de frames), `yaml` (presets)
 - Dev: `lints`, `test`
 - **UI interactiva**: `cli_controller.dart` usa `mason_logger` (`prompt`, `confirm`, `chooseOne`, `chooseAny` multi-select ◉/◯, `progress`). Los prompts requieren un TTY real (no se pueden verificar con stdout redirigido).
-- Tests en `test/` (3 archivos: validate config, version checker, project config)
+- Tests en `test/` (6 archivos, 49 tests: project config, version checker, vgv config/presets, feature generator, model generator, api generator)
 - CI: `.github/workflows/auto-version-bump.yml` (bump automático de versión con `[skip ci]` para evitar loops)
 
 ---
@@ -301,9 +312,16 @@ Para que **todos** tengan los 178 sin bundlear ~130 MB: repo público aparte **`
 - **`USAGE.md` alineado**: quitadas las opciones obsoletas de state management (Cubit/Provider) — el stack es **fijo** (BLoC+Freezed+Clean Arch+GoRouter+intl_utils). Prompts y ejemplo reescritos a lo que el CLI realmente pregunta (platforms, flavors nativos, fastlane, lefthook, seed, icon, splash, desktop window, AI agents, linter) + review-and-edit. Nueva sección de flags no-interactivos y comandos `gen`/`screenshots`/`doctor`/`config`. Estructura del proyecto generado corregida (`application/`, `features/<f>/{domain,data,presentation}`, `main_<flavor>.dart`).
 - **Artefactos de build**: ya no existen — `lib/core/templates/blocs/build/` no está en disco ni trackeado (0 archivos), y `.gitignore` cubre `build/` + `.dart_tool/`. Sin cruft trackeado (ni `.DS_Store`/`.freezed.dart`/`.g.dart`/`.log`).
 
+### 18. Merge-back de `main` → `develop` (⚠️ recurrente, resuelto 2026-09-21)
+El auto-bump commitea en `main` (pubspec + `lib/src/version.dart` + headers de versión en `CHANGELOG.md`) y **nunca vuelve a `develop`** → develop se atrasa y el siguiente PR develop→main sale **con conflictos** (pasó en el PR #82: develop 1.10.55 vs main 1.10.62).
+- **Fix**: `git merge origin/main` en `develop` antes de abrir/actualizar el PR. `pubspec.yaml` y `version.dart` auto-mergean a la versión de main; **`CHANGELOG.md` siempre choca** porque ambos insertan justo debajo de `## [Unreleased]`.
+- **Cómo resolver el CHANGELOG**: dejar el contenido rico de develop bajo `## [Unreleased]` y mover los headers de versión que trae main (`## [1.10.xx]` con los stubs "Merge pull request") **abajo**, antes del primer header de versión que ya tenía develop. Nunca borrar ninguno de los dos lados.
+- **Recomendación a futuro**: hacer el merge-back apenas se publica (o que el workflow abra un PR main→develop automático) para no acumular divergencia.
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Descargas de `--cloud` en paralelo (bajar los 178 en ~15s en vez de ~2 min); editor listando directo del CDN.
+- Automatizar el merge-back `main` → `develop` tras cada release (ver #18).
 
 ---
 
