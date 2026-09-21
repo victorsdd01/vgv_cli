@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.64] - 2026-09-21
+
+### Changes
+- Merge pull request #84 from victorsdd01/develop
+
 
 ### Added
 - **FVM support.** Flutter/Dart were invoked directly, so an FVM-pinned project
