@@ -265,7 +265,7 @@ class ${B}Bloc extends HydratedBloc<${B}Event, ${B}State> {
     return '''part of '${b}_bloc.dart';
 
 @freezed
-class ${B}Event with _\$${B}Event {
+sealed class ${B}Event with _\$${B}Event {
   const factory ${B}Event.started() = _Started;
 }
 ''';

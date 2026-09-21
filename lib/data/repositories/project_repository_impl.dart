@@ -7,6 +7,8 @@ import '../../core/utils/polish_generators.dart';
 import '../../core/utils/theme_seed_generator.dart';
 import '../../domain/entities/project_config.dart';
 import '../../domain/repositories/project_repository.dart';
+import '../../core/utils/flutter_toolchain.dart';
+import '../../core/utils/fvm_generator.dart';
 import '../datasources/file_system_datasource.dart';
 import '../datasources/flutter_command_datasource.dart';
 
@@ -18,8 +20,12 @@ class ProjectRepositoryImpl implements ProjectRepository {
   ProjectRepositoryImpl({
     required FileSystemDataSource fileSystemDataSource,
     required FlutterCommandDataSource flutterCommandDataSource,
+    FlutterToolchain? toolchain,
   })  : _fileSystemDataSource = fileSystemDataSource,
-        _flutterCommandDataSource = flutterCommandDataSource;
+        _flutterCommandDataSource = flutterCommandDataSource,
+        _toolchain = toolchain ?? const FlutterToolchain.global();
+
+  final FlutterToolchain _toolchain;
 
   @override
   Future<List<String>> createProject(ProjectConfig config) async {
@@ -44,6 +50,12 @@ class ProjectRepositoryImpl implements ProjectRepository {
       desktopPlatform: config.desktopPlatform,
       customDesktopPlatforms: config.customDesktopPlatforms,
     );
+
+    // When running through FVM, pin the new project to the same SDK so every
+    // later step (and the editor) uses that version instead of a global one.
+    if (_toolchain.useFvm) {
+      await const FvmGenerator().pinSdk(config.projectName);
+    }
 
     // Configure native flavors (Android product flavors + iOS build
     // configs/schemes) right after the native folders are generated.
@@ -86,6 +98,12 @@ class ProjectRepositoryImpl implements ProjectRepository {
     );
 
     await _fileSystemDataSource.createGitIgnore(config.projectName);
+
+    // Editor + ignore rules for FVM go last: the steps above (re)write
+    // .vscode/settings.json and .gitignore, so configuring earlier is lost.
+    if (_toolchain.useFvm) {
+      const FvmGenerator().configureEditor(config.projectName);
+    }
 
     await _fileSystemDataSource.createInternationalization(config.projectName);
 

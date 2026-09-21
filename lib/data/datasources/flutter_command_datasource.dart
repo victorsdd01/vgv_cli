@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
+import '../../core/utils/flutter_toolchain.dart';
 import '../../domain/entities/project_config.dart';
 
 /// Data source for Flutter command operations
@@ -33,6 +34,12 @@ abstract class FlutterCommandDataSource {
 
 /// Implementation of FlutterCommandDataSource
 class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
+  FlutterCommandDataSourceImpl({FlutterToolchain? toolchain})
+      : _toolchain = toolchain ?? const FlutterToolchain.global();
+
+  /// How to invoke Flutter/Dart (global SDK or `fvm flutter …`).
+  final FlutterToolchain _toolchain;
+
   @override
   Future<void> createFlutterProject({
     required String projectName,
@@ -104,8 +111,8 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
     args.add(projectName);
 
     final result = await Process.run(
-      'flutter',
-      args,
+      _toolchain.executable,
+      _toolchain.flutter(args),
       workingDirectory: Directory.current.path,
       runInShell: true,
     );
@@ -120,7 +127,9 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
   @override
   Future<bool> isFlutterInstalled() async {
     try {
-      final result = await Process.run('flutter', ['--version'], runInShell: true);
+      final result = await Process.run(
+          _toolchain.executable, _toolchain.flutter(<String>['--version']),
+          runInShell: true);
       return result.exitCode == 0;
     } catch (e) {
       return false;
@@ -153,8 +162,8 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
   Future<bool> generateLocalizationFiles(String projectName) async {
     try {
       final result = await Process.run(
-        'dart',
-        ['run', 'intl_utils:generate'],
+        _toolchain.dartExecutable,
+        _toolchain.dart(<String>['run', 'intl_utils:generate']),
         workingDirectory: projectName,
         runInShell: true,
       );
@@ -187,16 +196,16 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
   Future<void> cleanBuildCache(String projectName) async {
     try {
       final result = await Process.run(
-        'flutter',
-        ['clean'],
+        _toolchain.executable,
+        _toolchain.flutter(<String>['clean']),
         workingDirectory: projectName,
         runInShell: true,
       );
 
       if (result.exitCode == 0) {
         await Process.run(
-          'flutter',
-          ['pub', 'get'],
+          _toolchain.executable,
+          _toolchain.flutter(<String>['pub', 'get']),
           workingDirectory: projectName,
           runInShell: true,
         );
@@ -210,8 +219,8 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
   Future<void> pubGet(String projectName) async {
     try {
       await Process.run(
-        'flutter',
-        ['pub', 'get'],
+        _toolchain.executable,
+        _toolchain.flutter(<String>['pub', 'get']),
         workingDirectory: projectName,
         runInShell: true,
       );
@@ -224,8 +233,8 @@ class FlutterCommandDataSourceImpl implements FlutterCommandDataSource {
   Future<bool> runBuildRunner(String projectName) async {
     try {
       final result = await Process.run(
-        'dart',
-        ['run', 'build_runner', 'build', '-d'],
+        _toolchain.dartExecutable,
+        _toolchain.dart(<String>['run', 'build_runner', 'build', '-d']),
         workingDirectory: projectName,
         runInShell: true,
       );

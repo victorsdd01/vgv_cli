@@ -3,6 +3,7 @@ import '../../data/datasources/flutter_command_datasource.dart';
 import '../../data/repositories/project_repository_impl.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../../presentation/controllers/cli_controller.dart';
+import '../utils/flutter_toolchain.dart';
 
 /// Dependency injection container
 class DependencyInjection {
@@ -12,10 +13,14 @@ class DependencyInjection {
     return _instance!;
   }
 
-  DependencyInjection._();
+  DependencyInjection._({FlutterToolchain? toolchain})
+      : toolchain = toolchain ?? const FlutterToolchain.global();
 
-  static void initialize() {
-    _instance = DependencyInjection._();
+  /// How Flutter/Dart are invoked (global SDK or through FVM).
+  final FlutterToolchain toolchain;
+
+  static void initialize({FlutterToolchain? toolchain}) {
+    _instance = DependencyInjection._(toolchain: toolchain);
   }
 
   static void reset() {
@@ -24,12 +29,14 @@ class DependencyInjection {
 
   // Data Sources
   FileSystemDataSource get fileSystemDataSource => FileSystemDataSourceImpl();
-  FlutterCommandDataSource get flutterCommandDataSource => FlutterCommandDataSourceImpl();
+  FlutterCommandDataSource get flutterCommandDataSource =>
+      FlutterCommandDataSourceImpl(toolchain: toolchain);
 
   // Repositories
   ProjectRepository get projectRepository => ProjectRepositoryImpl(
         fileSystemDataSource: fileSystemDataSource,
         flutterCommandDataSource: flutterCommandDataSource,
+        toolchain: toolchain,
       );
 
   // Controllers

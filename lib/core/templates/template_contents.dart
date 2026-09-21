@@ -394,9 +394,9 @@ class _PendingRequest {
 
 class SecureStorageUtils {
   static const FlutterSecureStorage _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-    ),
+    // flutter_secure_storage 10+ encrypts by default (AES-GCM + RSA OAEP key
+    // wrapping), so the old `encryptedSharedPreferences` flag is gone.
+    aOptions: AndroidOptions(),
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,
     ),
@@ -706,7 +706,7 @@ abstract class SettingsState with _$SettingsState {
   static const String _features_settings_presentation_blocs_settings_bloc_settings_event_dart = r'''part of 'settings_bloc.dart';
 
 @freezed
-class SettingsEvent with _$SettingsEvent {
+sealed class SettingsEvent with _$SettingsEvent {
   const factory SettingsEvent.updateTheme(ThemeMode themeMode) = _UpdateTheme;
   const factory SettingsEvent.updateLanguage(String languageCode) = _UpdateLanguage;
   const factory SettingsEvent.resetSuccessAndErrorStatus({
@@ -1314,7 +1314,7 @@ class HomeBloc extends HydratedBloc<HomeEvent, HomeState> {
   static const String _features_home_presentation_blocs_home_bloc_home_event_dart = r'''part of 'home_bloc.dart';
 
 @freezed
-class HomeEvent with _$HomeEvent {
+sealed class HomeEvent with _$HomeEvent {
   const factory HomeEvent.initialized() = _Initialized;
   const factory HomeEvent.resetSuccessAndErrorStatus({
     HomeSuccessStatus? successStatus,
@@ -1836,7 +1836,7 @@ abstract class UserEntity with _$UserEntity {
   static const String _features_auth_presentation_blocs_auth_bloc_auth_event_dart = r'''part of 'auth_bloc.dart';
 
 @freezed
-class AuthEvent with _$AuthEvent {
+sealed class AuthEvent with _$AuthEvent {
   const factory AuthEvent.login(String email, String password) = _Login;
   const factory AuthEvent.register(String email, String password, String? name) = _Register;
   const factory AuthEvent.logout() = _Logout;

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:mason_logger/mason_logger.dart';
 
+import 'flutter_toolchain.dart';
+
 /// `vgv doctor` — checks the local toolchain the CLI (and generated projects)
 /// rely on, and prints a concise status with install hints. Read-only.
 class DoctorRunner {
@@ -35,6 +37,16 @@ class DoctorRunner {
       await _checkPillow();
     } else {
       _row(false, 'Pillow', null, '(vgv screenshots) → python3 -m pip install --user pillow');
+    }
+    final fvm = await _check('fvm', <String>['--version'],
+        suffix: '(pinned Flutter SDK)',
+        hint: 'brew tap leoafarias/fvm && brew install fvm');
+    if (fvm.ok) {
+      final pinned = FlutterToolchain.pinnedVersion(Directory.current.path);
+      if (pinned != null) {
+        _logger.info(styleDim.wrap(
+            '      this project is pinned to Flutter $pinned — vgv will use it')!);
+      }
     }
     await _check('ruby', <String>['--version'],
         suffix: '(fastlane)', hint: 'macOS ships Ruby; otherwise: brew install ruby');

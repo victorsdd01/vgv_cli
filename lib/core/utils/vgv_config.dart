@@ -10,12 +10,21 @@ import '../../domain/entities/project_config.dart';
 /// Only the flag-threaded settings are supported (org, output, flavors, git);
 /// anything else in the file is ignored.
 class VgvConfig {
-  const VgvConfig({this.organization, this.output, this.flavors, this.git});
+  const VgvConfig({
+    this.organization,
+    this.output,
+    this.flavors,
+    this.git,
+    this.fvm,
+  });
 
   final String? organization;
   final String? output;
   final List<Flavor>? flavors;
   final bool? git;
+
+  /// Force FVM on/off. When null the CLI auto-detects an FVM-pinned project.
+  final bool? fvm;
 
   static String get _home =>
       Platform.environment['HOME'] ??
@@ -38,6 +47,7 @@ class VgvConfig {
       output: proj.output ?? g.output,
       flavors: proj.flavors ?? g.flavors,
       git: proj.git ?? g.git,
+      fvm: proj.fvm ?? g.fvm,
     );
   }
 
@@ -59,6 +69,7 @@ class VgvConfig {
         output: doc['output']?.toString(),
         flavors: _parseFlavors(doc['flavors']),
         git: gitValue is bool ? gitValue : null,
+        fvm: doc['fvm'] is bool ? doc['fvm'] as bool : null,
       );
     } catch (_) {
       return const VgvConfig();
@@ -99,6 +110,10 @@ flavors: [dev, staging, prod]
 
 # Initialize a git repo after creating the project (true/false).
 git: true
+
+# Run Flutter/Dart through FVM. Omit to auto-detect (uses FVM when the project
+# is pinned with .fvmrc/.fvm and `fvm` is installed).
+# fvm: true
 ''';
 
   /// Writes the starter template to the global or project path (does not
