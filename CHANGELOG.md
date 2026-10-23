@@ -234,6 +234,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   re-resolved the packages and rewrote `package_config.json` to point at its
   own Flutter, so the project stopped building. Both now go through `fvm` when
   the project has a `.fvmrc`, and the printed hints say `fvm dart run …`.
+- **Projects with Web did not compile for the web.** The generated database
+  used drift's `NativeDatabase` (`dart:ffi`) unconditionally. The connection
+  now goes through a conditional import: SQLite over FFI on mobile/desktop,
+  SQLite as WebAssembly in the browser. When the project includes web, the CLI
+  downloads the `sqlite3.wasm` matching `pubspec.lock` and compiles
+  `web/drift_worker.js` from `tool/drift_worker.dart` (drift's prebuilt worker
+  can bundle older sqlite3 bindings than the resolved package and then fails
+  to link the wasm). If either step fails, it prints the manual step.
+- `flutter_launcher_icons.yaml` listed Windows and macOS for any desktop
+  project, and Android + iOS for any mobile one, ignoring the platforms
+  actually chosen. It now lists only the platforms the project has.
 - **Fastlane pointed at the wrong iOS app** whenever the project name has an
   `_`. Apple bundle ids cannot contain underscores, so `flutter create`
   camelCases the name for iOS (`com.acme.my_app` on Android is
