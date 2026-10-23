@@ -690,13 +690,20 @@ class CliController {
     }
 
     // Bundle ID preview: the entered id is production; others derive a suffix.
+    // iOS ids cannot contain `_`, so flutter camelCases the name there.
     final baseId = config.baseBundleId;
+    final appleId = config.appleBaseBundleId;
+    final showIos = config.includesIos && appleId != baseId;
     _logger
       ..info('')
       ..info('  ${label('Bundle IDs')}');
     for (final flavor in config.flavors) {
       final name = flavor.displayName.padRight(12);
-      _logger.info('    ${styleDim.wrap(name)} ${value(flavor.bundleId(baseId))}');
+      final ios = showIos
+          ? '  ${styleDim.wrap('iOS:')} ${value(flavor.bundleId(appleId))}'
+          : '';
+      _logger.info(
+          '    ${styleDim.wrap(name)} ${value(flavor.bundleId(baseId))}$ios');
     }
     _logger.info('');
   }

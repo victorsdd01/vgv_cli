@@ -316,16 +316,22 @@ class VgvCli {
     print('');
     print('${AnsiColors.brightGreen}${AnsiColors.bold}Flavors:${AnsiColors.reset}');
     if (projectName != null) {
-      final baseId = ProjectConfig(
+      // Same defaults as `vgv -q`: Android + iOS (+ web).
+      final preview = ProjectConfig(
         projectName: projectName,
         organizationName: org,
-        platforms: const [PlatformType.mobile],
+        platforms: const [PlatformType.mobile, PlatformType.web],
         stateManagement: StateManagementType.bloc,
         architecture: ArchitectureType.cleanArchitecture,
-      ).baseBundleId;
+      );
+      final baseId = preview.baseBundleId;
+      final appleId = preview.appleBaseBundleId;
       for (final f in selected) {
+        final ios = appleId != baseId
+            ? '  ${AnsiColors.dim}iOS:${AnsiColors.reset} ${f.bundleId(appleId)}'
+            : '';
         print('${AnsiColors.dim}   - ${f.displayName.padRight(12)}${AnsiColors.reset}'
-            '$baseId${f.bundleIdSuffix}  ${AnsiColors.dim}lib/main_${f.entryPoint}.dart${AnsiColors.reset}');
+            '${f.bundleId(baseId)}$ios  ${AnsiColors.dim}lib/main_${f.entryPoint}.dart${AnsiColors.reset}');
       }
     } else {
       print('${AnsiColors.dim}   - ${selected.map((f) => f.displayName).join(', ')}${AnsiColors.reset}');

@@ -109,6 +109,36 @@ class ProjectConfig {
       ? organizationName
       : '$organizationName.$projectName';
 
+  /// Production base bundle id of the **iOS/macOS** app, as `flutter create`
+  /// builds it: Apple ids cannot contain `_`, so Flutter camelCases the
+  /// project name and drops any other disallowed character
+  /// (`com.acme` + `my_app` → `com.acme.myApp`). Equal to [baseBundleId]
+  /// unless the name (or org) has an underscore.
+  String get appleBaseBundleId {
+    // Mirrors flutter_tools' CreateBase.createUTIIdentifier + camelCase.
+    var name = projectName;
+    var index = name.indexOf('_');
+    while (index != -1 && index < name.length - 2) {
+      name = name.substring(0, index) +
+          name.substring(index + 1, index + 2).toUpperCase() +
+          name.substring(index + 2);
+      index = name.indexOf('_');
+    }
+    final identifier = '$organizationForCreate.$name'
+        .replaceAll(RegExp(r'[^a-zA-Z0-9\-\.\u0080-\uffff]+'), '');
+    final segments =
+        identifier.split('.').where((String s) => s.isNotEmpty).toList();
+    while (segments.length < 2) {
+      segments.add('untitled');
+    }
+    return segments.join('.');
+  }
+
+  /// Whether an iOS app is generated (and therefore [appleBaseBundleId] used).
+  bool get includesIos =>
+      platforms.contains(PlatformType.mobile) &&
+      mobilePlatform != MobilePlatform.android;
+
   /// The value to pass to `flutter create --org` so the resulting
   /// applicationId/bundleId equals [baseBundleId] (flutter appends the project
   /// name, so we strip the trailing `.<projectName>`).
