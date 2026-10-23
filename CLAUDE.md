@@ -205,7 +205,7 @@ Prompt opcional en interactivo (solo si hay mobile): "¿Configurar Fastlane?". G
 - `.gitignore`: ignora secretos (`google-play-service-account.json`, `*.p8/.p12`, `vendor/`).
 - Tras crear, el CLI **detecta** ruby/bundler/brew e imprime estado + próximos comandos (`bundle install`, `bundle exec fastlane deploy_dev`). **No** auto-instala Homebrew (necesita sudo) — instruye.
 - Código: `ProjectConfig.includeFastlane`, prompt en `cli_controller.dart`, `core/utils/fastlane_generator.dart`, llamado desde `project_repository_impl.dart` antes del git init.
-- Verificado: genera estructura correcta con bundle ids por flavor. **Pendiente**: opcional `--fastlane` flag no-interactivo; verificación con `bundle install`/`fastlane` real.
+- Verificado: genera estructura correcta con bundle ids por flavor. ✅ Flag `--fastlane` agregado (#22). Pendiente: verificación con `bundle install`/`fastlane` real (necesita credenciales de las stores).
 
 ### 1.e Reglas para agentes de IA (✅ HECHO, 2026-08-08)
 Prompt: "¿Usás un agente de IA?" → si sí, multi-select de agentes → genera un archivo de reglas por agente (mismo contenido) con las convenciones del CLI: Clean Architecture, BLoC+freezed, `TStateless`/`TStatefull` (nada de `setState` — BLoC para estado compartido, `ValueNotifier` para local), freezed en modelos/entidades, intl_utils, GoRouter, get_it. Archivos: `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`, `GEMINI.md`, `.windsurfrules`, `AGENTS.md`. Código: enum `AiAgent` + `ProjectConfig.aiAgents` + `core/utils/agent_rules_generator.dart`.
@@ -364,7 +364,7 @@ Hueco que detectó el usuario: *"si tengo un proyecto Flutter y le falta X confi
 - ⚠️ **Prompts**: mason_logger tira **`StateError`** ("No terminal attached to stdout"), no solo `StdinException`. Hay que capturar **los dos** — se endureció también `brick_runner.dart`, que solo atrapaba `StdinException`.
 - ⚠️ **Probar prompts es difícil**: bajo un pty casero (y bajo `dart run`) `stdout.hasTerminal` da false, así que mason_logger tira `StateError` y el código degrada a no-interactivo — el pty **no** sirve para verificar las ramas interactivas. Se testean con un **Logger stub** (`_ScriptedLogger` en `test/add_runner_test.dart`) que sobreescribe `confirm`/`prompt`. Ese test encontró un bug real: `_writeEntryPoints` explotaba si no existía `lib/` (ahora lo crea).
 - Verificado **E2E sobre un proyecto Flutter limpio (no-vgv)**: `flutter create --org com.acme legacy_app` → `vgv add flavors --flavors dev,prod` → gradle con `productFlavors` + `resValues = true`, 6 xcconfig, schemes `dev`/`prod`, `main_dev.dart`/`main_production.dart` → **`✓ Built app-dev-debug.apk`** con package id real **`com.acme.legacy_app.dev`** (verificado con `aapt2 dump packagename`). Casos de error probados (sin pubspec, paquete Dart puro, sin carpetas nativas, flavor inválido, app id que no matchea, app id indetectable, re-ejecución). 67 tests.
-- **Pendiente**: el resto de `vgv add <cosa>` (fastlane, lefthook, fvm, icon, splash, seed, agents, window) — los generadores ya están desacoplados y reciben `ProjectConfig`, así que es el mismo patrón.
+- ✅ El resto de `vgv add <cosa>` se completó en #22.
 
 ### 21. Revisión general + fix Dart 3.13 (✅ HECHO, 2026-10-23)
 Revisión pedida por el usuario. El análisis y los tests estaban verdes, pero la **prueba real** encontró que **un proyecto recién generado no compilaba**: el usuario había subido a **Flutter 3.47.5 / Dart 3.13.4** (vía FVM, global) y freezed 3.2.5 emite `final` en los parámetros del constructor (`final List<X> items = const []`), lo que Dart 3.13 rechaza (`extraneous_modifier`) → `flutter build apk` fallaba.
@@ -393,13 +393,16 @@ Revisión pedida por el usuario. El análisis y los tests estaban verdes, pero l
 - **El template ahora genera tests** (`TemplateContents.testTemplates` → `test/`, procesados con `{{project_name}}`): `test/features/auth/data/repositories/auth_repository_impl_test.dart` con fakes a mano (sin mocktail). Y se borra el `test/widget_test.dart` de `flutter create` (el del contador, solo si sigue siendo ese): **fallaba en todo proyecto generado** y bloqueaba el `pre-push` de lefthook. `flutter test` en un proyecto recién creado: 4/4.
 - **`frames --cloud` en paralelo**: pool de 6 workers con un `http.Client` compartido (inyectable para tests → `MockClient`), reintentos intactos. Real: 178/178 en 48 s sin fallas (antes ~2 min y 23 fallas en la 1ª pasada).
 - Limpieza "use cases muertos / `_latestVersions`": ya estaba hecha desde `cce9082` (la nota de #1.c estaba vieja).
+- **`vgv add` completo** (`add_runner.dart`): `fastlane`, `lefthook`, `fvm`, `icons`, `splash`, `seed` (alias `theme`), `agents`, `window`, además de `flavors`. Detecta plataformas por carpetas (`_Platforms`), flavors por gradle o schemes de iOS, IDs reales (Android `applicationId`; iOS el `PRODUCT_BUNDLE_IDENTIFIER` más corto, sin `RunnerTests`), y nunca pisa archivos sin `--force` (ej. un `CLAUDE.md` propio). `fastlane` exige flavors (los lanes son por flavor). `seed` solo en proyectos vgv (`lib/application/theme/theme.dart`). `icons`/`splash` corren `pub get` + el generador; `fvm` corre `fvm use <v> --force --skip-pub-get` (FVM 4 reescribe `dart.flutterSdkPath` a `.fvm/versions/<v>`, y deja también `.fvm/flutter_sdk`). Runner de procesos inyectable → tests sin toolchain (`test/add_subcommands_test.dart`).
+  - Generadores ajustados para servir en proyectos ajenos sin cambiar la creación: `FastlaneGenerator(androidBaseId:, iosBaseId:)`, `SplashGenerator(image:)`, `ThemeSeedGenerator` reemplaza cualquier `seedColor:` (re-aplicable) y devuelve bool, `DesktopWindowGenerator` convierte un `void main()` estándar en `Future<void> main() async` + `ensureInitialized()` y devuelve bool.
+  - Verificado real sobre un `flutter create` (android/ios/web/macos): las 9 subcomandos + `flutter analyze` sin issues + APK dev + macOS + web compilan.
+- **`--fastlane`** (flag de creación, también en `--dry-run` y como respuesta al prompt interactivo).
+- **Workflow `merge-back.yml`**: push a `main` → si `develop` no contiene `main`, abre (o reusa) un PR `main → develop` con las instrucciones del conflicto de CHANGELOG (#18). Verificable recién al mergear un PR a `main`.
 
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
 - Revisar los pins en cada Flutter estable nuevo: correr `vgv deps` y re-verificar con build real en **los dos** SDKs (ver #21). Cuando ya nadie use Dart <3.13, borrar `kLegacyDartVersionOverrides`.
-- Descargas de `--cloud` en paralelo (bajar los 178 en ~15s en vez de ~2 min); editor listando directo del CDN.
-- Automatizar el merge-back `main` → `develop` tras cada release (ver #18).
-- Completar `vgv add` con el resto de configuraciones (ver #20).
+- Editor listando los frames directo del CDN (sin bajarlos).
 
 ---
 

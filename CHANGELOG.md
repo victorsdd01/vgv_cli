@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ### Added
+- **`vgv add` covers every configuration** on an existing project, not just
+  flavors: `fastlane` (lanes per detected flavor, with the project's real
+  Android and iOS ids), `lefthook`, `fvm [--version]`, `icons --from <png>`
+  (and generates them), `splash [--color] [--image]` (and generates it),
+  `seed --color` (vgv theme), `agents [--agents …]` and `window`
+  (window_manager, also on a stock `main.dart`). Each one refuses to
+  overwrite existing files unless `--force`.
+- **`--fastlane`** configures Fastlane when creating a project without the
+  interactive prompts (`vgv -q -n my_app --fastlane`).
+- **Merge-back workflow** (`.github/workflows/merge-back.yml`): after every
+  push to `main`, opens a `main → develop` PR when `develop` is behind, so the
+  release bump never leaves `develop` stale again.
 - **FVM support.** Flutter/Dart were invoked directly, so an FVM-pinned project
   silently built with whatever global SDK was on the PATH. The CLI now resolves
   the toolchain: `--fvm` / `--no-fvm` win, otherwise it auto-detects (`fvm` on
