@@ -5,6 +5,13 @@ import 'package:path/path.dart' as p;
 
 import '../../data/datasources/file_system_datasource.dart';
 import '../../domain/entities/project_config.dart';
+import 'agent_rules_generator.dart';
+import 'fastlane_generator.dart';
+import 'flutter_toolchain.dart';
+import 'fvm_generator.dart';
+import 'lefthook_generator.dart';
+import 'polish_generators.dart';
+import 'theme_seed_generator.dart';
 
 /// `vgv add <thing>` — applies one piece of vgv's project configuration to a
 /// Flutter project that already exists.
@@ -18,13 +25,29 @@ class AddRunner {
     Logger? logger,
     FileSystemDataSource? fileSystem,
     bool? interactive,
+    Future<int> Function(String executable, List<String> args)? runProcess,
   })  : _logger = logger ?? Logger(),
         _fileSystem = fileSystem ?? FileSystemDataSourceImpl(),
-        _interactive = interactive ?? stdin.hasTerminal;
+        _interactive = interactive ?? stdin.hasTerminal,
+        _runProcess = runProcess ?? _defaultRunProcess;
 
   final Logger _logger;
   final FileSystemDataSource _fileSystem;
   final bool _interactive;
+
+  /// Runs a tool (flutter, dart, fvm) in the current directory and returns its
+  /// exit code. Injectable so tests don't spawn real toolchains.
+  final Future<int> Function(String executable, List<String> args) _runProcess;
+
+  static Future<int> _defaultRunProcess(
+      String executable, List<String> args) async {
+    try {
+      final result = await Process.run(executable, args, runInShell: true);
+      return result.exitCode;
+    } catch (_) {
+      return 1;
+    }
+  }
 
   Future<int> run(List<String> args) async {
     if (args.isEmpty || args.first == '-h' || args.first == '--help') {
@@ -35,6 +58,23 @@ class AddRunner {
     switch (args.first) {
       case 'flavors':
         return _flavors(rest);
+      case 'fastlane':
+        return _fastlane(rest);
+      case 'lefthook':
+        return _lefthook(rest);
+      case 'fvm':
+        return _fvm(rest);
+      case 'icons':
+        return _icons(rest);
+      case 'splash':
+        return _splash(rest);
+      case 'seed':
+      case 'theme':
+        return _seed(rest);
+      case 'agents':
+        return _agents(rest);
+      case 'window':
+        return _window(rest);
       default:
         _logger.err('Unknown subcommand: vgv add ${args.first}');
         usage(_logger);
@@ -214,6 +254,529 @@ import 'package:$packageName/main.dart' as app;
 void main() => app.main();
 ''');
     }
+  }
+
+  // ---- fastlane -------------------------------------------------------
+
+  Future<int> _fastlane(List<String> args) async {
+    final o = _Opts(args);
+    final project = _resolveProject();
+    if (project == null) return 1;
+
+    final platforms = _detectPlatforms();
+    if (!platforms.mobile) {
+      _logger.err('Fastlane deploys to the Play Store / App Store, but this '
+          'project has no android/ or ios/ folder.');
+      return 1;
+    }
+    // The lanes, AAB paths and per-store ids are all per flavor.
+    final flavors = _detectFlavors();
+    if (flavors.isEmpty) {
+      _logger
+        ..err('This project has no dev/staging/prod flavors, and the Fastlane '
+            'lanes are per flavor.')
+        ..info(styleDim.wrap('  Add them first: vgv add flavors'));
+      return 1;
+    }
+    if (!o.force &&
+        (File('Gemfile').existsSync() ||
+            Directory(p.join('android', 'fastlane')).existsSync() ||
+            Directory(p.join('ios', 'fastlane')).existsSync())) {
+      _logger
+        ..err('This project already has Fastlane files (Gemfile or */fastlane/).')
+        ..info(styleDim.wrap('  Re-run with --force to overwrite them.'));
+      return 1;
+    }
+
+    final androidId = _detectApplicationId();
+    final iosId = _detectIosBaseBundleId();
+    if (androidId == null && iosId == null) {
+      _logger.err('Could not detect the application id / bundle id.');
+      return 1;
+    }
+
+    final config = _config(
+      project,
+      platforms,
+      flavors: flavors,
+      includeFastlane: true,
+    );
+    await _inParent(
+      project,
+      () => const FastlaneGenerator().generate(
+        config,
+        androidBaseId: androidId ?? iosId,
+        iosBaseId: iosId ?? androidId,
+      ),
+    );
+
+    _done('Fastlane configured', <String>[
+      'Gemfile, android/fastlane and ios/fastlane (lanes per flavor:'
+          ' ${flavors.map((f) => f.flavorName).join(', ')}).',
+      'Setup steps (store keys, signing): fastlane-config.md',
+    ], next: <String>[
+      'bundle install',
+      'cd android && bundle exec fastlane deploy_${flavors.first.flavorName}',
+    ]);
+    return 0;
+  }
+
+  // ---- lefthook -------------------------------------------------------
+
+  Future<int> _lefthook(List<String> args) async {
+    final o = _Opts(args);
+    final project = _resolveProject();
+    if (project == null) return 1;
+    if (File('lefthook.yml').existsSync() && !o.force) {
+      _logger
+        ..err('This project already has a lefthook.yml.')
+        ..info(styleDim.wrap('  Re-run with --force to replace it.'));
+      return 1;
+    }
+    final config = _config(project, _detectPlatforms(), includeLefthook: true);
+    await _inParent(project, () => const LefthookGenerator().generate(config));
+
+    _done('lefthook configured', <String>[
+      'lefthook.yml: format + analyze on commit, tests on push.',
+    ], next: <String>[
+      'brew install lefthook   # or: dart pub global activate lefthook',
+      'lefthook install',
+    ]);
+    return 0;
+  }
+
+  // ---- fvm ------------------------------------------------------------
+
+  Future<int> _fvm(List<String> args) async {
+    final o = _Opts(args, values: <String>{'version'});
+    final project = _resolveProject();
+    if (project == null) return 1;
+    if (!await FlutterToolchain.isFvmAvailable()) {
+      _logger
+        ..err('fvm is not installed.')
+        ..info(styleDim.wrap('  Install it: dart pub global activate fvm'));
+      return 1;
+    }
+    final current = FlutterToolchain.pinnedVersion('.');
+    if (current != null && !o.force) {
+      _logger
+        ..err('This project is already pinned to Flutter $current (.fvmrc).')
+        ..info(styleDim.wrap('  Re-run with --force (and --version <v>) to change it.'));
+      return 1;
+    }
+
+    String? pinned;
+    await _inParent(project, () async {
+      pinned = await const FvmGenerator()
+          .pinSdk(project.dirName, version: o['version']);
+      if (pinned != null) const FvmGenerator().configureEditor(project.dirName);
+    });
+    if (pinned == null) {
+      _logger
+        ..err('FVM has no Flutter SDK to pin.')
+        ..info(styleDim.wrap('  Install one first: fvm install stable'));
+      return 1;
+    }
+
+    // Downloads the SDK if needed and links .fvm/flutter_sdk for the editor.
+    final linked = await _runProcess(
+            'fvm', <String>['use', pinned!, '--force', '--skip-pub-get']) ==
+        0;
+    _done('Pinned to Flutter $pinned', <String>[
+      '.fvmrc, .vscode/settings.json (dart.flutterSdkPath) and .fvm/ ignored.',
+      if (!linked) 'Could not link the SDK yet — run: fvm use $pinned',
+    ], next: <String>[
+      'fvm flutter run',
+    ]);
+    return 0;
+  }
+
+  // ---- icons ----------------------------------------------------------
+
+  Future<int> _icons(List<String> args) async {
+    final o = _Opts(args, values: <String>{'from'});
+    final from = o['from'] ?? (o.positional.isNotEmpty ? o.positional.first : null);
+    if (from == null) {
+      _logger
+        ..err('Pass the master icon: vgv add icons --from icon.png')
+        ..info(styleDim.wrap('  A square PNG, ideally 1024×1024.'));
+      return 1;
+    }
+    final master = File(from).absolute;
+    final size = _pngSize(master);
+    if (size == null) {
+      _logger.err('Not a PNG file: $from');
+      return 1;
+    }
+    final project = _resolveProject();
+    if (project == null) return 1;
+    if (File('flutter_launcher_icons.yaml').existsSync() && !o.force) {
+      _logger
+        ..err('This project already has a flutter_launcher_icons.yaml.')
+        ..info(styleDim.wrap('  Re-run with --force to replace it.'));
+      return 1;
+    }
+    if (size.$1 != size.$2 || size.$1 < 1024) {
+      _logger.warn('The icon is ${size.$1}×${size.$2}; stores expect a square '
+          '1024×1024 master. Continuing anyway.');
+    }
+
+    final config = _config(project, _detectPlatforms(),
+        iconMasterPath: master.path);
+    await _inParent(project, () => const IconSetGenerator().generate(config));
+
+    final generated = await _pubGetThen(
+        <String>['run', 'flutter_launcher_icons'], 'Generating launcher icons');
+    _done(generated ? 'Launcher icons generated' : 'Icon config added',
+        <String>[
+      'assets/icon/app_icon.png + flutter_launcher_icons.yaml for: '
+          '${config.flutterPlatforms.join(', ')}.',
+      if (!generated) 'Generate them: dart run flutter_launcher_icons',
+    ]);
+    return 0;
+  }
+
+  // ---- splash ---------------------------------------------------------
+
+  Future<int> _splash(List<String> args) async {
+    final o = _Opts(args, values: <String>{'color', 'image'});
+    final project = _resolveProject();
+    if (project == null) return 1;
+    if (File('flutter_native_splash.yaml').existsSync() && !o.force) {
+      _logger
+        ..err('This project already has a flutter_native_splash.yaml.')
+        ..info(styleDim.wrap('  Re-run with --force to replace it.'));
+      return 1;
+    }
+    final color = _hexColor(o['color']);
+    if (o['color'] != null && color == null) {
+      _logger.err('Invalid --color "${o['color']}": use a 6-digit hex like 4B60AA.');
+      return 1;
+    }
+
+    String? image;
+    if (o['image'] != null) {
+      final source = File(o['image']!);
+      if (_pngSize(source) == null) {
+        _logger.err('Not a PNG file: ${o['image']}');
+        return 1;
+      }
+      image = 'assets/splash/splash.png';
+      File(image)
+        ..parent.createSync(recursive: true)
+        ..writeAsBytesSync(source.readAsBytesSync());
+    } else if (File(p.join('assets', 'icon', 'app_icon.png')).existsSync()) {
+      image = 'assets/icon/app_icon.png';
+    }
+
+    final config = _config(project, _detectPlatforms(),
+        includeSplash: true, seedColorHex: color);
+    await _inParent(
+        project, () => const SplashGenerator().generate(config, image: image));
+
+    final generated = await _pubGetThen(
+        <String>['run', 'flutter_native_splash:create'], 'Generating the splash');
+    _done(generated ? 'Native splash generated' : 'Splash config added',
+        <String>[
+      'flutter_native_splash.yaml (color ${color != null ? '#$color' : '#FFFFFF'}'
+          '${image != null ? ', image $image' : ''}).',
+      if (!generated) 'Generate it: dart run flutter_native_splash:create',
+    ]);
+    return 0;
+  }
+
+  // ---- seed (theme brand color) ----------------------------------------
+
+  Future<int> _seed(List<String> args) async {
+    final o = _Opts(args, values: <String>{'color'});
+    final raw = o['color'] ?? (o.positional.isNotEmpty ? o.positional.first : null);
+    final color = _hexColor(raw);
+    if (color == null) {
+      _logger.err(raw == null
+          ? 'Pass the brand color: vgv add seed --color 4B60AA'
+          : 'Invalid color "$raw": use a 6-digit hex like 4B60AA.');
+      return 1;
+    }
+    final project = _resolveProject();
+    if (project == null) return 1;
+    if (!File(ThemeSeedGenerator.themePath).existsSync()) {
+      _logger
+        ..err('${ThemeSeedGenerator.themePath} not found.')
+        ..info(styleDim.wrap('  The brand color is applied to the theme vgv '
+            'generates, so this only works on projects created with vgv.'));
+      return 1;
+    }
+    final config = _config(project, _detectPlatforms(), seedColorHex: color);
+    var applied = false;
+    await _inParent(project, () async {
+      applied = await const ThemeSeedGenerator().generate(config);
+    });
+    if (!applied) {
+      _logger.err('No `seedColor:` found in ${ThemeSeedGenerator.themePath}.');
+      return 1;
+    }
+    _done('Brand color set to #$color', <String>[
+      'ColorScheme.fromSeed in ${ThemeSeedGenerator.themePath} (light + dark).',
+    ]);
+    return 0;
+  }
+
+  // ---- agents ---------------------------------------------------------
+
+  Future<int> _agents(List<String> args) async {
+    final o = _Opts(args, values: <String>{'agents'});
+    final agents = _parseAgents(o['agents']);
+    if (agents == null) return 1;
+    final project = _resolveProject();
+    if (project == null) return 1;
+
+    // Never overwrite rules someone already wrote by hand.
+    final existing = agents
+        .map((a) => a.rulesFilePath)
+        .where((f) => File(f).existsSync())
+        .toList();
+    if (existing.isNotEmpty && !o.force) {
+      _logger
+        ..err('Already exists: ${existing.join(', ')}.')
+        ..info(styleDim.wrap('  Re-run with --force to overwrite, or pick other '
+            'agents with --agents.'));
+      return 1;
+    }
+    final flavors = _detectFlavors();
+    final config = _config(project, _detectPlatforms(),
+        aiAgents: agents,
+        flavors: flavors.isEmpty ? null : flavors);
+    await _inParent(project, () => const AgentRulesGenerator().generate(config));
+
+    _done('AI agent rules written', <String>[
+      for (final a in agents) a.rulesFilePath,
+      if (!Directory(p.join('lib', 'application')).existsSync())
+        'They describe vgv\'s conventions (Clean Architecture, BLoC + freezed); '
+            'edit them to match this project.',
+    ]);
+    return 0;
+  }
+
+  // ---- window ---------------------------------------------------------
+
+  Future<int> _window(List<String> args) async {
+    final project = _resolveProject();
+    if (project == null) return 1;
+    final platforms = _detectPlatforms();
+    if (!platforms.desktop) {
+      _logger.err('This project has no macos/, windows/ or linux/ folder.');
+      return 1;
+    }
+    final main = File(p.join('lib', 'main.dart'));
+    if (main.existsSync() && main.readAsStringSync().contains('window_manager')) {
+      _logger.info(styleDim.wrap('  lib/main.dart already uses window_manager — nothing to do.'));
+      return 0;
+    }
+    final config = _config(project, platforms,
+        desktopWindow: true, appName: _detectAppName());
+    var wired = false;
+    await _inParent(project, () async {
+      wired = await const DesktopWindowGenerator().generate(config);
+    });
+    if (!wired) {
+      _logger
+        ..err('Could not find main() in lib/main.dart.')
+        ..info(styleDim.wrap('  Add window_manager by hand: '
+            'https://pub.dev/packages/window_manager'));
+      return 1;
+    }
+    final resolved = await _runFlutter(<String>['pub', 'get'], 'Resolving window_manager');
+    _done('Desktop window configured', <String>[
+      'lib/main.dart: minimum size 400×600 and the window title.',
+      if (!resolved) 'Then run: flutter pub get',
+    ]);
+    return 0;
+  }
+
+  // ---- shared helpers -------------------------------------------------
+
+  /// A config describing the existing project, for the generators. The
+  /// state-management/architecture fields are required by the entity but
+  /// unused by these generators.
+  ProjectConfig _config(
+    _Project project,
+    _Platforms platforms, {
+    List<Flavor>? flavors,
+    bool includeFastlane = false,
+    bool includeLefthook = false,
+    bool includeSplash = false,
+    bool desktopWindow = false,
+    String? iconMasterPath,
+    String? seedColorHex,
+    String? appName,
+    List<AiAgent> aiAgents = const <AiAgent>[],
+  }) {
+    return ProjectConfig(
+      projectName: project.dirName,
+      organizationName: _detectApplicationId() ?? 'com.example.${project.dirName}',
+      appName: appName,
+      stateManagement: StateManagementType.bloc,
+      architecture: ArchitectureType.cleanArchitecture,
+      platforms: platforms.types,
+      mobilePlatform: platforms.mobilePlatform,
+      desktopPlatform: DesktopPlatform.custom,
+      customDesktopPlatforms: platforms.desktopPlatforms,
+      flavors: flavors ??
+          const <Flavor>[Flavor.dev, Flavor.staging, Flavor.production],
+      includeFastlane: includeFastlane,
+      includeLefthook: includeLefthook,
+      includeSplash: includeSplash,
+      desktopWindow: desktopWindow,
+      iconMasterPath: iconMasterPath,
+      seedColorHex: seedColorHex,
+      aiAgents: aiAgents,
+    );
+  }
+
+  /// The generators build their paths as `<projectName>/…`, so they run from
+  /// the parent directory with the folder name as the project name.
+  Future<void> _inParent(_Project project, Future<void> Function() body) async {
+    final original = Directory.current;
+    Directory.current = project.parent;
+    try {
+      await body();
+    } finally {
+      Directory.current = original;
+    }
+  }
+
+  _Platforms _detectPlatforms() {
+    bool has(String dir) => Directory(dir).existsSync();
+    return _Platforms(
+      android: has('android'),
+      ios: has('ios'),
+      web: has('web'),
+      windows: has('windows'),
+      macos: has('macos'),
+      linux: has('linux'),
+    );
+  }
+
+  /// dev/staging/prod flavors the project defines (Android product flavors,
+  /// falling back to the iOS schemes), in canonical order.
+  List<Flavor> _detectFlavors() {
+    final names = <String>{..._existingAndroidFlavors()};
+    final schemes = Directory(
+        p.join('ios', 'Runner.xcodeproj', 'xcshareddata', 'xcschemes'));
+    if (names.isEmpty && schemes.existsSync()) {
+      for (final f in schemes.listSync()) {
+        final name = p.basenameWithoutExtension(f.path);
+        if (name != 'Runner') names.add(name);
+      }
+    }
+    final found = names.map(Flavor.tryParse).whereType<Flavor>().toSet();
+    return Flavor.values.where(found.contains).toList();
+  }
+
+  /// The production iOS bundle id: with flavors every build configuration has
+  /// its own id, and the base one is the shortest (the others add a suffix).
+  String? _detectIosBaseBundleId() {
+    final pbx = File(p.join('ios', 'Runner.xcodeproj', 'project.pbxproj'));
+    if (!pbx.existsSync()) return null;
+    final ids = RegExp(r'PRODUCT_BUNDLE_IDENTIFIER = "?([^";]+)"?;')
+        .allMatches(pbx.readAsStringSync())
+        .map((m) => m.group(1)!.trim())
+        .where((id) => !id.contains('RunnerTests') && !id.contains(r'$'))
+        .toList()
+      ..sort((a, b) => a.length.compareTo(b.length));
+    return ids.isEmpty ? null : ids.first;
+  }
+
+  /// Width and height from a PNG header, or null when it is not a PNG.
+  (int, int)? _pngSize(File file) {
+    if (!file.existsSync()) return null;
+    final bytes = file.openSync()..setPositionSync(0);
+    try {
+      final head = bytes.readSync(24);
+      const signature = <int>[137, 80, 78, 71, 13, 10, 26, 10];
+      if (head.length < 24) return null;
+      for (var i = 0; i < signature.length; i++) {
+        if (head[i] != signature[i]) return null;
+      }
+      int be(int at) =>
+          (head[at] << 24) | (head[at + 1] << 16) | (head[at + 2] << 8) | head[at + 3];
+      return (be(16), be(20));
+    } finally {
+      bytes.closeSync();
+    }
+  }
+
+  String? _hexColor(String? raw) {
+    if (raw == null) return null;
+    final hex = raw.replaceAll('#', '').trim();
+    return RegExp(r'^[0-9A-Fa-f]{6}$').hasMatch(hex) ? hex.toUpperCase() : null;
+  }
+
+  List<AiAgent>? _parseAgents(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return const <AiAgent>[AiAgent.claude];
+    final out = <AiAgent>[];
+    for (final token in raw.split(',')) {
+      final t = token.trim().toLowerCase();
+      if (t.isEmpty) continue;
+      final agent = switch (t) {
+        'claude' => AiAgent.claude,
+        'cursor' => AiAgent.cursor,
+        'copilot' => AiAgent.copilot,
+        'gemini' => AiAgent.gemini,
+        'windsurf' => AiAgent.windsurf,
+        'agents' || 'agents.md' || 'generic' => AiAgent.agentsMd,
+        _ => null,
+      };
+      if (agent == null) {
+        _logger
+          ..err('Unknown agent "$token".')
+          ..info(styleDim.wrap('  Valid: claude, cursor, copilot, gemini, windsurf, agents'));
+        return null;
+      }
+      out.add(agent);
+    }
+    return out.toSet().toList();
+  }
+
+  /// Runs `flutter pub get` (the generators add dev dependencies), then
+  /// `dart` with [dartArgs]. Returns whether both succeeded.
+  Future<bool> _pubGetThen(List<String> dartArgs, String label) async {
+    if (!await _runFlutter(<String>['pub', 'get'], 'Resolving dependencies')) {
+      return false;
+    }
+    final toolchain = await FlutterToolchain.resolve();
+    final progress = _logger.progress(label);
+    final ok = await _runProcess(
+            toolchain.dartExecutable, toolchain.dart(dartArgs)) ==
+        0;
+    ok ? progress.complete(label) : progress.fail('$label failed');
+    return ok;
+  }
+
+  Future<bool> _runFlutter(List<String> args, String label) async {
+    final toolchain = await FlutterToolchain.resolve();
+    final progress = _logger.progress(label);
+    final ok = await _runProcess(toolchain.executable, toolchain.flutter(args)) == 0;
+    ok ? progress.complete(label) : progress.fail('$label failed');
+    return ok;
+  }
+
+  void _done(String title, List<String> details, {List<String> next = const <String>[]}) {
+    _logger
+      ..info('')
+      ..info(green.wrap('  ✓ $title')!);
+    for (final d in details) {
+      _logger.info('  ${styleDim.wrap(d)}');
+    }
+    if (next.isNotEmpty) {
+      _logger
+        ..info('')
+        ..info(styleBold.wrap('  Next')!);
+      for (final n in next) {
+        _logger.info('    ${lightCyan.wrap(n)}');
+      }
+    }
+    _logger.info('');
   }
 
   // ---- detection ------------------------------------------------------
@@ -426,22 +989,29 @@ void main() => app.main();
   }
 
   static void usage(Logger logger) {
+    String cmd(String c) => lightCyan.wrap(c)!;
+    String dim(String t) => styleDim.wrap(t)!;
     logger
       ..info('')
       ..info(styleBold.wrap('  vgv add — add vgv configuration to an existing project'))
       ..info('')
-      ..info('  ${lightCyan.wrap('vgv add flavors [--flavors dev,staging,prod]')}')
+      ..info('  ${cmd('vgv add flavors')}   ${dim('[--flavors dev,staging,prod] [--app-name N] [--bundle-id ID]')}')
+      ..info('  ${cmd('vgv add fastlane')}  ${dim('Play Store / App Store lanes per flavor (needs flavors)')}')
+      ..info('  ${cmd('vgv add lefthook')}  ${dim('format + analyze on commit, tests on push')}')
+      ..info('  ${cmd('vgv add fvm')}       ${dim('[--version 3.47.5]  pin the Flutter SDK + editor setup')}')
+      ..info('  ${cmd('vgv add icons')}     ${dim('--from icon.png  launcher icons for every platform')}')
+      ..info('  ${cmd('vgv add splash')}    ${dim('[--color 4B60AA] [--image splash.png]  native splash')}')
+      ..info('  ${cmd('vgv add seed')}      ${dim('--color 4B60AA  brand color of a vgv theme')}')
+      ..info('  ${cmd('vgv add agents')}    ${dim('[--agents claude,cursor,copilot,gemini,windsurf,agents]')}')
+      ..info('  ${cmd('vgv add window')}    ${dim('desktop window min size + title (window_manager)')}')
       ..info('')
-      ..info('  ${styleDim.wrap('--flavors <list>')}   which flavors (default: all three)')
-      ..info('  ${styleDim.wrap('--app-name <name>')}  display name under the icon (detected/asked by default)')
-      ..info('  ${styleDim.wrap('--bundle-id <id>')}   base application id (detected by default)')
-      ..info('  ${styleDim.wrap('--force, -f')}        skip the confirmation and the "already has flavors" guard')
+      ..info('  ${dim('--force, -f')}  overwrite existing files / skip confirmations')
       ..info('')
-      ..info(styleDim.wrap('  Run it inside the project. Adds Android product flavors, iOS build'))
-      ..info(styleDim.wrap('  configs + schemes, per-flavor launcher icons and lib/main_<flavor>.dart,'))
-      ..info(styleDim.wrap('  deriving the per-flavor ids from the app id you already have.'))
+      ..info(dim('  Run it inside the project. Each command only adds that piece and'))
+      ..info(dim('  refuses to overwrite what is already there unless you pass --force.'))
       ..info('');
   }
+
 }
 
 class _Project {
@@ -457,4 +1027,65 @@ class _Project {
   /// Folder name; the flavor generators build their paths from it.
   final String dirName;
   final Directory parent;
+}
+
+/// Minimal option parser for the `vgv add` subcommands: `--key value`,
+/// `--key=value`, `-f/--force`, and positional arguments.
+class _Opts {
+  _Opts(List<String> args, {Set<String> values = const <String>{}}) {
+    for (var i = 0; i < args.length; i++) {
+      final a = args[i];
+      if (a == '-f' || a == '--force') {
+        force = true;
+      } else if (a.startsWith('--') && a.contains('=')) {
+        final eq = a.indexOf('=');
+        _values[a.substring(2, eq)] = a.substring(eq + 1);
+      } else if (a.startsWith('--') && values.contains(a.substring(2))) {
+        if (i + 1 < args.length) _values[a.substring(2)] = args[++i];
+      } else if (!a.startsWith('-')) {
+        positional.add(a);
+      }
+    }
+  }
+
+  final Map<String, String> _values = <String, String>{};
+  final List<String> positional = <String>[];
+  bool force = false;
+
+  String? operator [](String key) => _values[key];
+}
+
+/// Which platform folders the project has.
+class _Platforms {
+  const _Platforms({
+    required this.android,
+    required this.ios,
+    required this.web,
+    required this.windows,
+    required this.macos,
+    required this.linux,
+  });
+
+  final bool android;
+  final bool ios;
+  final bool web;
+  final bool windows;
+  final bool macos;
+  final bool linux;
+
+  bool get mobile => android || ios;
+  bool get desktop => windows || macos || linux;
+
+  List<PlatformType> get types => <PlatformType>[
+        if (mobile) PlatformType.mobile,
+        if (web) PlatformType.web,
+        if (desktop) PlatformType.desktop,
+      ];
+
+  MobilePlatform get mobilePlatform => android && ios
+      ? MobilePlatform.both
+      : (ios ? MobilePlatform.ios : MobilePlatform.android);
+
+  CustomDesktopPlatforms get desktopPlatforms =>
+      CustomDesktopPlatforms(windows: windows, macos: macos, linux: linux);
 }

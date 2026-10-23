@@ -9,14 +9,22 @@ import '../../domain/entities/project_config.dart';
 class ThemeSeedGenerator {
   const ThemeSeedGenerator();
 
-  Future<void> generate(ProjectConfig config) async {
+  /// Path of the theme this rewrites, relative to the project root.
+  static const String themePath = 'lib/application/theme/theme.dart';
+
+  /// Returns whether a seed color was written. Replaces whatever `seedColor:`
+  /// the theme has (the template's `Colors.blue` or a previous brand color),
+  /// so it can be re-applied by `vgv add seed`.
+  Future<bool> generate(ProjectConfig config) async {
     final hex = config.seedColorHex;
-    if (hex == null || hex.isEmpty) return;
-    final file =
-        File(path.join(config.projectName, 'lib/application/theme/theme.dart'));
-    if (!file.existsSync()) return;
-    final updated =
-        file.readAsStringSync().replaceAll('Colors.blue', 'Color(0xFF$hex)');
-    file.writeAsStringSync(updated);
+    if (hex == null || hex.isEmpty) return false;
+    final file = File(path.join(config.projectName, themePath));
+    if (!file.existsSync()) return false;
+    final source = file.readAsStringSync();
+    final seed = RegExp(r'seedColor:\s*(Colors\.\w+|(const\s+)?Color\(0x[0-9A-Fa-f]{8}\))');
+    if (!seed.hasMatch(source)) return false;
+    file.writeAsStringSync(
+        source.replaceAll(seed, 'seedColor: Color(0xFF${hex.toUpperCase()})'));
+    return true;
   }
 }
