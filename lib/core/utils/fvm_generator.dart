@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'flutter_toolchain.dart';
+
 /// Pins a generated project to an FVM-managed Flutter SDK.
 ///
 /// Writes `.fvmrc` (so `fvm flutter …` and the CLI's own auto-detection resolve
@@ -34,11 +36,27 @@ class FvmGenerator {
     _appendGitIgnore(projectName);
   }
 
-  /// The Flutter version `fvm` would use here: the global default when one is
-  /// set, otherwise the only/first fully-installed cached version. Returns
-  /// null when FVM has nothing usable.
+  /// The Flutter version `fvm` would use here, resolved the way FVM does: the
+  /// nearest `.fvmrc` from the current directory up, then the global default,
+  /// then the only/first fully-installed cached version. Returns null when FVM
+  /// has nothing usable.
+  ///
+  /// The ancestor pin matters: `fvm flutter create` inside a folder pinned to
+  /// an older SDK creates the project with *that* SDK, so the new project must
+  /// be pinned to it too — not to the global default.
   Future<String?> currentFvmVersion() async {
-    return _globalDefault() ?? await _firstInstalled();
+    return _nearestPin() ?? _globalDefault() ?? await _firstInstalled();
+  }
+
+  String? _nearestPin() {
+    var dir = Directory.current.absolute;
+    while (true) {
+      final pinned = FlutterToolchain.pinnedVersion(dir.path);
+      if (pinned != null) return pinned;
+      final parent = dir.parent;
+      if (parent.path == dir.path) return null;
+      dir = parent;
+    }
   }
 
   /// FVM marks the global SDK with a `default` symlink in its cache dir.
