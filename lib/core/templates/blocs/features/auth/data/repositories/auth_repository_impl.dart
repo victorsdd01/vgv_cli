@@ -22,15 +22,9 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, UserEntity>> login(String email, String password) async {
     final Either<Failure, UserModel> result = await authRemoteDataSource.login(email, password);
 
-    return result.fold(
-      Left.new,
-      (UserModel model) async {
-        await authLocalDataSource.saveUser(model);
-        if (model.token != null) {
-          await secureStorageUtils.write('token', model.token!);
-        }
-        return Right<Failure, UserEntity>(UserEntity.fromModel(model));
-      },
+    return result.fold<Future<Either<Failure, UserEntity>>>(
+      (Failure failure) async => Left<Failure, UserEntity>(failure),
+      _persistSession,
     );
   }
 
@@ -38,16 +32,32 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, UserEntity>> register(String email, String password, String? name) async {
     final Either<Failure, UserModel> result = await authRemoteDataSource.register(email, password, name);
 
-    return result.fold(
-      Left.new,
-      (UserModel model) async {
-        await authLocalDataSource.saveUser(model);
-        if (model.token != null) {
-          await secureStorageUtils.write('token', model.token!);
-        }
-        return Right<Failure, UserEntity>(UserEntity.fromModel(model));
-      },
+    return result.fold<Future<Either<Failure, UserEntity>>>(
+      (Failure failure) async => Left<Failure, UserEntity>(failure),
+      _persistSession,
     );
+  }
+
+  /// Saves the signed-in user locally and stores the session token.
+  ///
+  /// Either step failing fails the login/register: reporting success while
+  /// nothing was persisted would show the user as signed in and then sign
+  /// them out on the next launch.
+  Future<Either<Failure, UserEntity>> _persistSession(UserModel model) async {
+    final Either<Failure, void> saved = await authLocalDataSource.saveUser(model);
+    final Failure? saveFailure = saved.fold((Failure failure) => failure, (void _) => null);
+    if (saveFailure != null) {
+      return Left<Failure, UserEntity>(saveFailure);
+    }
+
+    try {
+      if (model.token != null) {
+        await secureStorageUtils.write('token', model.token!);
+      }
+    } catch (e) {
+      return Left<Failure, UserEntity>(CacheFailure(message: 'Failed to store the session: $e'));
+    }
+    return Right<Failure, UserEntity>(UserEntity.fromModel(model));
   }
 
   @override

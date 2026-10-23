@@ -1700,15 +1700,9 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, UserEntity>> login(String email, String password) async {
     final Either<Failure, UserModel> result = await authRemoteDataSource.login(email, password);
 
-    return result.fold(
-      Left.new,
-      (UserModel model) async {
-        await authLocalDataSource.saveUser(model);
-        if (model.token != null) {
-          await secureStorageUtils.write('token', model.token!);
-        }
-        return Right<Failure, UserEntity>(UserEntity.fromModel(model));
-      },
+    return result.fold<Future<Either<Failure, UserEntity>>>(
+      (Failure failure) async => Left<Failure, UserEntity>(failure),
+      _persistSession,
     );
   }
 
@@ -1716,16 +1710,32 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, UserEntity>> register(String email, String password, String? name) async {
     final Either<Failure, UserModel> result = await authRemoteDataSource.register(email, password, name);
 
-    return result.fold(
-      Left.new,
-      (UserModel model) async {
-        await authLocalDataSource.saveUser(model);
-        if (model.token != null) {
-          await secureStorageUtils.write('token', model.token!);
-        }
-        return Right<Failure, UserEntity>(UserEntity.fromModel(model));
-      },
+    return result.fold<Future<Either<Failure, UserEntity>>>(
+      (Failure failure) async => Left<Failure, UserEntity>(failure),
+      _persistSession,
     );
+  }
+
+  /// Saves the signed-in user locally and stores the session token.
+  ///
+  /// Either step failing fails the login/register: reporting success while
+  /// nothing was persisted would show the user as signed in and then sign
+  /// them out on the next launch.
+  Future<Either<Failure, UserEntity>> _persistSession(UserModel model) async {
+    final Either<Failure, void> saved = await authLocalDataSource.saveUser(model);
+    final Failure? saveFailure = saved.fold((Failure failure) => failure, (void _) => null);
+    if (saveFailure != null) {
+      return Left<Failure, UserEntity>(saveFailure);
+    }
+
+    try {
+      if (model.token != null) {
+        await secureStorageUtils.write('token', model.token!);
+      }
+    } catch (e) {
+      return Left<Failure, UserEntity>(CacheFailure(message: 'Failed to store the session: $e'));
+    }
+    return Right<Failure, UserEntity>(UserEntity.fromModel(model));
   }
 
   @override
@@ -3774,6 +3784,128 @@ void main() {
 }
 ''';
 
+  static const String _test_features_auth_data_repositories_auth_repository_impl_test_dart = r'''import 'package:dartz/dartz.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:{{project_name}}/core/errors/failures.dart';
+import 'package:{{project_name}}/core/utils/secure_storage_utils.dart';
+import 'package:{{project_name}}/features/auth/data/datasources/local/auth_local_datasource.dart';
+import 'package:{{project_name}}/features/auth/data/datasources/remote/auth_remote_datasource.dart';
+import 'package:{{project_name}}/features/auth/data/models/user_model.dart';
+import 'package:{{project_name}}/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:{{project_name}}/features/auth/domain/entities/user_entity.dart';
+
+const UserModel _user = UserModel(id: '1', email: 'ana@example.com', name: 'Ana', token: 'token-1');
+const CacheFailure _diskFull = CacheFailure(message: 'Failed to save user: disk full');
+
+class _FakeRemote implements AuthRemoteDataSource {
+  @override
+  Future<Either<Failure, UserModel>> login(String email, String password) async => const Right<Failure, UserModel>(_user);
+
+  @override
+  Future<Either<Failure, UserModel>> register(String email, String password, String? name) async => const Right<Failure, UserModel>(_user);
+}
+
+class _FakeLocal implements AuthLocalDataSource {
+  _FakeLocal({this.saveFailure});
+
+  final Failure? saveFailure;
+  final List<UserModel> saved = <UserModel>[];
+
+  @override
+  Future<Either<Failure, void>> saveUser(UserModel user) async {
+    if (saveFailure != null) {
+      return Left<Failure, void>(saveFailure!);
+    }
+    saved.add(user);
+    return const Right<Failure, void>(null);
+  }
+
+  @override
+  Future<Either<Failure, UserModel?>> getUserByEmail(String email) => throw UnimplementedError();
+
+  @override
+  Future<Either<Failure, List<UserModel>>> getAllUsers() => throw UnimplementedError();
+
+  @override
+  Future<Either<Failure, void>> deleteUser(String userId) => throw UnimplementedError();
+
+  @override
+  Future<Either<Failure, void>> clearUsers() => throw UnimplementedError();
+}
+
+class _FakeSecureStorage extends SecureStorageUtils {
+  _FakeSecureStorage({this.failWrites = false});
+
+  final bool failWrites;
+  final Map<String, String> values = <String, String>{};
+
+  @override
+  Future<void> write(String key, String value) async {
+    if (failWrites) {
+      throw Exception('keychain locked');
+    }
+    values[key] = value;
+  }
+
+  @override
+  Future<String?> read(String key) async => values[key];
+}
+
+void main() {
+  late _FakeLocal local;
+  late _FakeSecureStorage storage;
+
+  AuthRepositoryImpl repository() => AuthRepositoryImpl(
+        authRemoteDataSource: _FakeRemote(),
+        authLocalDataSource: local,
+        secureStorageUtils: storage,
+      );
+
+  setUp(() {
+    local = _FakeLocal();
+    storage = _FakeSecureStorage();
+  });
+
+  test('register saves the user and the session token', () async {
+    final Either<Failure, UserEntity> result = await repository().register('ana@example.com', 'secret', 'Ana');
+
+    expect(result.isRight(), isTrue);
+    expect(local.saved.single.email, 'ana@example.com');
+    expect(storage.values['token'], 'token-1');
+  });
+
+  test('register fails when the user cannot be saved locally', () async {
+    local = _FakeLocal(saveFailure: _diskFull);
+
+    final Either<Failure, UserEntity> result = await repository().register('ana@example.com', 'secret', 'Ana');
+
+    expect(result, const Left<Failure, UserEntity>(_diskFull));
+    expect(storage.values, isEmpty);
+  });
+
+  test('login fails when the user cannot be saved locally', () async {
+    local = _FakeLocal(saveFailure: _diskFull);
+
+    final Either<Failure, UserEntity> result = await repository().login('ana@example.com', 'secret');
+
+    expect(result, const Left<Failure, UserEntity>(_diskFull));
+    expect(storage.values, isEmpty);
+  });
+
+  test('login fails when the session token cannot be stored', () async {
+    storage = _FakeSecureStorage(failWrites: true);
+
+    final Either<Failure, UserEntity> result = await repository().login('ana@example.com', 'secret');
+
+    expect(result.isLeft(), isTrue);
+    result.fold(
+      (Failure failure) => expect(failure, isA<CacheFailure>()),
+      (UserEntity _) => fail('expected a failure'),
+    );
+  });
+}
+''';
+
   static Map<String, String> get templates => {
     'core/database/app_database.dart': _core_database_app_database_dart,
     'core/database/connection/connection.dart': _core_database_connection_connection_dart,
@@ -3851,5 +3983,15 @@ void main() {
 
   static Map<String, String> getProcessedTemplates(String projectName) {
     return templates.map((key, value) => MapEntry(key, _processTemplate(value, projectName)));
+  }
+
+  /// Files under the project's `test/` directory, keyed relative to it.
+  static Map<String, String> get testTemplates => {
+    'features/auth/data/repositories/auth_repository_impl_test.dart':
+        _test_features_auth_data_repositories_auth_repository_impl_test_dart,
+  };
+
+  static Map<String, String> getProcessedTestTemplates(String projectName) {
+    return testTemplates.map((key, value) => MapEntry(key, _processTemplate(value, projectName)));
   }
 }
