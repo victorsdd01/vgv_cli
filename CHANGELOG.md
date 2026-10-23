@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.10.64] - 2026-09-21
-
-### Changes
-- Merge pull request #84 from victorsdd01/develop
-
 
 ### Added
 - **FVM support.** Flutter/Dart were invoked directly, so an FVM-pinned project
@@ -265,6 +260,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dead code (unused domain use cases, `VersionChecker` recommendation helpers,
   unused `AnsiColors` constants, the fake update progress bar), versioned build
   artifacts under `templates/blocs/build/`, and stale root dev scripts.
+
+## [1.10.64] - 2026-09-21
+
+### Changes
+- Merge pull request #84 from victorsdd01/develop
 
 ## [1.10.63] - 2026-09-21
 
