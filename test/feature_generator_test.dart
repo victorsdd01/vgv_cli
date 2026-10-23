@@ -109,6 +109,24 @@ void main() {
       final page =
           files['lib/features/account/presentation/pages/profile_page.dart']!;
       expect(page, contains('TStateless<Null>'));
+      expect(page, isNot(contains('injector.dart')));
+    });
+
+    test('pages import the injector only when they resolve a bloc', () {
+      for (final stateless in <bool>[true, false]) {
+        String page({required bool withBloc}) => gen
+            .buildPage(FeatureOptions(
+              featureName: 'account',
+              pageName: 'Profile',
+              statelessPage: stateless,
+              includeBloc: withBloc,
+              addBlocToPage: withBloc,
+            ))
+            .values
+            .single;
+        expect(page(withBloc: true), contains('injector.dart'));
+        expect(page(withBloc: false), isNot(contains('injector.dart')));
+      }
     });
 
     test('buildUseCases emits the domain contract', () {
