@@ -229,6 +229,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `vgv -h` lists every command (`gen model/api/bloc/page/usecase/brick`,
   `add flavors`, `deps`, `screenshots web/frames`) and `--[no-]fvm`;
   `vgv config --help` works.
+- In an FVM-pinned project, `vgv gen …` ran `build_runner` with the global
+  `dart` and `vgv screenshots capture` ran the global `flutter`. The global SDK
+  re-resolved the packages and rewrote `package_config.json` to point at its
+  own Flutter, so the project stopped building. Both now go through `fvm` when
+  the project has a `.fvmrc`, and the printed hints say `fvm dart run …`.
+- `vgv gen api` without `--feature` wrote a broken import in the client
+  (`../../<name>_models.dart` instead of `../../models/<name>_models.dart`), so
+  the generated client did not compile.
+- `vgv gen page` without a bloc imported `injector.dart` without using it
+  (`unused_import` warning in the generated project).
 - Generated `AuthRepositoryImpl.getCurrentUser` no longer triggers
   `unawaited_return_in_try_block` (explicit `fold` type); same lint fixed in
   `vgv gen brick`.
