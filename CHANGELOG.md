@@ -171,6 +171,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TStateless/TStatefull, no `setState`, intl_utils, GoRouter).
 
 ### Changed
+- `vgv screenshots frames --cloud` downloads 6 frames at a time with a shared
+  HTTP client: the 178-frame library takes ~50s instead of ~2 minutes, and
+  each frame still retries with backoff.
 - **Refreshed the generated project's dependencies.** Pins had drifted badly;
   they now live in one place (`core/templates/dependency_versions.dart`) and
   were moved to the newest versions that actually resolve against the target
@@ -234,6 +237,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   re-resolved the packages and rewrote `package_config.json` to point at its
   own Flutter, so the project stopped building. Both now go through `fvm` when
   the project has a `.fvmrc`, and the printed hints say `fvm dart run …`.
+- **Register/login reported success when nothing was saved.** The generated
+  `AuthRepositoryImpl` ignored the result of `saveUser` (and an exception
+  writing the token), so a broken local database still showed the user as
+  signed in, and the next launch signed them out. Both now fail with the
+  error, which the login/register pages already show.
+- **`flutter test` failed in every generated project.** `flutter create`'s
+  counter smoke test was left in `test/`, but the app it tests is replaced
+  (it also blocked lefthook's `pre-push`). It is removed, and projects now
+  ship a real test for `AuthRepositoryImpl`.
 - **Projects with Web did not compile for the web.** The generated database
   used drift's `NativeDatabase` (`dart:ffi`) unconditionally. The connection
   now goes through a conditional import: SQLite over FFI on mobile/desktop,

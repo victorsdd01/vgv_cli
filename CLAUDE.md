@@ -175,7 +175,7 @@ También arreglados en una 2ª pasada:
 
 Verificado end-to-end con el CLI corregido (proyecto `verify_app` regenerado): git init OK, pubspec bien formado, `✓ app-dev-debug.apk`.
 
-Pendientes menores (para decidir con el usuario): use cases de dominio (`CreateProjectUseCase`/`ValidateProjectConfigUseCase`) siguen sin invocarse (código muerto — el pre-check se replicó en el controller); flags como `-o`/`--org` sueltas (sin `-n`/`-q`) se ignoran y cae a interactivo; `VersionChecker._latestVersions` hardcodeado y no usado por `addDependencies` (fuente de verdad duplicada).
+Pendientes menores de esa pasada: ✅ todos resueltos. Los use cases de dominio muertos y `VersionChecker._latestVersions` se borraron en `cce9082`; `-o`/`--org` sin `-n` ahora se respetan en modo interactivo (y sin terminal dan un error claro, ver #21).
 
 ### 2. Bugs al actualizar
 Al hacer `vgv -u` había bugs. Revisar el flujo de update en `lib/vgv_cli.dart` (`_updateCLI`, `_checkForUpdates`, `_showUpdateProgress`) y `version_checker.dart`.
@@ -387,6 +387,12 @@ Revisión pedida por el usuario. El análisis y los tests estaban verdes, pero l
   - ⚠️ **Probar prompts con un pty**: en Dart `stdout.hasTerminal` se basa en el tamaño de la terminal → un pty de 0×0 (el default de `expect`/pty casero) da `false`, y por eso mason_logger tiraba `StateError` en pruebas anteriores. Solución: `stty rows 40 columns 120 < $spawn_out(slave,name)` justo después del `spawn`, y correr el CLI **compilado** (`dart compile exe`), no con `dart run`. Las terminales reales siempre tienen tamaño, así que el guard de `CliController.hasTerminal` es correcto.
 - Lint `unawaited_return_in_try_block` arreglado en el template (`allUsers.fold<Either<…>>`) y en `brick_runner.dart`.
 - Verificado **E2E con builds reales en los dos SDKs**: Flutter 3.47.5 y 3.44.8 (vía `.fvmrc` en carpeta padre + `--fvm`) → `flutter analyze` sin errores/warnings y `✓ app-dev-debug.apk`. Tests nuevos: `dependency_versions_test.dart`, `cli_controller_test.dart`.
+
+### 22. Cierre de pendientes (2026-10-23, pedido del usuario: "todos los puntos excepto el 3")
+- **Login/registro ya no reportan éxito sin persistir** (template): `AuthRepositoryImpl` ignoraba el `Either` de `saveUser` y no atrapaba el error del token → ahora `_persistSession` devuelve el `Failure` (la UI ya mostraba `state.failure.message` en un SnackBar). Verificado real: en el navegador integrado (donde la base web no abre por el bloqueo de `SharedWorker`) el registro ahora muestra "Failed to save user…" y no deja token; en el simulador iOS el registro entra y la sesión persiste al relanzar.
+- **El template ahora genera tests** (`TemplateContents.testTemplates` → `test/`, procesados con `{{project_name}}`): `test/features/auth/data/repositories/auth_repository_impl_test.dart` con fakes a mano (sin mocktail). Y se borra el `test/widget_test.dart` de `flutter create` (el del contador, solo si sigue siendo ese): **fallaba en todo proyecto generado** y bloqueaba el `pre-push` de lefthook. `flutter test` en un proyecto recién creado: 4/4.
+- **`frames --cloud` en paralelo**: pool de 6 workers con un `http.Client` compartido (inyectable para tests → `MockClient`), reintentos intactos. Real: 178/178 en 48 s sin fallas (antes ~2 min y 23 fallas en la 1ª pasada).
+- Limpieza "use cases muertos / `_latestVersions`": ya estaba hecha desde `cce9082` (la nota de #1.c estaba vieja).
 
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
