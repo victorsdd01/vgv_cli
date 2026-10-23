@@ -74,7 +74,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
       final Either<Failure, List<UserModel>> allUsers = await authLocalDataSource.getAllUsers();
 
-      return allUsers.fold(
+      return allUsers.fold<Either<Failure, UserEntity?>>(
         Left.new,
         (List<UserModel> users) {
           if (users.isEmpty) {

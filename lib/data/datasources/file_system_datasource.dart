@@ -30,8 +30,8 @@ abstract class FileSystemDataSource {
 /// Renders a `name: <constraint>` pubspec entry from the canonical version
 /// table, so the pinned versions live in exactly one place
 /// (`core/templates/dependency_versions.dart`) and `vgv deps` can audit them.
-String _pinned(String name) {
-  final constraint = kAllPinnedVersions[name];
+String _pinnedFrom(Map<String, String> pins, String name) {
+  final constraint = pins[name];
   return constraint == null ? name : '$name: $constraint';
 }
 
@@ -49,6 +49,11 @@ class FileSystemDataSourceImpl implements FileSystemDataSource {
     }
 
     String pubspecContent = pubspecFile.readAsStringSync();
+
+    // `flutter create` wrote the toolchain's Dart SDK into `environment:`;
+    // the pins have to match it (see `pinsForPubspec`).
+    final pins = pinsForPubspec(pubspecContent);
+    String pinned(String name) => _pinnedFrom(pins, name);
     
     // Build dependencies list
     final dependencies = <String>[];
@@ -57,72 +62,72 @@ class FileSystemDataSourceImpl implements FileSystemDataSource {
     switch (stateManagement) {
       case StateManagementType.bloc:
         dependencies.addAll([
-          _pinned('flutter_bloc'),
-          _pinned('hydrated_bloc'),
-          _pinned('replay_bloc'),
-          _pinned('bloc_concurrency'),
-          _pinned('dartz'),
-          _pinned('path_provider'),
-          _pinned('path'),
-          _pinned('package_info_plus'),
-          _pinned('equatable'),
-          _pinned('get_it'),
-          _pinned('dio'),
-          _pinned('flutter_secure_storage'),
-          _pinned('nested'),
-          _pinned('pretty_dio_logger'),
-          _pinned('talker_dio_logger'),
-          _pinned('talker_flutter'),
-          _pinned('flutter_form_builder'),
-          _pinned('form_builder_validators'),
-          _pinned('drift'),
-          _pinned('sqlite3'),
+          pinned('flutter_bloc'),
+          pinned('hydrated_bloc'),
+          pinned('replay_bloc'),
+          pinned('bloc_concurrency'),
+          pinned('dartz'),
+          pinned('path_provider'),
+          pinned('path'),
+          pinned('package_info_plus'),
+          pinned('equatable'),
+          pinned('get_it'),
+          pinned('dio'),
+          pinned('flutter_secure_storage'),
+          pinned('nested'),
+          pinned('pretty_dio_logger'),
+          pinned('talker_dio_logger'),
+          pinned('talker_flutter'),
+          pinned('flutter_form_builder'),
+          pinned('form_builder_validators'),
+          pinned('drift'),
+          pinned('sqlite3'),
         ]);
         
         if (includeFreezed) {
           dependencies.addAll([
-            _pinned('json_annotation'),
-            _pinned('freezed_annotation'),
+            pinned('json_annotation'),
+            pinned('freezed_annotation'),
           ]);
         }
         break;
       case StateManagementType.provider:
         dependencies.addAll([
-          _pinned('provider'),
-          _pinned('get_it'),
+          pinned('provider'),
+          pinned('get_it'),
         ]);
         
         // Always add Freezed for non-BLoC state management
         dependencies.addAll([
-          _pinned('json_annotation'),
-          _pinned('freezed_annotation'),
-          _pinned('freezed'),
+          pinned('json_annotation'),
+          pinned('freezed_annotation'),
+          pinned('freezed'),
         ]);
         break;
       case StateManagementType.none:
         // Always add Freezed for non-BLoC state management
         dependencies.addAll([
-          _pinned('json_annotation'),
-          _pinned('freezed_annotation'),
-          _pinned('freezed'),
+          pinned('json_annotation'),
+          pinned('freezed_annotation'),
+          pinned('freezed'),
         ]);
         break;
     }
 
     // Add Go Router dependency if requested
     if (includeGoRouter && !dependencies.any((d) => d.startsWith('go_router:'))) {
-      dependencies.add(_pinned('go_router'));
+      dependencies.add(pinned('go_router'));
     }
 
     // Always add get_it for dependency injection
     if (!dependencies.any((d) => d.startsWith('get_it:'))) {
-      dependencies.add(_pinned('get_it'));
+      dependencies.add(pinned('get_it'));
     }
 
     // Add Clean Architecture dependencies if requested
     if (includeCleanArchitecture) {
       if (!dependencies.any((d) => d.startsWith('equatable:'))) {
-        dependencies.add(_pinned('equatable'));
+        dependencies.add(pinned('equatable'));
       }
     }
 
@@ -139,22 +144,22 @@ class FileSystemDataSourceImpl implements FileSystemDataSource {
     // Always add Freezed dev dependencies for Provider/None or when Freezed is selected
     if (includeFreezed || stateManagement == StateManagementType.provider || stateManagement == StateManagementType.none) {
       devDependencies.addAll([
-        _pinned('freezed'),
-        _pinned('json_serializable'),
-        _pinned('build_runner'),
+        pinned('freezed'),
+        pinned('json_serializable'),
+        pinned('build_runner'),
       ]);
     }
 
     // Add Drift dev dependencies for BLoC
     if (stateManagement == StateManagementType.bloc) {
       devDependencies.addAll([
-        _pinned('drift_dev'),
+        pinned('drift_dev'),
       ]);
     }
 
     // Add internationalization dev dependencies
     devDependencies.addAll([
-      _pinned('intl_utils'),
+      pinned('intl_utils'),
     ]);
 
     // Insert our dependencies right after each section header, preserving the
