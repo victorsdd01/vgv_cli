@@ -5,6 +5,7 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as p;
 
 import '../templates/screenshot_script.dart';
+import 'flutter_toolchain.dart';
 import 'frames_extractor.dart';
 import 'screenshot_web.dart';
 
@@ -110,13 +111,16 @@ class ScreenshotRunner {
       _logger.err('Test harness not found: $testPath');
       return 1;
     }
-    if (!await _has('flutter')) {
-      _logger.err('flutter was not found on your PATH.');
+    // Honor an FVM pin so the goldens render with the project's own SDK.
+    final toolchain = await FlutterToolchain.resolve();
+    if (!await _has(toolchain.executable)) {
+      _logger.err('${toolchain.executable} was not found on your PATH.');
       return 1;
     }
-    _logger.info(styleBold.wrap(lightCyan.wrap('  📸 Capturing raw screens (flutter test --update-goldens)…'))!);
+    _logger.info(styleBold.wrap(lightCyan.wrap('  📸 Capturing raw screens (${toolchain.hintPrefix}flutter test --update-goldens)…'))!);
     final result = await Process.run(
-        'flutter', <String>['test', '--update-goldens', testPath],
+        toolchain.executable,
+        toolchain.flutter(<String>['test', '--update-goldens', testPath]),
         runInShell: true);
     if (result.exitCode == 0) {
       _logger
