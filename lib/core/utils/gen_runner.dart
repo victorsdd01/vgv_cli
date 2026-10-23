@@ -8,6 +8,7 @@ import 'package:yaml/yaml.dart';
 import 'api_generator.dart';
 import 'brick_runner.dart';
 import 'feature_generator.dart';
+import 'flutter_toolchain.dart';
 import 'model_generator.dart';
 import 'recase.dart';
 
@@ -158,32 +159,37 @@ class GenRunner {
 
   /// Runs `dart run build_runner build -d` after generating freezed code so the
   /// user doesn't have to. On failure (or when skipped) it prints the command.
+  ///
+  /// Goes through FVM when the project is pinned with it: the global `dart`
+  /// would re-resolve the packages against a different SDK and rewrite
+  /// `package_config.json`, leaving the project unable to build.
   Future<void> _afterCodegen({required bool needsFreezed, required bool skip}) async {
     if (!needsFreezed) return;
+    final toolchain = await FlutterToolchain.resolve();
+    final command = '${toolchain.hintPrefix}dart run build_runner build -d';
     if (skip || !File('pubspec.yaml').existsSync()) {
       _logger
         ..info('  ${styleDim.wrap('Then run build_runner:')}')
-        ..info('       ${lightCyan.wrap('dart run build_runner build -d')}')
+        ..info('       ${lightCyan.wrap(command)}')
         ..info('');
       return;
     }
-    final progress =
-        _logger.progress('Running build_runner (dart run build_runner build -d)');
+    final progress = _logger.progress('Running build_runner ($command)');
     try {
       final result = await Process.run(
-        'dart',
-        <String>['run', 'build_runner', 'build', '-d'],
+        toolchain.dartExecutable,
+        toolchain.dart(<String>['run', 'build_runner', 'build', '-d']),
         runInShell: true,
       );
       if (result.exitCode == 0) {
         progress.complete('Generated code is ready (build_runner).');
       } else {
         progress.fail('build_runner failed — run it manually:');
-        _logger.info('       ${lightCyan.wrap('dart run build_runner build -d')}');
+        _logger.info('       ${lightCyan.wrap(command)}');
       }
     } catch (_) {
       progress.fail('Could not run build_runner — run it manually:');
-      _logger.info('       ${lightCyan.wrap('dart run build_runner build -d')}');
+      _logger.info('       ${lightCyan.wrap(command)}');
     }
     _logger.info('');
   }

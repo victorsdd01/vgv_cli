@@ -137,6 +137,16 @@
     </div>
 
     <div class="group">
+      <label data-i18n="languages">Languages</label>
+      <div class="chips" id="locales"></div>
+      <div class="row" style="margin-top:8px">
+        <input type="text" id="newLocale" placeholder="es, pt-BR…" maxlength="9" />
+        <button class="file" id="addLocale" data-i18n="add_locale">Add</button>
+      </div>
+      <div class="hint" data-i18n="locales_hint">Each language keeps its own headline and subtitle. Exporting renders one image per language.</div>
+    </div>
+
+    <div class="group">
       <label data-i18n="text_layout">Text — position, align, size</label>
       <div class="chips" id="textPos"></div>
       <div class="chips" id="textAlign" style="margin-top:6px"></div>
@@ -248,6 +258,10 @@ const I18N = {
     frame_hint_none: "Loaded, but no transparent screen detected. Use a frame PNG with a see-through screen.",
     frame_empty: "No frames for this device. Get the full set with 'vgv screenshots frames --cloud', or add your own with --frames <dir>.",
     saved: "Saved → ", save_fail: "Save failed",
+    languages: "Languages", add_locale: "Add",
+    locales_hint: "Each language keeps its own headline and subtitle. Exporting renders one image per language.",
+    remove_locale: "Remove", locale_invalid: "Use a language code like es or pt-BR",
+    locale_exists: "That language is already there", saved_n: "Saved {n} images → ",
   },
   es: {
     tagline: "Enmarcá las capturas de tu app — sin Python.",
@@ -268,6 +282,10 @@ const I18N = {
     frame_hint_none: "Cargado, pero no se detectó pantalla transparente. Usá un frame PNG con la pantalla calada.",
     frame_empty: "No hay frames para este dispositivo. Bajá el set completo con 'vgv screenshots frames --cloud', o agregá los tuyos con --frames <dir>.",
     saved: "Guardado → ", save_fail: "No se pudo guardar",
+    languages: "Idiomas", add_locale: "Agregar",
+    locales_hint: "Cada idioma tiene su propio título y subtítulo. Al exportar se genera una imagen por idioma.",
+    remove_locale: "Quitar", locale_invalid: "Usá un código de idioma como es o pt-BR",
+    locale_exists: "Ese idioma ya está", saved_n: "Guardadas {n} imágenes → ",
   },
 };
 let lang = localStorage.getItem('vgvLang') || (navigator.language || 'en').slice(0,2);
@@ -668,16 +686,69 @@ async function loadFrames(){
 document.getElementById('pickBg').onclick=()=>pick(img=>{ state.bgImage=img; render(); });
 document.getElementById('clearBg').onclick=()=>{ state.bgImage=null; render(); };
 
-document.getElementById('download').onclick=()=>{ const a=document.createElement('a');
-  a.download=`${state.template}_${state.device}.png`; a.href=canvas.toDataURL('image/png'); a.click(); };
+// ---------- languages (parity with the manifest engine's `locales`) ----------
+// Each language keeps its own headline/subtitle; `state.headline/subtitle`
+// always hold the active one's texts, so rendering is unchanged.
+const LOCALE_RE=/^[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})?$/;
+state.locales=[{ code:'en', headline:state.headline, subtitle:state.subtitle }];
+state.activeLocale=0;
+function syncLocale(){ const l=state.locales[state.activeLocale]; l.headline=state.headline; l.subtitle=state.subtitle; }
+function loadLocale(i){ state.activeLocale=i; const l=state.locales[i];
+  state.headline=l.headline; state.subtitle=l.subtitle;
+  document.getElementById('headline').value=l.headline; document.getElementById('subtitle').value=l.subtitle;
+  refreshLocales(); render(); }
+function refreshLocales(){
+  const box=document.getElementById('locales'); box.innerHTML='';
+  state.locales.forEach((l,i)=>{ const el=document.createElement('div');
+    el.className='chip'+(i===state.activeLocale?' active':''); el.textContent=l.code;
+    el.onclick=()=>{ syncLocale(); loadLocale(i); };
+    if(state.locales.length>1){ const x=document.createElement('span'); x.textContent=' ×'; x.title=t('remove_locale');
+      x.onclick=ev=>{ ev.stopPropagation(); syncLocale(); state.locales.splice(i,1);
+        loadLocale(Math.min(i===state.activeLocale ? Math.max(0,i-1) : (i<state.activeLocale ? state.activeLocale-1 : state.activeLocale), state.locales.length-1)); };
+      el.appendChild(x); }
+    box.appendChild(el); });
+}
+document.getElementById('addLocale').onclick=()=>{
+  const input=document.getElementById('newLocale'); const code=input.value.trim();
+  if(!LOCALE_RE.test(code)){ toast(t('locale_invalid')); return; }
+  if(state.locales.some(l=>l.code.toLowerCase()===code.toLowerCase())){ toast(t('locale_exists')); return; }
+  syncLocale();
+  // Start from the current texts, ready to be translated.
+  state.locales.push({ code, headline:state.headline, subtitle:state.subtitle });
+  input.value=''; loadLocale(state.locales.length-1);
+};
+document.getElementById('newLocale').onkeydown=e=>{ if(e.key==='Enter') document.getElementById('addLocale').click(); };
+
+// One rendered PNG per language ({code:null} when there is only one).
+function renderExports(){
+  syncLocale();
+  if(state.locales.length<2) return [{ code:null, dataUrl:canvas.toDataURL('image/png') }];
+  const out=[];
+  for(const l of state.locales){ state.headline=l.headline; state.subtitle=l.subtitle; render();
+    out.push({ code:l.code, dataUrl:canvas.toDataURL('image/png') }); }
+  loadLocale(state.activeLocale);
+  return out;
+}
+
+document.getElementById('download').onclick=()=>{
+  const base=`${state.template}_${state.device}`;
+  renderExports().forEach((img,i)=>setTimeout(()=>{ const a=document.createElement('a');
+    a.download= img.code ? `${base}_${img.code}.png` : `${base}.png`; a.href=img.dataUrl; a.click(); }, i*250));
+};
 
 document.getElementById('save').onclick=async()=>{
   const name=`${state.template}_${state.device}.png`;
+  const images=renderExports();
   try {
-    const res=await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name, dataUrl:canvas.toDataURL('image/png')})});
-    const j=await res.json();
-    toast(j.ok? t('saved')+j.path : t('save_fail'));
+    let last=null;
+    for(const img of images){
+      const res=await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ name, dataUrl:img.dataUrl, locale:img.code })});
+      const j=await res.json(); if(!j.ok) throw new Error(j.error||'save');
+      last=j.path;
+    }
+    // Several languages land in out/<locale>/, like the manifest engine.
+    toast((images.length>1 ? t('saved_n').replace('{n}', images.length) : t('saved'))+last);
   } catch(e){ toast(t('save_fail')); }
 };
 
@@ -736,6 +807,7 @@ function applyI18n(){
   document.getElementById('rawHint').textContent = rawHintKey ? t(rawHintKey) : '';
   populateSizes();
   if (typeof refreshChips==='function') refreshChips();
+  if (typeof refreshLocales==='function') refreshLocales();
   document.querySelectorAll('.lang').forEach(b=> b.classList.toggle('active', b.dataset.lang===lang));
   document.documentElement.lang = lang;
 }
@@ -752,7 +824,7 @@ const savedTheme = localStorage.getItem('vgvTheme')
   || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
 
 applyTheme(savedTheme);
-refreshChips(); loadRaw(); loadFrames(); applyI18n(); render();
+refreshChips(); refreshLocales(); loadRaw(); loadFrames(); applyI18n(); render();
 </script>
 </body>
 </html>

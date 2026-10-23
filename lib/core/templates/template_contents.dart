@@ -1,11 +1,9 @@
 class TemplateContents {
   TemplateContents._();
 
-  static const String _core_database_app_database_dart = r'''import 'dart:io';
-import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
+  static const String _core_database_app_database_dart = r'''import 'package:drift/drift.dart';
+
+import 'connection/connection.dart';
 
 part 'app_database.g.dart';
 
@@ -19,7 +17,7 @@ class Users extends Table {
 
 @DriftDatabase(tables: <Type>[Users])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase() : super(openConnection());
 
   @override
   int get schemaVersion => 1;
@@ -46,12 +44,48 @@ class AppDatabase extends _$AppDatabase {
   Future<List<User>> getAllUsers() => select(users).get();
 }
 
-LazyDatabase _openConnection() => LazyDatabase(() async {
+''';
+  static const String _core_database_connection_connection_dart = r'''// Picks the database backend for the current platform: SQLite through FFI on
+// mobile/desktop, SQLite compiled to WebAssembly in the browser.
+export 'unsupported.dart'
+    if (dart.library.ffi) 'native.dart'
+    if (dart.library.js_interop) 'web.dart';
+''';
+  static const String _core_database_connection_native_dart = r'''import 'dart:io';
+
+import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+
+QueryExecutor openConnection() => LazyDatabase(() async {
   final Directory dbFolder = await getApplicationDocumentsDirectory();
   final File file = File(p.join(dbFolder.path, 'app.db'));
   return NativeDatabase(file);
 });
+''';
+  static const String _core_database_connection_web_dart = r'''import 'package:drift/drift.dart';
+import 'package:drift/wasm.dart';
 
+/// Needs `web/sqlite3.wasm` (from the release of the resolved `sqlite3`) and
+/// `web/drift_worker.js` (compiled from `tool/drift_worker.dart`). vgv sets
+/// both up when it creates the project; redo it after upgrading drift or
+/// sqlite3 — see https://drift.simonbinder.eu/platforms/web/.
+QueryExecutor openConnection() => DatabaseConnection.delayed(
+  Future<DatabaseConnection>(() async {
+    final WasmDatabaseResult result = await WasmDatabase.open(
+      databaseName: 'app',
+      sqlite3Uri: Uri.parse('sqlite3.wasm'),
+      driftWorkerUri: Uri.parse('drift_worker.js'),
+    );
+    return result.resolvedExecutor;
+  }),
+);
+''';
+  static const String _core_database_connection_unsupported_dart = r'''import 'package:drift/drift.dart';
+
+QueryExecutor openConnection() =>
+    throw UnsupportedError('No database implementation for this platform.');
 ''';
   static const String _core_core_dart = r'''// Core layer exports
 export 'errors/failures.dart';
@@ -1666,15 +1700,9 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, UserEntity>> login(String email, String password) async {
     final Either<Failure, UserModel> result = await authRemoteDataSource.login(email, password);
 
-    return result.fold(
-      Left.new,
-      (UserModel model) async {
-        await authLocalDataSource.saveUser(model);
-        if (model.token != null) {
-          await secureStorageUtils.write('token', model.token!);
-        }
-        return Right<Failure, UserEntity>(UserEntity.fromModel(model));
-      },
+    return result.fold<Future<Either<Failure, UserEntity>>>(
+      (Failure failure) async => Left<Failure, UserEntity>(failure),
+      _persistSession,
     );
   }
 
@@ -1682,16 +1710,32 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, UserEntity>> register(String email, String password, String? name) async {
     final Either<Failure, UserModel> result = await authRemoteDataSource.register(email, password, name);
 
-    return result.fold(
-      Left.new,
-      (UserModel model) async {
-        await authLocalDataSource.saveUser(model);
-        if (model.token != null) {
-          await secureStorageUtils.write('token', model.token!);
-        }
-        return Right<Failure, UserEntity>(UserEntity.fromModel(model));
-      },
+    return result.fold<Future<Either<Failure, UserEntity>>>(
+      (Failure failure) async => Left<Failure, UserEntity>(failure),
+      _persistSession,
     );
+  }
+
+  /// Saves the signed-in user locally and stores the session token.
+  ///
+  /// Either step failing fails the login/register: reporting success while
+  /// nothing was persisted would show the user as signed in and then sign
+  /// them out on the next launch.
+  Future<Either<Failure, UserEntity>> _persistSession(UserModel model) async {
+    final Either<Failure, void> saved = await authLocalDataSource.saveUser(model);
+    final Failure? saveFailure = saved.fold((Failure failure) => failure, (void _) => null);
+    if (saveFailure != null) {
+      return Left<Failure, UserEntity>(saveFailure);
+    }
+
+    try {
+      if (model.token != null) {
+        await secureStorageUtils.write('token', model.token!);
+      }
+    } catch (e) {
+      return Left<Failure, UserEntity>(CacheFailure(message: 'Failed to store the session: $e'));
+    }
+    return Right<Failure, UserEntity>(UserEntity.fromModel(model));
   }
 
   @override
@@ -1718,7 +1762,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
       final Either<Failure, List<UserModel>> allUsers = await authLocalDataSource.getAllUsers();
 
-      return allUsers.fold(
+      return allUsers.fold<Either<Failure, UserEntity?>>(
         Left.new,
         (List<UserModel> users) {
           if (users.isEmpty) {
@@ -2898,8 +2942,10 @@ class _TalkerOverlayState extends State<_TalkerOverlay> {
   @override
   Widget build(BuildContext context) {
     final MediaQueryData mq = MediaQuery.of(context);
+    // Default: bottom-left, above the app shell's NavigationBar (80dp) so it
+    // never covers a tab; the right side stays free for page FABs.
     final Offset position = _position ??
-        Offset(16, mq.size.height - mq.padding.bottom - _buttonSize - 24);
+        Offset(16, mq.size.height - mq.padding.bottom - _buttonSize - 96);
 
     return Stack(
       children: <Widget>[
@@ -3738,8 +3784,134 @@ void main() {
 }
 ''';
 
+  static const String _test_features_auth_data_repositories_auth_repository_impl_test_dart = r'''import 'package:dartz/dartz.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:{{project_name}}/core/errors/failures.dart';
+import 'package:{{project_name}}/core/utils/secure_storage_utils.dart';
+import 'package:{{project_name}}/features/auth/data/datasources/local/auth_local_datasource.dart';
+import 'package:{{project_name}}/features/auth/data/datasources/remote/auth_remote_datasource.dart';
+import 'package:{{project_name}}/features/auth/data/models/user_model.dart';
+import 'package:{{project_name}}/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:{{project_name}}/features/auth/domain/entities/user_entity.dart';
+
+const UserModel _user = UserModel(id: '1', email: 'ana@example.com', name: 'Ana', token: 'token-1');
+const CacheFailure _diskFull = CacheFailure(message: 'Failed to save user: disk full');
+
+class _FakeRemote implements AuthRemoteDataSource {
+  @override
+  Future<Either<Failure, UserModel>> login(String email, String password) async => const Right<Failure, UserModel>(_user);
+
+  @override
+  Future<Either<Failure, UserModel>> register(String email, String password, String? name) async => const Right<Failure, UserModel>(_user);
+}
+
+class _FakeLocal implements AuthLocalDataSource {
+  _FakeLocal({this.saveFailure});
+
+  final Failure? saveFailure;
+  final List<UserModel> saved = <UserModel>[];
+
+  @override
+  Future<Either<Failure, void>> saveUser(UserModel user) async {
+    if (saveFailure != null) {
+      return Left<Failure, void>(saveFailure!);
+    }
+    saved.add(user);
+    return const Right<Failure, void>(null);
+  }
+
+  @override
+  Future<Either<Failure, UserModel?>> getUserByEmail(String email) => throw UnimplementedError();
+
+  @override
+  Future<Either<Failure, List<UserModel>>> getAllUsers() => throw UnimplementedError();
+
+  @override
+  Future<Either<Failure, void>> deleteUser(String userId) => throw UnimplementedError();
+
+  @override
+  Future<Either<Failure, void>> clearUsers() => throw UnimplementedError();
+}
+
+class _FakeSecureStorage extends SecureStorageUtils {
+  _FakeSecureStorage({this.failWrites = false});
+
+  final bool failWrites;
+  final Map<String, String> values = <String, String>{};
+
+  @override
+  Future<void> write(String key, String value) async {
+    if (failWrites) {
+      throw Exception('keychain locked');
+    }
+    values[key] = value;
+  }
+
+  @override
+  Future<String?> read(String key) async => values[key];
+}
+
+void main() {
+  late _FakeLocal local;
+  late _FakeSecureStorage storage;
+
+  AuthRepositoryImpl repository() => AuthRepositoryImpl(
+        authRemoteDataSource: _FakeRemote(),
+        authLocalDataSource: local,
+        secureStorageUtils: storage,
+      );
+
+  setUp(() {
+    local = _FakeLocal();
+    storage = _FakeSecureStorage();
+  });
+
+  test('register saves the user and the session token', () async {
+    final Either<Failure, UserEntity> result = await repository().register('ana@example.com', 'secret', 'Ana');
+
+    expect(result.isRight(), isTrue);
+    expect(local.saved.single.email, 'ana@example.com');
+    expect(storage.values['token'], 'token-1');
+  });
+
+  test('register fails when the user cannot be saved locally', () async {
+    local = _FakeLocal(saveFailure: _diskFull);
+
+    final Either<Failure, UserEntity> result = await repository().register('ana@example.com', 'secret', 'Ana');
+
+    expect(result, const Left<Failure, UserEntity>(_diskFull));
+    expect(storage.values, isEmpty);
+  });
+
+  test('login fails when the user cannot be saved locally', () async {
+    local = _FakeLocal(saveFailure: _diskFull);
+
+    final Either<Failure, UserEntity> result = await repository().login('ana@example.com', 'secret');
+
+    expect(result, const Left<Failure, UserEntity>(_diskFull));
+    expect(storage.values, isEmpty);
+  });
+
+  test('login fails when the session token cannot be stored', () async {
+    storage = _FakeSecureStorage(failWrites: true);
+
+    final Either<Failure, UserEntity> result = await repository().login('ana@example.com', 'secret');
+
+    expect(result.isLeft(), isTrue);
+    result.fold(
+      (Failure failure) => expect(failure, isA<CacheFailure>()),
+      (UserEntity _) => fail('expected a failure'),
+    );
+  });
+}
+''';
+
   static Map<String, String> get templates => {
     'core/database/app_database.dart': _core_database_app_database_dart,
+    'core/database/connection/connection.dart': _core_database_connection_connection_dart,
+    'core/database/connection/native.dart': _core_database_connection_native_dart,
+    'core/database/connection/web.dart': _core_database_connection_web_dart,
+    'core/database/connection/unsupported.dart': _core_database_connection_unsupported_dart,
     'core/core.dart': _core_core_dart,
     'core/network/http_client.dart': _core_network_http_client_dart,
     'core/enums/server_status.dart': _core_enums_server_status_dart,
@@ -3811,5 +3983,15 @@ void main() {
 
   static Map<String, String> getProcessedTemplates(String projectName) {
     return templates.map((key, value) => MapEntry(key, _processTemplate(value, projectName)));
+  }
+
+  /// Files under the project's `test/` directory, keyed relative to it.
+  static Map<String, String> get testTemplates => {
+    'features/auth/data/repositories/auth_repository_impl_test.dart':
+        _test_features_auth_data_repositories_auth_repository_impl_test_dart,
+  };
+
+  static Map<String, String> getProcessedTestTemplates(String projectName) {
+    return testTemplates.map((key, value) => MapEntry(key, _processTemplate(value, projectName)));
   }
 }

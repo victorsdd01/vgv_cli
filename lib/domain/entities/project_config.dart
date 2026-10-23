@@ -48,6 +48,7 @@ class ProjectConfig {
   const ProjectConfig({
     required this.projectName,
     required this.organizationName,
+    this.appName,
     required this.stateManagement,
     required this.architecture,
     this.includeGoRouter = false,
@@ -80,6 +81,26 @@ class ProjectConfig {
   /// desktop do not support `flutter run --flavor`.
   bool get usesNativeFlavors => platforms.contains(PlatformType.mobile);
 
+  /// Display name shown under the launcher icon, before the per-flavor
+  /// suffix. Null means "derive it from [projectName]", which is what
+  /// creating a project does; `vgv add flavors` sets it so an existing app
+  /// keeps the name it already has.
+  final String? appName;
+
+  /// The display name to write, humanizing [projectName] when none was given
+  /// (`my_awesome_app` -> `My Awesome App`).
+  String get effectiveAppName {
+    final given = appName?.trim();
+    if (given != null && given.isNotEmpty) return given;
+    return projectName
+        .split(RegExp(r'[/\\]'))
+        .last
+        .split(RegExp(r'[_\s]+'))
+        .where((String w) => w.isNotEmpty)
+        .map((String w) => w[0].toUpperCase() + w.substring(1))
+        .join(' ');
+  }
+
   /// Production base bundle id (`flutter create` appends the project name to
   /// `--org`). If the org already ends with the project name we avoid the
   /// duplicated tail — e.g. org `com.test2` + project `test2` → `com.test2`,
@@ -87,6 +108,60 @@ class ProjectConfig {
   String get baseBundleId => organizationName.endsWith('.$projectName')
       ? organizationName
       : '$organizationName.$projectName';
+
+  /// Production base bundle id of the **iOS/macOS** app, as `flutter create`
+  /// builds it: Apple ids cannot contain `_`, so Flutter camelCases the
+  /// project name and drops any other disallowed character
+  /// (`com.acme` + `my_app` → `com.acme.myApp`). Equal to [baseBundleId]
+  /// unless the name (or org) has an underscore.
+  String get appleBaseBundleId {
+    // Mirrors flutter_tools' CreateBase.createUTIIdentifier + camelCase.
+    var name = projectName;
+    var index = name.indexOf('_');
+    while (index != -1 && index < name.length - 2) {
+      name = name.substring(0, index) +
+          name.substring(index + 1, index + 2).toUpperCase() +
+          name.substring(index + 2);
+      index = name.indexOf('_');
+    }
+    final identifier = '$organizationForCreate.$name'
+        .replaceAll(RegExp(r'[^a-zA-Z0-9\-\.\u0080-\uffff]+'), '');
+    final segments =
+        identifier.split('.').where((String s) => s.isNotEmpty).toList();
+    while (segments.length < 2) {
+      segments.add('untitled');
+    }
+    return segments.join('.');
+  }
+
+  /// The platform folders `flutter create` generates for this config, in its
+  /// `--platforms` vocabulary (`android`, `ios`, `web`, `windows`, `macos`,
+  /// `linux`), honoring Android/iOS-only and custom desktop choices.
+  Set<String> get flutterPlatforms {
+    final custom = desktopPlatform == DesktopPlatform.custom
+        ? customDesktopPlatforms
+        : null;
+    bool desktop(DesktopPlatform only, bool Function(CustomDesktopPlatforms) pick) =>
+        platforms.contains(PlatformType.desktop) &&
+        (custom != null
+            ? pick(custom)
+            : desktopPlatform == only || desktopPlatform == DesktopPlatform.all);
+    return <String>{
+      if (platforms.contains(PlatformType.mobile) &&
+          mobilePlatform != MobilePlatform.ios)
+        'android',
+      if (includesIos) 'ios',
+      if (platforms.contains(PlatformType.web)) 'web',
+      if (desktop(DesktopPlatform.windows, (c) => c.windows)) 'windows',
+      if (desktop(DesktopPlatform.macos, (c) => c.macos)) 'macos',
+      if (desktop(DesktopPlatform.linux, (c) => c.linux)) 'linux',
+    };
+  }
+
+  /// Whether an iOS app is generated (and therefore [appleBaseBundleId] used).
+  bool get includesIos =>
+      platforms.contains(PlatformType.mobile) &&
+      mobilePlatform != MobilePlatform.android;
 
   /// The value to pass to `flutter create --org` so the resulting
   /// applicationId/bundleId equals [baseBundleId] (flutter appends the project

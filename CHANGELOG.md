@@ -7,13 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.10.64] - 2026-09-21
-
-### Changes
-- Merge pull request #84 from victorsdd01/develop
-
+## [1.10.64] - 2026-10-23
 
 ### Added
+- **`vgv add` covers every configuration** on an existing project, not just
+  flavors: `fastlane` (lanes per detected flavor, with the project's real
+  Android and iOS ids), `lefthook`, `fvm [--version]`, `icons --from <png>`
+  (and generates them), `splash [--color] [--image]` (and generates it),
+  `seed --color` (vgv theme), `agents [--agents …]` and `window`
+  (window_manager, also on a stock `main.dart`). Each one refuses to
+  overwrite existing files unless `--force`.
+- **Languages in the screenshot editor** (`vgv screenshots web`), matching
+  the manifest engine's `locales`: each language keeps its own headline and
+  subtitle; with several, "Download" saves one PNG per language and "Save to
+  project" writes `out/<locale>/…`. The server only accepts plain language
+  codes for that folder.
+- **`--fastlane`** configures Fastlane when creating a project without the
+  interactive prompts (`vgv -q -n my_app --fastlane`).
+- **Merge-back workflow** (`.github/workflows/merge-back.yml`): after every
+  push to `main`, opens a `main → develop` PR when `develop` is behind, so the
+  release bump never leaves `develop` stale again.
 - **FVM support.** Flutter/Dart were invoked directly, so an FVM-pinned project
   silently built with whatever global SDK was on the PATH. The CLI now resolves
   the toolchain: `--fvm` / `--no-fvm` win, otherwise it auto-detects (`fvm` on
@@ -176,6 +189,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TStateless/TStatefull, no `setState`, intl_utils, GoRouter).
 
 ### Changed
+- `vgv screenshots frames --cloud` downloads 6 frames at a time with a shared
+  HTTP client: the 178-frame library takes ~50s instead of ~2 minutes, and
+  each frame still retries with backoff.
 - **Refreshed the generated project's dependencies.** Pins had drifted badly;
   they now live in one place (`core/templates/dependency_versions.dart`) and
   were moved to the newest versions that actually resolve against the target
@@ -209,6 +225,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   via `tool/generate_version.dart`); "latest" reads the `main` `pubspec.yaml`.
 
 ### Fixed
+- **Generated projects did not compile on Flutter 3.47 / Dart 3.13.** freezed 3
+  emits `final` on constructor parameters (any `List`/`Map` field with a
+  `@Default`), which Dart 3.13 rejects, so `flutter build` failed out of the
+  box. The pins are now chosen from the Dart SDK `flutter create` writes into
+  the new pubspec: Dart 3.13+ gets freezed 4, build_runner 2.16, drift 2.35 and
+  go_router 18; older SDKs keep the previous, verified set.
+  flutter_form_builder stays on 10.x (11.x's `material_ui` `InputDecoration`
+  does not match Flutter's).
+- With FVM, a new project was pinned to the **global** SDK even when a parent
+  folder's `.fvmrc` had made `fvm flutter create` use another one. It is now
+  pinned to the version FVM actually used (nearest `.fvmrc`, then global).
+- **Exit codes**: invalid name/org, a missing Flutter install, and a failed
+  generation now exit with 1 (they exited 0, so CI never noticed). Unknown
+  flags exit with 64 and a one-line error instead of a stack of help text.
+- Running without a terminal (CI, pipes) and without `-n` now fails with a
+  clear message instead of mason_logger's "No terminal attached to stdout";
+  `-n <name>` without a terminal proceeds as if `-q` had been passed.
+- Validation hints ("Must start with a lowercase letter…") were logged at the
+  `detail` level, so nobody ever saw them. They are printed now.
+- `--dry-run` ignored `--flavors` and `--no-git` and always listed all three
+  environments. It now validates the inputs, shows the selected flavors with
+  their bundle IDs and entry points, and the git step.
+- `vgv -h` lists every command (`gen model/api/bloc/page/usecase/brick`,
+  `add flavors`, `deps`, `screenshots web/frames`) and `--[no-]fvm`;
+  `vgv config --help` works.
+- In an FVM-pinned project, `vgv gen …` ran `build_runner` with the global
+  `dart` and `vgv screenshots capture` ran the global `flutter`. The global SDK
+  re-resolved the packages and rewrote `package_config.json` to point at its
+  own Flutter, so the project stopped building. Both now go through `fvm` when
+  the project has a `.fvmrc`, and the printed hints say `fvm dart run …`.
+- **Register/login reported success when nothing was saved.** The generated
+  `AuthRepositoryImpl` ignored the result of `saveUser` (and an exception
+  writing the token), so a broken local database still showed the user as
+  signed in, and the next launch signed them out. Both now fail with the
+  error, which the login/register pages already show.
+- **`flutter test` failed in every generated project.** `flutter create`'s
+  counter smoke test was left in `test/`, but the app it tests is replaced
+  (it also blocked lefthook's `pre-push`). It is removed, and projects now
+  ship a real test for `AuthRepositoryImpl`.
+- **Projects with Web did not compile for the web.** The generated database
+  used drift's `NativeDatabase` (`dart:ffi`) unconditionally. The connection
+  now goes through a conditional import: SQLite over FFI on mobile/desktop,
+  SQLite as WebAssembly in the browser. When the project includes web, the CLI
+  downloads the `sqlite3.wasm` matching `pubspec.lock` and compiles
+  `web/drift_worker.js` from `tool/drift_worker.dart` (drift's prebuilt worker
+  can bundle older sqlite3 bindings than the resolved package and then fails
+  to link the wasm). If either step fails, it prints the manual step.
+- `flutter_launcher_icons.yaml` listed Windows and macOS for any desktop
+  project, and Android + iOS for any mobile one, ignoring the platforms
+  actually chosen. It now lists only the platforms the project has.
+- **Fastlane pointed at the wrong iOS app** whenever the project name has an
+  `_`. Apple bundle ids cannot contain underscores, so `flutter create`
+  camelCases the name for iOS (`com.acme.my_app` on Android is
+  `com.acme.myApp` on iOS), but `ios/fastlane/Appfile` used the Android id.
+  It now uses the real iOS id, and the summary, `--dry-run` and
+  `fastlane-config.md` show both ids when they differ.
+- The Talker log button sat on top of the bottom `NavigationBar`, covering
+  part of the first tab. It now starts above the bar.
+- `vgv gen api` without `--feature` wrote a broken import in the client
+  (`../../<name>_models.dart` instead of `../../models/<name>_models.dart`), so
+  the generated client did not compile.
+- `vgv gen page` without a bloc imported `injector.dart` without using it
+  (`unused_import` warning in the generated project).
+- Generated `AuthRepositoryImpl.getCurrentUser` no longer triggers
+  `unawaited_return_in_try_block` (explicit `fold` type); same lint fixed in
+  `vgv gen brick`.
 - Generated freezed unions are now `sealed class` (required by freezed 3+).
 - `SecureStorageUtils` drops `encryptedSharedPreferences`, removed in
   flutter_secure_storage 10+ (which encrypts by default).
@@ -237,6 +319,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dead code (unused domain use cases, `VersionChecker` recommendation helpers,
   unused `AnsiColors` constants, the fake update progress bar), versioned build
   artifacts under `templates/blocs/build/`, and stale root dev scripts.
+
+### Changes
+- Merge pull request #84 from victorsdd01/develop
 
 ## [1.10.63] - 2026-09-21
 

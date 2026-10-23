@@ -15,16 +15,11 @@ class ApiGenerator {
     final schemas = _schemas(spec);
     final snake = ReCase(name).snakeCase;
 
-    final String base;
-    final String modelsImport;
-    if (feature != null && feature.isNotEmpty) {
-      final f = ReCase(feature).snakeCase;
-      base = 'lib/features/$f/data';
-      modelsImport = 'models/${snake}_models.dart';
-    } else {
-      base = 'lib/api/$snake';
-      modelsImport = '${snake}_models.dart';
-    }
+    final base = (feature != null && feature.isNotEmpty)
+        ? 'lib/features/${ReCase(feature).snakeCase}/data'
+        : 'lib/api/$snake';
+    // Same layout in both cases: the client sits two levels below `base`.
+    final modelsImport = 'models/${snake}_models.dart';
 
     return <String, String>{
       '$base/models/${snake}_models.dart': _renderModels(snake, schemas),

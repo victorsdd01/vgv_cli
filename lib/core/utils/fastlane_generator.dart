@@ -8,12 +8,19 @@ import '../../domain/entities/project_config.dart';
 class FastlaneGenerator {
   const FastlaneGenerator();
 
-  Future<void> generate(ProjectConfig config) async {
+  /// [androidBaseId] / [iosBaseId] override the ids derived from [config]
+  /// (`vgv add fastlane` reads them from an existing project instead).
+  Future<void> generate(
+    ProjectConfig config, {
+    String? androidBaseId,
+    String? iosBaseId,
+  }) async {
     if (!config.includeFastlane || !config.usesNativeFlavors) return;
 
     final root = config.projectName;
     final appName = _humanize(config.projectName);
-    final baseId = config.baseBundleId;
+    final baseId = androidBaseId ?? config.baseBundleId;
+    final appleId = iosBaseId ?? config.appleBaseBundleId;
 
     _write(path.join(root, 'Gemfile'), _gemfile());
 
@@ -21,11 +28,12 @@ class FastlaneGenerator {
       _writeAndroid(root, config, appName, baseId);
     }
     if (Directory(path.join(root, 'ios')).existsSync()) {
-      _writeIos(root, config, appName, baseId);
+      // Not baseId: iOS ids cannot contain `_`, so flutter camelCases them.
+      _writeIos(root, config, appName, appleId);
     }
 
     _write(path.join(root, 'fastlane-config.md'),
-        _configMd(config, appName, baseId));
+        _configMd(config, appName, baseId, appleId));
     _appendGitignore(root);
   }
 
@@ -233,15 +241,22 @@ vendor/
     }
   }
 
-  String _configMd(ProjectConfig config, String appName, String baseId) {
+  String _configMd(
+    ProjectConfig config,
+    String appName,
+    String baseId,
+    String appleId,
+  ) {
+    final showIos = config.includesIos && appleId != baseId;
     final flavorLines = config.flavors
-        .map((f) => '- **${f.displayName}** → `${f.bundleId(baseId)}` '
+        .map((f) => '- **${f.displayName}** → `${f.bundleId(baseId)}`'
+            '${showIos ? ' (iOS: `${f.bundleId(appleId)}`)' : ''} '
             '(`fastlane android deploy_${f.flavorName}`)')
         .join('\n');
     return '''# Fastlane setup — $appName
 
 The CLI scaffolded Fastlane for this project. Follow these steps to make it
-work. Bundle IDs are the ones you entered:
+work. Bundle IDs are the ones you entered${showIos ? ' (iOS ids cannot contain `_`,\nso Flutter camelCases the project name there)' : ''}:
 
 $flavorLines
 

@@ -1,2 +1,7 @@
 tool/
 test/
+# Reference Flutter project the templates were written from. Nothing reads it
+# at runtime (generated files come from template_contents.dart), and pub
+# rejects the package because it imports Flutter packages the CLI does not
+# depend on.
+lib/core/templates/blocs/

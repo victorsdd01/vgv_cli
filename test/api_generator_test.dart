@@ -1,3 +1,4 @@
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:vgv_cli/core/utils/api_generator.dart';
 
@@ -72,5 +73,26 @@ void main() {
     expect(client, contains('class PetstoreApi'));
     expect(client, contains('Future<List<PetModel>> listPets()'));
     expect(client, contains("throw UnimplementedError('TODO: GET /pets')"));
+  });
+
+  group('client imports the models file it was generated with', () {
+    void expectImportResolves(Map<String, String> generated) {
+      final clientPath =
+          generated.keys.singleWhere((k) => k.endsWith('_api.dart'));
+      final modelsPath =
+          generated.keys.singleWhere((k) => k.endsWith('_models.dart'));
+      final import = RegExp(r"^import '([^']+)';", multiLine: true)
+          .firstMatch(generated[clientPath]!)!
+          .group(1)!;
+      expect(
+        p.url.normalize(p.url.join(p.url.dirname(clientPath), import)),
+        modelsPath,
+      );
+    }
+
+    test('standalone (lib/api/<name>/)', () => expectImportResolves(files));
+
+    test('inside a feature', () => expectImportResolves(
+        gen.build(name: 'Petstore', spec: spec, feature: 'pets')));
   });
 }

@@ -18,6 +18,21 @@ String defaultFramesDir() {
   return p.join(home, '.vgv', 'frames');
 }
 
+/// A language code like `es`, `en_US` or `pt-BR` — the only form accepted
+/// for the per-language output folder of the editor's exports.
+bool isValidLocaleCode(String code) =>
+    RegExp(r'^[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})?$').hasMatch(code);
+
+/// Where an exported PNG is written: `out/<name>`, or `out/<locale>/<name>`
+/// for multi-language exports (like the manifest engine). Null when the
+/// locale is not a plain language code, so a request cannot escape [outDir].
+String? exportPath(String outDir, String name, String? locale) {
+  final file = p.basename(name);
+  if (locale == null) return p.join(outDir, file);
+  if (!isValidLocaleCode(locale)) return null;
+  return p.join(outDir, locale, file);
+}
+
 /// `vgv screenshots web` — serves the in-browser Canvas editor from a tiny
 /// local server (no Python, no login). The browser renders + previews; on
 /// "Save to project" it POSTs the PNG back and the server writes it to `out/`.
@@ -194,12 +209,26 @@ class ScreenshotWebServer {
     if (path == '/api/save' && req.method == 'POST') {
       final body = await utf8.decoder.bind(req).join();
       final data = jsonDecode(body) as Map<String, dynamic>;
-      final name = p.basename((data['name'] as String?) ?? 'shot.png');
       final dataUrl = (data['dataUrl'] as String?) ?? '';
+      final locale = data['locale'] as String?;
+      final outPath = exportPath(
+          outDir, (data['name'] as String?) ?? 'shot.png', locale);
+      if (outPath == null) {
+        res
+          ..statusCode = HttpStatus.badRequest
+          ..headers.contentType = ContentType.json
+          ..write(jsonEncode(<String, dynamic>{
+            'ok': false,
+            'error': 'Invalid locale "$locale"',
+          }));
+        await res.close();
+        return;
+      }
       final comma = dataUrl.indexOf(',');
       final bytes = base64.decode(comma >= 0 ? dataUrl.substring(comma + 1) : dataUrl);
-      final outPath = p.join(outDir, name);
-      File(outPath).writeAsBytesSync(bytes);
+      File(outPath)
+        ..parent.createSync(recursive: true)
+        ..writeAsBytesSync(bytes);
       _logger.info('  ${green.wrap('✓')} saved $outPath');
       res.headers.contentType = ContentType.json;
       res.write(jsonEncode(<String, dynamic>{'ok': true, 'path': outPath}));

@@ -148,6 +148,10 @@ vgv screenshots web                # visual editor in the browser
 vgv screenshots frames --cloud     # download the device-frame library
 vgv screenshots --init             # scaffold a manifest for the CLI renderer
 
+# Add configuration to a project you already have
+vgv add flavors                    # native dev/staging/prod flavors
+vgv add flavors --flavors dev,prod # only some of them
+
 # Utilities
 vgv doctor                         # check the toolchain (Flutter/Dart/git + optional)
 vgv deps                           # audit the pinned dependency versions

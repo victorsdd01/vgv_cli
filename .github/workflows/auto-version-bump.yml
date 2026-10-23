@@ -91,7 +91,17 @@ jobs:
         id: release_notes
         run: |
           VERSION="${{ steps.current_version.outputs.version }}"
-          RELEASE_NOTES=$(awk "/^## \[$VERSION\]/,/^## \[/" CHANGELOG.md | sed '/^## \[/d' | sed '/^$/d' | head -n 20)
+          # Lines between "## [VERSION]" and the next "## [" header. (A range
+          # /^## \[VERSION\]/,/^## \[/ ends on its own first line, which left
+          # every release body empty.)
+          RELEASE_NOTES=$(awk -v v="$VERSION" '
+            index($0, "## [" v "]") == 1 { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md | sed '/^$/d' | head -n 40)
+          RELEASE_NOTES="$RELEASE_NOTES
+
+          Full notes: https://github.com/${{ github.repository }}/blob/v$VERSION/CHANGELOG.md"
           echo "notes<<EOF" >> $GITHUB_OUTPUT
           echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT

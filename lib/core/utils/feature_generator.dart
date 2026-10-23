@@ -323,12 +323,15 @@ abstract class ${B}State with _\$${B}State {
     final blocImport = withBloc
         ? "import '../blocs/${blocSnake}_bloc/${blocSnake}_bloc.dart';\n"
         : '';
+    // Injector is only used to resolve the bloc; without one it is an unused
+    // import (an analyzer warning in the generated project).
+    final injectorImport =
+        withBloc ? "import '../../../../application/injector.dart';\n" : '';
 
     if (o.statelessPage) {
       return '''import 'package:flutter/material.dart';
 import '../../../../application/generated/l10n.dart';
-import '../../../../application/injector.dart';
-import '../../../../core/states/tstateless.dart';
+${injectorImport}import '../../../../core/states/tstateless.dart';
 $blocImport
 class ${P}Page extends TStateless<$blocType> {
   const ${P}Page({super.key});
@@ -356,8 +359,7 @@ class ${P}Page extends TStateless<$blocType> {
 
     return '''import 'package:flutter/material.dart';
 import '../../../../application/generated/l10n.dart';
-import '../../../../application/injector.dart';
-import '../../../../core/states/tstatefull.dart';
+${injectorImport}import '../../../../core/states/tstatefull.dart';
 $blocImport
 class ${P}Page extends StatefulWidget {
   const ${P}Page({super.key});

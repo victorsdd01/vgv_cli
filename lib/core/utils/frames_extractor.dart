@@ -23,9 +23,18 @@ const String cloudFramesManifestUrl =
 ///   • `.dmg` files (macOS Apple Product Bezels) — mounted and their PNGs pulled, or
 ///   • `.png` device frames (transparent screen) — copied directly.
 class FramesExtractor {
-  FramesExtractor({Logger? logger}) : _logger = logger ?? Logger();
+  FramesExtractor({Logger? logger, http.Client Function()? httpClient})
+      : _logger = logger ?? Logger(),
+        _httpClient = httpClient ?? http.Client.new;
 
   final Logger _logger;
+  final http.Client Function() _httpClient;
+
+  /// Frames downloaded at the same time by `--cloud`. A few requests in flight
+  /// are several times faster than one by one, while staying gentle with the
+  /// CDN: large bursts are what made it drop requests (each file still retries
+  /// with backoff).
+  static const int cloudConcurrency = 6;
 
   Future<int> run(List<String> args) async {
     final positional = <String>[];
@@ -167,9 +176,22 @@ class FramesExtractor {
       ..info('  ${styleDim.wrap('→ $outDir')}')
       ..info('');
 
+    final client = _httpClient();
+    try {
+      return await _downloadCloud(client, outDir, force: force);
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<int> _downloadCloud(
+    http.Client client,
+    String outDir, {
+    required bool force,
+  }) async {
     final Map<String, dynamic> manifest;
     try {
-      final res = await http
+      final res = await client
           .get(Uri.parse(cloudFramesManifestUrl))
           .timeout(const Duration(seconds: 20));
       if (res.statusCode != 200) {
@@ -192,45 +214,59 @@ class FramesExtractor {
       return 1;
     }
 
+    final files = <String>[
+      for (final entry in frames)
+        if (entry is Map && entry['file'] is String) entry['file'] as String,
+    ];
     var downloaded = 0;
     var skipped = 0;
     var failed = 0;
     var done = 0;
-    final total = frames.length;
+    var next = 0;
+    final total = files.length;
     final progress = _logger.progress(_bar(0, total));
-    for (final entry in frames) {
-      if (entry is! Map) continue;
-      final file = entry['file'] as String?;
-      if (file == null) continue;
-      final dest = File(p.join(outDir, file));
-      if (dest.existsSync() && !force) {
-        skipped++;
-        done++;
-        progress.update(_bar(done, total));
-        continue;
-      }
+
+    Future<bool> fetch(String file, File dest) async {
       final url = Uri.parse('$base${Uri.encodeComponent(file)}');
-      var ok = false;
-      // Retry a few times — the CDN can drop requests under a burst.
-      for (var attempt = 0; attempt < 3 && !ok; attempt++) {
+      // Retry a few times — the CDN can drop requests under load.
+      for (var attempt = 0; attempt < 3; attempt++) {
         if (attempt > 0) {
           await Future<void>.delayed(Duration(milliseconds: 400 * attempt));
         }
         try {
-          final res = await http.get(url).timeout(const Duration(seconds: 30));
+          final res = await client.get(url).timeout(const Duration(seconds: 30));
           if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
             dest.writeAsBytesSync(res.bodyBytes);
-            downloaded++;
-            ok = true;
+            return true;
           }
         } catch (_) {
           // fall through to retry
         }
       }
-      if (!ok) failed++;
-      done++;
-      progress.update(_bar(done, total));
+      return false;
     }
+
+    // Each worker takes the next pending file until none are left (the
+    // counter is only touched between awaits, so no locking is needed).
+    Future<void> worker() async {
+      while (next < files.length) {
+        final file = files[next++];
+        final dest = File(p.join(outDir, file));
+        if (dest.existsSync() && !force) {
+          skipped++;
+        } else if (await fetch(file, dest)) {
+          downloaded++;
+        } else {
+          failed++;
+        }
+        done++;
+        progress.update(_bar(done, total));
+      }
+    }
+
+    await Future.wait(<Future<void>>[
+      for (var i = 0; i < cloudConcurrency; i++) worker(),
+    ]);
     progress.complete('Downloaded $downloaded frame(s)'
         '${skipped > 0 ? ', $skipped already present' : ''}'
         '${failed > 0 ? ', $failed failed' : ''}');

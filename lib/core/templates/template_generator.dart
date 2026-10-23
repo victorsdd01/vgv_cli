@@ -23,5 +23,21 @@ class TemplateGenerator {
       await file.parent.create(recursive: true);
       await file.writeAsString(content);
     }
+
+    final testTemplates = TemplateContents.getProcessedTestTemplates(projectName);
+    for (final entry in testTemplates.entries) {
+      final file = File(path.join(projectPath, 'test', entry.key));
+      await file.parent.create(recursive: true);
+      await file.writeAsString(entry.value);
+    }
+
+    // `flutter create`'s counter smoke test pumps the counter app the
+    // templates replace, so it fails in every generated project (and blocks
+    // the lefthook pre-push hook). Remove it only if it is still that test.
+    final defaultTest = File(path.join(projectPath, 'test', 'widget_test.dart'));
+    if (defaultTest.existsSync() &&
+        defaultTest.readAsStringSync().contains('Counter increments smoke test')) {
+      await defaultTest.delete();
+    }
   }
 }
