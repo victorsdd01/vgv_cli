@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `seed --color` (vgv theme), `agents [--agents …]` and `window`
   (window_manager, also on a stock `main.dart`). Each one refuses to
   overwrite existing files unless `--force`.
+- **Languages in the screenshot editor** (`vgv screenshots web`), matching
+  the manifest engine's `locales`: each language keeps its own headline and
+  subtitle; with several, "Download" saves one PNG per language and "Save to
+  project" writes `out/<locale>/…`. The server only accepts plain language
+  codes for that folder.
 - **`--fastlane`** configures Fastlane when creating a project without the
   interactive prompts (`vgv -q -n my_app --fastlane`).
 - **Merge-back workflow** (`.github/workflows/merge-back.yml`): after every
