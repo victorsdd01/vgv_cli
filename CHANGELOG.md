@@ -204,6 +204,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   via `tool/generate_version.dart`); "latest" reads the `main` `pubspec.yaml`.
 
 ### Fixed
+- **Generated projects did not compile on Flutter 3.47 / Dart 3.13.** freezed 3
+  emits `final` on constructor parameters (any `List`/`Map` field with a
+  `@Default`), which Dart 3.13 rejects, so `flutter build` failed out of the
+  box. The pins are now chosen from the Dart SDK `flutter create` writes into
+  the new pubspec: Dart 3.13+ gets freezed 4, build_runner 2.16, drift 2.35 and
+  go_router 18; older SDKs keep the previous, verified set.
+  flutter_form_builder stays on 10.x (11.x's `material_ui` `InputDecoration`
+  does not match Flutter's).
+- With FVM, a new project was pinned to the **global** SDK even when a parent
+  folder's `.fvmrc` had made `fvm flutter create` use another one. It is now
+  pinned to the version FVM actually used (nearest `.fvmrc`, then global).
+- **Exit codes**: invalid name/org, a missing Flutter install, and a failed
+  generation now exit with 1 (they exited 0, so CI never noticed). Unknown
+  flags exit with 64 and a one-line error instead of a stack of help text.
+- Running without a terminal (CI, pipes) and without `-n` now fails with a
+  clear message instead of mason_logger's "No terminal attached to stdout";
+  `-n <name>` without a terminal proceeds as if `-q` had been passed.
+- Validation hints ("Must start with a lowercase letter…") were logged at the
+  `detail` level, so nobody ever saw them. They are printed now.
+- `--dry-run` ignored `--flavors` and `--no-git` and always listed all three
+  environments. It now validates the inputs, shows the selected flavors with
+  their bundle IDs and entry points, and the git step.
+- `vgv -h` lists every command (`gen model/api/bloc/page/usecase/brick`,
+  `add flavors`, `deps`, `screenshots web/frames`) and `--[no-]fvm`;
+  `vgv config --help` works.
+- Generated `AuthRepositoryImpl.getCurrentUser` no longer triggers
+  `unawaited_return_in_try_block` (explicit `fold` type); same lint fixed in
+  `vgv gen brick`.
 - Generated freezed unions are now `sealed class` (required by freezed 3+).
 - `SecureStorageUtils` drops `encryptedSharedPreferences`, removed in
   flutter_secure_storage 10+ (which encrypts by default).

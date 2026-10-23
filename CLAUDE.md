@@ -114,7 +114,7 @@ Flags: `--help/-h`, `--version/-v`, `--update/-u`, `--quick/-q`, `--name/-n`, `-
 - Herramientas externas opcionales (se **instruye**, no se auto-instalan): `fvm` (SDK pineado), `mason` (bricks propios), `python3`+Pillow (screenshots), `ruby`+bundler (fastlane), `lefthook`, `cocoapods`
 - Dev: `lints`, `test`
 - **UI interactiva**: `cli_controller.dart` usa `mason_logger` (`prompt`, `confirm`, `chooseOne`, `chooseAny` multi-select ◉/◯, `progress`). Los prompts requieren un TTY real (no se pueden verificar con stdout redirigido).
-- Tests en `test/` (8 archivos, 71 tests: project config, version checker, vgv config/presets, feature generator, model generator, api generator, flutter toolchain/FVM, add runner)
+- Tests en `test/` (10 archivos, 82 tests: project config, version checker, vgv config/presets, feature generator, model generator, api generator, flutter toolchain/FVM, add runner, dependency versions, cli controller exit codes)
 - CI: `.github/workflows/auto-version-bump.yml` (bump automático de versión con `[skip ci]` para evitar loops)
 
 ---
@@ -175,7 +175,7 @@ También arreglados en una 2ª pasada:
 
 Verificado end-to-end con el CLI corregido (proyecto `verify_app` regenerado): git init OK, pubspec bien formado, `✓ app-dev-debug.apk`.
 
-Pendientes menores (para decidir con el usuario): use cases de dominio (`CreateProjectUseCase`/`ValidateProjectConfigUseCase`) siguen sin invocarse (código muerto — el pre-check se replicó en el controller); exit code 0 en fallos de validación (CI no los detecta); flags como `-o`/`--org` sueltas (sin `-n`/`-q`) se ignoran y cae a interactivo; `VersionChecker._latestVersions` hardcodeado y no usado por `addDependencies` (fuente de verdad duplicada).
+Pendientes menores (para decidir con el usuario): use cases de dominio (`CreateProjectUseCase`/`ValidateProjectConfigUseCase`) siguen sin invocarse (código muerto — el pre-check se replicó en el controller); flags como `-o`/`--org` sueltas (sin `-n`/`-q`) se ignoran y cae a interactivo; `VersionChecker._latestVersions` hardcodeado y no usado por `addDependencies` (fuente de verdad duplicada).
 
 ### 2. Bugs al actualizar
 Al hacer `vgv -u` había bugs. Revisar el flujo de update en `lib/vgv_cli.dart` (`_updateCLI`, `_checkForUpdates`, `_showUpdateProgress`) y `version_checker.dart`.
@@ -366,9 +366,19 @@ Hueco que detectó el usuario: *"si tengo un proyecto Flutter y le falta X confi
 - Verificado **E2E sobre un proyecto Flutter limpio (no-vgv)**: `flutter create --org com.acme legacy_app` → `vgv add flavors --flavors dev,prod` → gradle con `productFlavors` + `resValues = true`, 6 xcconfig, schemes `dev`/`prod`, `main_dev.dart`/`main_production.dart` → **`✓ Built app-dev-debug.apk`** con package id real **`com.acme.legacy_app.dev`** (verificado con `aapt2 dump packagename`). Casos de error probados (sin pubspec, paquete Dart puro, sin carpetas nativas, flavor inválido, app id que no matchea, app id indetectable, re-ejecución). 67 tests.
 - **Pendiente**: el resto de `vgv add <cosa>` (fastlane, lefthook, fvm, icon, splash, seed, agents, window) — los generadores ya están desacoplados y reciben `ProjectConfig`, así que es el mismo patrón.
 
+### 21. Revisión general + fix Dart 3.13 (✅ HECHO, 2026-10-23)
+Revisión pedida por el usuario. El análisis y los tests estaban verdes, pero la **prueba real** encontró que **un proyecto recién generado no compilaba**: el usuario había subido a **Flutter 3.47.5 / Dart 3.13.4** (vía FVM, global) y freezed 3.2.5 emite `final` en los parámetros del constructor (`final List<X> items = const []`), lo que Dart 3.13 rechaza (`extraneous_modifier`) → `flutter build apk` fallaba.
+- **Pins según el SDK** (`dependency_versions.dart`): las tablas principales ahora apuntan a Dart 3.13 (freezed ^4.0.3, build_runner ^2.16.2, drift ^2.35.2, drift_dev ^2.35.1, go_router ^18.1.1, sqlite3 ^3.7.1, …) y `kLegacyDartVersionOverrides` devuelve el set viejo para Dart <3.13. `addDependencies` elige con `pinsForPubspec()`, que lee el `environment: sdk:` que acaba de escribir `flutter create` (= el Dart del toolchain real, sin plomería extra). No hay un set único que sirva para ambos: freezed 4 no resuelve en 3.12 y freezed 3 no compila en 3.13. Los overrides legacy deben ser **el set viejo completo** (incluidos `intl_utils ^2.8.14`, `json_serializable ^6.14.1`, `package_info_plus ^10.2.1`): el 1er E2E en 3.44.8 falló porque `intl_utils` 2.8.17 exige analyzer ≥13 y choca con freezed 3.
+- **flutter_form_builder queda en 10.x**: el 11 usa el paquete desacoplado `material_ui`, cuyo `InputDecoration` es otro tipo que el de Flutter → todos los `decoration:` dejan de compilar. go_router 18 también trae `material_ui` pero en 3.47 **sí** compila (verificado con APK).
+- ⚠️ build_runner: si se mata a mitad de un build, deja `.dart_tool/build/lock` y un caché del analyzer corrupto (`RangeError` en `summary2/reference.dart`) y **se cuelga** en el siguiente run. Arreglo: `rm -rf .dart_tool && flutter pub get`.
+- **FVM**: `pinSdk` fijaba siempre la versión **global**, aunque un `.fvmrc` en una carpeta padre hiciera que `fvm flutter create` usara otra → el proyecto quedaba con deps de un SDK y `.fvmrc` de otro. `currentFvmVersion()` ahora busca primero el `.fvmrc` más cercano hacia arriba (como FVM).
+- **CLI** (`vgv_cli.dart` + `cli_controller.dart`): `runWithFlags`/`runInteractiveMode` devuelven exit code (nombre/org inválidos, Flutter ausente o fallo de generación → 1; flag desconocido → 64 con una línea en vez del help entero). Sin TTY y sin `-n` → error claro (antes: `Bad state: No terminal attached` + help); `-n` sin TTY procede como `-q`. Los hints de validación usaban `_logger.detail` (nivel verbose → **nunca se veían**). `--dry-run` valida, respeta `--flavors`/`--no-git` y muestra bundle IDs. `vgv -h` lista todos los comandos; `vgv config --help` funciona.
+- Lint `unawaited_return_in_try_block` arreglado en el template (`allUsers.fold<Either<…>>`) y en `brick_runner.dart`.
+- Verificado **E2E con builds reales en los dos SDKs**: Flutter 3.47.5 y 3.44.8 (vía `.fvmrc` en carpeta padre + `--fvm`) → `flutter analyze` sin errores/warnings y `✓ app-dev-debug.apk`. Tests nuevos: `dependency_versions_test.dart`, `cli_controller_test.dart`.
+
 ### Ideas / features futuras
 - Preguntar en interactivo por state management / arquitectura (ya soportado en enums).
-- Revisar los pins cuando se suba de Flutter (con Dart ≥3.13 se destraban freezed 4, go_router 18, build_runner 2.16, drift 2.35): correr `vgv deps` y re-verificar con build real.
+- Revisar los pins en cada Flutter estable nuevo: correr `vgv deps` y re-verificar con build real en **los dos** SDKs (ver #21). Cuando ya nadie use Dart <3.13, borrar `kLegacyDartVersionOverrides`.
 - Descargas de `--cloud` en paralelo (bajar los 178 en ~15s en vez de ~2 min); editor listando directo del CDN.
 - Automatizar el merge-back `main` → `develop` tras cada release (ver #18).
 - Completar `vgv add` con el resto de configuraciones (ver #20).
