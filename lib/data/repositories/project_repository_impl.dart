@@ -5,6 +5,7 @@ import '../../core/utils/fastlane_generator.dart';
 import '../../core/utils/lefthook_generator.dart';
 import '../../core/utils/polish_generators.dart';
 import '../../core/utils/theme_seed_generator.dart';
+import '../../core/utils/web_database_assets.dart';
 import '../../domain/entities/project_config.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../../core/utils/flutter_toolchain.dart';
@@ -133,6 +134,13 @@ class ProjectRepositoryImpl implements ProjectRepository {
       warnings.add(
         'Code generation failed. Run: dart run build_runner build -d',
       );
+    }
+
+    // drift runs SQLite as WebAssembly in the browser: compile its worker and
+    // fetch the sqlite3.wasm matching pubspec.lock (neither ships in a package).
+    if (config.platforms.contains(PlatformType.web) &&
+        !await WebDatabaseAssets(_toolchain).install(config.projectName)) {
+      warnings.add(WebDatabaseAssets.manualStep);
     }
 
     // Setup CocoaPods for iOS/macOS platforms

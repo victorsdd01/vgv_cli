@@ -1,8 +1,6 @@
-import 'dart:io';
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
+
+import 'connection/connection.dart';
 
 part 'app_database.g.dart';
 
@@ -16,7 +14,7 @@ class Users extends Table {
 
 @DriftDatabase(tables: <Type>[Users])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase() : super(openConnection());
 
   @override
   int get schemaVersion => 1;
@@ -42,10 +40,4 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<User>> getAllUsers() => select(users).get();
 }
-
-LazyDatabase _openConnection() => LazyDatabase(() async {
-  final Directory dbFolder = await getApplicationDocumentsDirectory();
-  final File file = File(p.join(dbFolder.path, 'app.db'));
-  return NativeDatabase(file);
-});
 

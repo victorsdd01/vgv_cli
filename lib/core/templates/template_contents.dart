@@ -1,11 +1,9 @@
 class TemplateContents {
   TemplateContents._();
 
-  static const String _core_database_app_database_dart = r'''import 'dart:io';
-import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
+  static const String _core_database_app_database_dart = r'''import 'package:drift/drift.dart';
+
+import 'connection/connection.dart';
 
 part 'app_database.g.dart';
 
@@ -19,7 +17,7 @@ class Users extends Table {
 
 @DriftDatabase(tables: <Type>[Users])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase() : super(openConnection());
 
   @override
   int get schemaVersion => 1;
@@ -46,12 +44,48 @@ class AppDatabase extends _$AppDatabase {
   Future<List<User>> getAllUsers() => select(users).get();
 }
 
-LazyDatabase _openConnection() => LazyDatabase(() async {
+''';
+  static const String _core_database_connection_connection_dart = r'''// Picks the database backend for the current platform: SQLite through FFI on
+// mobile/desktop, SQLite compiled to WebAssembly in the browser.
+export 'unsupported.dart'
+    if (dart.library.ffi) 'native.dart'
+    if (dart.library.js_interop) 'web.dart';
+''';
+  static const String _core_database_connection_native_dart = r'''import 'dart:io';
+
+import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+
+QueryExecutor openConnection() => LazyDatabase(() async {
   final Directory dbFolder = await getApplicationDocumentsDirectory();
   final File file = File(p.join(dbFolder.path, 'app.db'));
   return NativeDatabase(file);
 });
+''';
+  static const String _core_database_connection_web_dart = r'''import 'package:drift/drift.dart';
+import 'package:drift/wasm.dart';
 
+/// Needs `web/sqlite3.wasm` (from the release of the resolved `sqlite3`) and
+/// `web/drift_worker.js` (compiled from `tool/drift_worker.dart`). vgv sets
+/// both up when it creates the project; redo it after upgrading drift or
+/// sqlite3 — see https://drift.simonbinder.eu/platforms/web/.
+QueryExecutor openConnection() => DatabaseConnection.delayed(
+  Future<DatabaseConnection>(() async {
+    final WasmDatabaseResult result = await WasmDatabase.open(
+      databaseName: 'app',
+      sqlite3Uri: Uri.parse('sqlite3.wasm'),
+      driftWorkerUri: Uri.parse('drift_worker.js'),
+    );
+    return result.resolvedExecutor;
+  }),
+);
+''';
+  static const String _core_database_connection_unsupported_dart = r'''import 'package:drift/drift.dart';
+
+QueryExecutor openConnection() =>
+    throw UnsupportedError('No database implementation for this platform.');
 ''';
   static const String _core_core_dart = r'''// Core layer exports
 export 'errors/failures.dart';
@@ -3742,6 +3776,10 @@ void main() {
 
   static Map<String, String> get templates => {
     'core/database/app_database.dart': _core_database_app_database_dart,
+    'core/database/connection/connection.dart': _core_database_connection_connection_dart,
+    'core/database/connection/native.dart': _core_database_connection_native_dart,
+    'core/database/connection/web.dart': _core_database_connection_web_dart,
+    'core/database/connection/unsupported.dart': _core_database_connection_unsupported_dart,
     'core/core.dart': _core_core_dart,
     'core/network/http_client.dart': _core_network_http_client_dart,
     'core/enums/server_status.dart': _core_enums_server_status_dart,
