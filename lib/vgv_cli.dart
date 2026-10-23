@@ -84,6 +84,11 @@ class VgvCli {
         negatable: false,
       )
       ..addFlag(
+        'fastlane',
+        help: 'Configure Fastlane (Play Store / App Store lanes per flavor)',
+        negatable: false,
+      )
+      ..addFlag(
         'dry-run',
         help: 'Show what would be created without creating files',
         negatable: false,
@@ -168,6 +173,7 @@ class VgvCli {
       }
       final dryRun = _argResults['dry-run'] as bool;
       final quickMode = _argResults['quick'] as bool;
+      final fastlane = _argResults['fastlane'] as bool;
       final flavors =
           _parseFlavors(_argResults['flavors'] as String?) ?? config.flavors;
 
@@ -178,6 +184,7 @@ class VgvCli {
           outputDir: outputDir,
           noGit: noGit,
           flavors: flavors,
+          fastlane: fastlane,
         ));
       }
 
@@ -198,6 +205,7 @@ class VgvCli {
           noGit: noGit,
           quickMode: quickMode,
           flavors: flavors,
+          fastlane: fastlane,
         ));
       }
 
@@ -208,6 +216,7 @@ class VgvCli {
         outputDir: outputDir,
         noGit: noGit,
         flavors: flavors,
+        fastlane: fastlane,
       ));
     } on FormatException catch (e) {
       // Unknown flag / missing option value (ArgParserException).
@@ -272,12 +281,14 @@ class VgvCli {
     String? outputDir,
     bool noGit = false,
     List<Flavor>? flavors,
+    bool fastlane = false,
   }) {
     return _cliController.runInteractiveMode(
       organization: organization,
       outputDir: outputDir,
       noGit: noGit,
       flavors: flavors,
+      fastlane: fastlane ? true : null,
     );
   }
 
@@ -289,6 +300,7 @@ class VgvCli {
     String? outputDir,
     bool noGit = false,
     List<Flavor>? flavors,
+    bool fastlane = false,
   }) {
     if (projectName != null && !ProjectConfig.isValidProjectName(projectName)) {
       _printError('Invalid project name: $projectName');
@@ -344,6 +356,9 @@ class VgvCli {
     print('${AnsiColors.dim}   - Internationalization (en, es)${AnsiColors.reset}');
     print('${AnsiColors.dim}   - Native flavors + entry points (${selected.map((f) => f.flavorName).join(', ')})${AnsiColors.reset}');
     print('${AnsiColors.dim}   - VS Code launch configurations${AnsiColors.reset}');
+    if (fastlane) {
+      print('${AnsiColors.dim}   - Fastlane (Gemfile, android/ios lanes per flavor, fastlane-config.md)${AnsiColors.reset}');
+    }
     print('${AnsiColors.dim}   - Auth feature (login, register)${AnsiColors.reset}');
     print('${AnsiColors.dim}   - Home feature${AnsiColors.reset}');
     print('${AnsiColors.dim}   - Settings feature (theme, language)${AnsiColors.reset}');
@@ -358,6 +373,7 @@ class VgvCli {
     bool noGit = false,
     bool quickMode = false,
     List<Flavor>? flavors,
+    bool fastlane = false,
   }) {
     return _cliController.runWithFlags(
       projectName: projectName,
@@ -366,6 +382,7 @@ class VgvCli {
       noGit: noGit,
       quickMode: quickMode,
       flavors: flavors,
+      fastlane: fastlane,
     );
   }
 
@@ -536,7 +553,7 @@ class VgvCli {
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}gen model <N> --from x.json${AnsiColors.reset}   ${AnsiColors.dim}Freezed model + entity from sample JSON${AnsiColors.reset}');
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}gen api <N> --from spec.yaml${AnsiColors.reset}  ${AnsiColors.dim}Typed client + models from an OpenAPI spec${AnsiColors.reset}');
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}gen brick [name]${AnsiColors.reset}              ${AnsiColors.dim}Render one of your own Mason bricks${AnsiColors.reset}');
-    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}add flavors${AnsiColors.reset}                   ${AnsiColors.dim}Add native flavors to an existing project${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}add <flavors|fastlane|…>${AnsiColors.reset}      ${AnsiColors.dim}Add flavors, Fastlane, FVM, icons… to an existing project${AnsiColors.reset}');
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots web${AnsiColors.reset}               ${AnsiColors.dim}Visual store-screenshot editor in the browser${AnsiColors.reset}');
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots --init${AnsiColors.reset}            ${AnsiColors.dim}Scaffold a store-screenshots manifest${AnsiColors.reset}');
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots <manifest>${AnsiColors.reset}        ${AnsiColors.dim}Render framed store screenshots${AnsiColors.reset}');
@@ -557,6 +574,7 @@ class VgvCli {
     print('  ${AnsiColors.brightCyan}    --flavors <list>${AnsiColors.reset}   ${AnsiColors.dim}Flavors: dev,staging,prod (default all)${AnsiColors.reset}');
     print('  ${AnsiColors.brightCyan}    --no-git${AnsiColors.reset}           ${AnsiColors.dim}Skip git initialization${AnsiColors.reset}');
     print('  ${AnsiColors.brightCyan}    --[no-]fvm${AnsiColors.reset}         ${AnsiColors.dim}Use the SDK pinned by FVM (auto-detected)${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}    --fastlane${AnsiColors.reset}         ${AnsiColors.dim}Configure Fastlane (deploy lanes per flavor)${AnsiColors.reset}');
     print('  ${AnsiColors.brightCyan}    --dry-run${AnsiColors.reset}          ${AnsiColors.dim}Preview without creating${AnsiColors.reset}');
     print('');
     print('${AnsiColors.brightGreen}${AnsiColors.bold}Examples:${AnsiColors.reset}');

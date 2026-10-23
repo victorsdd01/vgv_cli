@@ -76,6 +76,18 @@ void main() {
       expect(repo.created, isNotNull);
     }, skip: CliController.hasTerminal ? 'needs a non-TTY run' : false);
 
+    test('--fastlane reaches the config; off by default', () async {
+      final withFlag = _FakeRepository();
+      await controller(withFlag)
+          .runWithFlags(projectName: 'ok_app', quickMode: true, fastlane: true);
+      expect(withFlag.created?.includeFastlane, isTrue);
+
+      final without = _FakeRepository();
+      await controller(without)
+          .runWithFlags(projectName: 'ok_app', quickMode: true);
+      expect(without.created?.includeFastlane, isFalse);
+    });
+
     test('Flutter missing → 1', () async {
       final code = await controller(
         _FakeRepository(flutterInstalled: false),

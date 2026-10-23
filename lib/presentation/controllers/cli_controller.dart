@@ -17,6 +17,7 @@ class CliController {
     String? outputDir,
     bool noGit = false,
     List<Flavor>? flavors,
+    bool? fastlane,
   }) async {
     _printWelcomeMessage();
 
@@ -25,7 +26,10 @@ class CliController {
     var platforms = _getPlatforms();
     // If flavors were passed via --flavors, honor them and skip the prompt.
     var selectedFlavors = flavors ?? _getFlavors();
-    var includeFastlane = _getFastlaneChoice(platforms);
+    // --fastlane answers the prompt (for mobile projects, where it applies).
+    var includeFastlane = fastlane != null && platforms.contains(PlatformType.mobile)
+        ? fastlane
+        : _getFastlaneChoice(platforms);
     var includeLefthook = _getLefthookChoice();
     var seedColorHex = _getSeedColor();
     var iconMasterPath = _getIconMaster();
@@ -123,6 +127,7 @@ class CliController {
     bool noGit = false,
     bool quickMode = false,
     List<Flavor>? flavors,
+    bool fastlane = false,
   }) async {
     _printWelcomeMessage();
 
@@ -177,6 +182,7 @@ class CliController {
       outputDirectory: outputDir,
       skipGitInit: noGit,
       flavors: flavors ?? const [Flavor.dev, Flavor.staging, Flavor.production],
+      includeFastlane: fastlane,
     );
 
     _printConfigurationSummary(config);
