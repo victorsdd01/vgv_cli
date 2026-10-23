@@ -1,0 +1,52 @@
+name: Merge main back into develop
+
+# The release bump lands on main (pubspec.yaml, lib/src/version.dart and the
+# version headers in CHANGELOG.md) and never reached develop, so develop fell
+# behind and the next develop → main PR always conflicted. After every push to
+# main, make sure there is a main → develop PR so it is merged right away.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  merge-back:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Open a main → develop PR when develop is behind
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          git fetch origin develop
+
+          if git merge-base --is-ancestor origin/main origin/develop; then
+            echo "develop already contains main — nothing to merge back."
+            exit 0
+          fi
+
+          EXISTING_PR=$(gh pr list --base develop --head main --state open --json number -q '.[0].number')
+          if [ -n "$EXISTING_PR" ]; then
+            echo "PR #$EXISTING_PR (main → develop) is already open and now includes $(git rev-parse --short origin/main)."
+            exit 0
+          fi
+
+          cat > "$RUNNER_TEMP/merge-back.md" <<'EOF'
+          Automated: `main` has commits that `develop` does not (usually the release version bump). Merge this before the next `develop` → `main` PR so it does not conflict.
+
+          If `CHANGELOG.md` conflicts, keep the content of `develop` under `## [Unreleased]` and move the version headers coming from `main` (`## [x.y.z]`) below it, before the first version header `develop` already had. Do not drop either side.
+          EOF
+
+          gh pr create \
+            --base develop \
+            --head main \
+            --title "chore: merge main back into develop" \
+            --body-file "$RUNNER_TEMP/merge-back.md"
