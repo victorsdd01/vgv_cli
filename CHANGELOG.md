@@ -234,6 +234,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   re-resolved the packages and rewrote `package_config.json` to point at its
   own Flutter, so the project stopped building. Both now go through `fvm` when
   the project has a `.fvmrc`, and the printed hints say `fvm dart run …`.
+- **Fastlane pointed at the wrong iOS app** whenever the project name has an
+  `_`. Apple bundle ids cannot contain underscores, so `flutter create`
+  camelCases the name for iOS (`com.acme.my_app` on Android is
+  `com.acme.myApp` on iOS), but `ios/fastlane/Appfile` used the Android id.
+  It now uses the real iOS id, and the summary, `--dry-run` and
+  `fastlane-config.md` show both ids when they differ.
+- The Talker log button sat on top of the bottom `NavigationBar`, covering
+  part of the first tab. It now starts above the bar.
 - `vgv gen api` without `--feature` wrote a broken import in the client
   (`../../<name>_models.dart` instead of `../../models/<name>_models.dart`), so
   the generated client did not compile.
