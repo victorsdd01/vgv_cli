@@ -172,35 +172,56 @@ class VgvCli {
           _parseFlavors(_argResults['flavors'] as String?) ?? config.flavors;
 
       if (dryRun) {
-        await _runDryRun(projectName, organization, outputDir);
-        return;
+        exit(_runDryRun(
+          projectName: projectName,
+          organization: organization,
+          outputDir: outputDir,
+          noGit: noGit,
+          flavors: flavors,
+        ));
+      }
+
+      // Anything without a name needs prompts; fail clearly instead of letting
+      // mason_logger throw "No terminal attached" from deep inside a prompt.
+      if (projectName == null && !CliController.hasTerminal) {
+        _printError('No terminal attached, so the interactive prompts cannot run.');
+        print('${AnsiColors.dim}   Pass a name to run non-interactively: '
+            '$_appName -q -n my_app${AnsiColors.reset}');
+        exit(1);
       }
 
       if (quickMode || projectName != null) {
-        await _runWithFlags(
+        exit(await _runWithFlags(
           projectName: projectName,
           organization: organization,
           outputDir: outputDir,
           noGit: noGit,
           quickMode: quickMode,
           flavors: flavors,
-        );
-        return;
+        ));
       }
 
       // Run in interactive mode, honoring any flags the user did pass
       // (org / output / no-git / flavors) instead of silently ignoring them.
-      await _runInteractiveMode(
+      exit(await _runInteractiveMode(
         organization: organization,
         outputDir: outputDir,
         noGit: noGit,
         flavors: flavors,
-      );
+      ));
+    } on FormatException catch (e) {
+      // Unknown flag / missing option value (ArgParserException).
+      _printError(e.message);
+      print('${AnsiColors.dim}   Run `$_appName -h` for usage.${AnsiColors.reset}');
+      exit(64); // EX_USAGE
     } catch (e) {
-      print('Error: $e');
-      _printUsage();
+      _printError('$e');
       exit(1);
     }
+  }
+
+  void _printError(String message) {
+    print('${AnsiColors.brightRed}${AnsiColors.bold}Error:${AnsiColors.reset} $message');
   }
 
   Future<void> _checkForUpdates() async {
@@ -246,13 +267,13 @@ class VgvCli {
     return Flavor.values.where(selected.contains).toList();
   }
 
-  Future<void> _runInteractiveMode({
+  Future<int> _runInteractiveMode({
     String? organization,
     String? outputDir,
     bool noGit = false,
     List<Flavor>? flavors,
-  }) async {
-    await _cliController.runInteractiveMode(
+  }) {
+    return _cliController.runInteractiveMode(
       organization: organization,
       outputDir: outputDir,
       noGit: noGit,
@@ -260,39 +281,79 @@ class VgvCli {
     );
   }
 
-  Future<void> _runDryRun(String? projectName, String? organization, String? outputDir) async {
-    final defaultOrg = projectName != null ? 'com.$projectName' : '<interactive>';
+  /// Previews what `vgv` would create with the same inputs, validating them
+  /// the same way. Returns the exit code.
+  int _runDryRun({
+    String? projectName,
+    String? organization,
+    String? outputDir,
+    bool noGit = false,
+    List<Flavor>? flavors,
+  }) {
+    if (projectName != null && !ProjectConfig.isValidProjectName(projectName)) {
+      _printError('Invalid project name: $projectName');
+      return 1;
+    }
+    if (organization != null &&
+        !ProjectConfig.isValidOrganizationName(organization)) {
+      _printError('Invalid organization: $organization');
+      return 1;
+    }
+
+    final org = organization ??
+        (projectName != null ? 'com.$projectName' : '<interactive>');
+    final selected =
+        flavors ?? const [Flavor.dev, Flavor.staging, Flavor.production];
 
     print('');
     print('${AnsiColors.brightCyan}${AnsiColors.bold}DRY RUN - No files will be created${AnsiColors.reset}');
     print('');
     print('${AnsiColors.brightGreen}${AnsiColors.bold}Configuration:${AnsiColors.reset}');
     print('${AnsiColors.dim}   Project Name:  ${AnsiColors.reset}${AnsiColors.brightYellow}${projectName ?? "<interactive>"}${AnsiColors.reset}');
-    print('${AnsiColors.dim}   Organization:  ${AnsiColors.reset}${AnsiColors.brightYellow}${organization ?? defaultOrg}${AnsiColors.reset}');
+    print('${AnsiColors.dim}   Organization:  ${AnsiColors.reset}${AnsiColors.brightYellow}$org${AnsiColors.reset}');
     print('${AnsiColors.dim}   Output:        ${AnsiColors.reset}${AnsiColors.brightYellow}${outputDir ?? Directory.current.path}${AnsiColors.reset}');
+    print('${AnsiColors.dim}   Git:           ${AnsiColors.reset}${AnsiColors.brightYellow}${noGit ? 'skipped (--no-git)' : 'git init'}${AnsiColors.reset}');
+    print('');
+    print('${AnsiColors.brightGreen}${AnsiColors.bold}Flavors:${AnsiColors.reset}');
+    if (projectName != null) {
+      final baseId = ProjectConfig(
+        projectName: projectName,
+        organizationName: org,
+        platforms: const [PlatformType.mobile],
+        stateManagement: StateManagementType.bloc,
+        architecture: ArchitectureType.cleanArchitecture,
+      ).baseBundleId;
+      for (final f in selected) {
+        print('${AnsiColors.dim}   - ${f.displayName.padRight(12)}${AnsiColors.reset}'
+            '$baseId${f.bundleIdSuffix}  ${AnsiColors.dim}lib/main_${f.entryPoint}.dart${AnsiColors.reset}');
+      }
+    } else {
+      print('${AnsiColors.dim}   - ${selected.map((f) => f.displayName).join(', ')}${AnsiColors.reset}');
+    }
     print('');
     print('${AnsiColors.brightGreen}${AnsiColors.bold}Would create:${AnsiColors.reset}');
     print('${AnsiColors.dim}   - Flutter project with Clean Architecture${AnsiColors.reset}');
     print('${AnsiColors.dim}   - BLoC state management with Freezed${AnsiColors.reset}');
     print('${AnsiColors.dim}   - GoRouter navigation${AnsiColors.reset}');
     print('${AnsiColors.dim}   - Internationalization (en, es)${AnsiColors.reset}');
-    print('${AnsiColors.dim}   - Environment configs (dev, staging, production)${AnsiColors.reset}');
+    print('${AnsiColors.dim}   - Native flavors + entry points (${selected.map((f) => f.flavorName).join(', ')})${AnsiColors.reset}');
     print('${AnsiColors.dim}   - VS Code launch configurations${AnsiColors.reset}');
     print('${AnsiColors.dim}   - Auth feature (login, register)${AnsiColors.reset}');
     print('${AnsiColors.dim}   - Home feature${AnsiColors.reset}');
     print('${AnsiColors.dim}   - Settings feature (theme, language)${AnsiColors.reset}');
     print('');
+    return 0;
   }
 
-  Future<void> _runWithFlags({
+  Future<int> _runWithFlags({
     String? projectName,
     String? organization,
     String? outputDir,
     bool noGit = false,
     bool quickMode = false,
     List<Flavor>? flavors,
-  }) async {
-    await _cliController.runWithFlags(
+  }) {
+    return _cliController.runWithFlags(
       projectName: projectName,
       organization: organization,
       outputDir: outputDir,
@@ -437,6 +498,11 @@ class VgvCli {
         print('  git:     ${c.git ?? '${AnsiColors.dim}(default: true)${AnsiColors.reset}'}');
         print('');
         return 0;
+      case '--help':
+      case '-h':
+      case 'help':
+        print('${AnsiColors.dim}   Usage: vgv config init [--global] [--force] | vgv config show${AnsiColors.reset}');
+        return 0;
       default:
         print('${AnsiColors.brightRed}Unknown:${AnsiColors.reset} config $sub');
         print('${AnsiColors.dim}   Usage: vgv config init [--global] [--force] | vgv config show${AnsiColors.reset}');
@@ -459,35 +525,46 @@ class VgvCli {
     print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}-n${AnsiColors.reset} <name> ${AnsiColors.brightCyan}--org${AnsiColors.reset} <org> ${AnsiColors.dim}With organization${AnsiColors.reset}');
     print('');
     print('${AnsiColors.brightGreen}${AnsiColors.bold}Commands:${AnsiColors.reset}');
-    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}gen feature${AnsiColors.reset} <name>  ${AnsiColors.dim}Scaffold a Clean Architecture feature${AnsiColors.reset}');
-    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots --init${AnsiColors.reset}   ${AnsiColors.dim}Scaffold a store-screenshots manifest${AnsiColors.reset}');
-    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots${AnsiColors.reset} <manifest> ${AnsiColors.dim}Render framed store screenshots${AnsiColors.reset}');
-    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}config init${AnsiColors.reset}          ${AnsiColors.dim}Write a presets file (vgv.yaml / ~/.vgvrc)${AnsiColors.reset}');
-    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}doctor${AnsiColors.reset}               ${AnsiColors.dim}Check your environment (Flutter, Python, …)${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}gen feature <name>${AnsiColors.reset}            ${AnsiColors.dim}Scaffold a Clean Architecture feature (+ DI/route wiring)${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}gen bloc|page|usecase${AnsiColors.reset}         ${AnsiColors.dim}Add a bloc, page or use cases to a feature${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}gen model <N> --from x.json${AnsiColors.reset}   ${AnsiColors.dim}Freezed model + entity from sample JSON${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}gen api <N> --from spec.yaml${AnsiColors.reset}  ${AnsiColors.dim}Typed client + models from an OpenAPI spec${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}gen brick [name]${AnsiColors.reset}              ${AnsiColors.dim}Render one of your own Mason bricks${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}add flavors${AnsiColors.reset}                   ${AnsiColors.dim}Add native flavors to an existing project${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots web${AnsiColors.reset}               ${AnsiColors.dim}Visual store-screenshot editor in the browser${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots --init${AnsiColors.reset}            ${AnsiColors.dim}Scaffold a store-screenshots manifest${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots <manifest>${AnsiColors.reset}        ${AnsiColors.dim}Render framed store screenshots${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}screenshots frames --cloud${AnsiColors.reset}    ${AnsiColors.dim}Download the device-frame library${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}config init|show${AnsiColors.reset}              ${AnsiColors.dim}Presets file (vgv.yaml / ~/.vgvrc)${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}deps${AnsiColors.reset}                          ${AnsiColors.dim}Check the pinned package versions against pub.dev${AnsiColors.reset}');
+    print('  ${AnsiColors.brightYellow}$_appName${AnsiColors.reset} ${AnsiColors.brightCyan}doctor${AnsiColors.reset}                        ${AnsiColors.dim}Check your environment (Flutter, Python, …)${AnsiColors.reset}');
+    print('${AnsiColors.dim}  Run `$_appName <command> --help` for a command\'s options.${AnsiColors.reset}');
     print('');
     print('${AnsiColors.brightGreen}${AnsiColors.bold}Flags:${AnsiColors.reset}');
-    print('  ${AnsiColors.brightCyan}-h, --help${AnsiColors.reset}                   ${AnsiColors.dim}Show this help message${AnsiColors.reset}');
-    print('  ${AnsiColors.brightCyan}-v, --version${AnsiColors.reset}                ${AnsiColors.dim}Show version information${AnsiColors.reset}');
-    print('  ${AnsiColors.brightCyan}-u, --update${AnsiColors.reset}                 ${AnsiColors.dim}Update to latest version${AnsiColors.reset}');
-    print('  ${AnsiColors.brightCyan}-q, --quick${AnsiColors.reset}                  ${AnsiColors.dim}Quick mode with defaults${AnsiColors.reset}');
-    print('  ${AnsiColors.brightCyan}-n, --name${AnsiColors.reset} <name>            ${AnsiColors.dim}Project name${AnsiColors.reset}');
-    print('  ${AnsiColors.brightCyan}    --org${AnsiColors.reset} <org>              ${AnsiColors.dim}Organization (com.example)${AnsiColors.reset}');
-    print('  ${AnsiColors.brightCyan}-o, --output${AnsiColors.reset} <dir>           ${AnsiColors.dim}Output directory${AnsiColors.reset}');
-    print('  ${AnsiColors.brightCyan}    --flavors${AnsiColors.reset} <list>          ${AnsiColors.dim}Flavors: dev,staging,prod (default all)${AnsiColors.reset}');
-    print('  ${AnsiColors.brightCyan}    --no-git${AnsiColors.reset}                 ${AnsiColors.dim}Skip git initialization${AnsiColors.reset}');
-    print('  ${AnsiColors.brightCyan}    --dry-run${AnsiColors.reset}                ${AnsiColors.dim}Preview without creating${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}-h, --help${AnsiColors.reset}             ${AnsiColors.dim}Show this help message${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}-v, --version${AnsiColors.reset}          ${AnsiColors.dim}Show version information${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}-u, --update${AnsiColors.reset}           ${AnsiColors.dim}Update to latest version${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}-q, --quick${AnsiColors.reset}            ${AnsiColors.dim}Quick mode with defaults (no prompts)${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}-n, --name <name>${AnsiColors.reset}      ${AnsiColors.dim}Project name${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}    --org <org>${AnsiColors.reset}        ${AnsiColors.dim}Organization (com.example)${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}-o, --output <dir>${AnsiColors.reset}     ${AnsiColors.dim}Output directory${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}    --flavors <list>${AnsiColors.reset}   ${AnsiColors.dim}Flavors: dev,staging,prod (default all)${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}    --no-git${AnsiColors.reset}           ${AnsiColors.dim}Skip git initialization${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}    --[no-]fvm${AnsiColors.reset}         ${AnsiColors.dim}Use the SDK pinned by FVM (auto-detected)${AnsiColors.reset}');
+    print('  ${AnsiColors.brightCyan}    --dry-run${AnsiColors.reset}          ${AnsiColors.dim}Preview without creating${AnsiColors.reset}');
     print('');
     print('${AnsiColors.brightGreen}${AnsiColors.bold}Examples:${AnsiColors.reset}');
     print('  ${AnsiColors.dim}$_appName${AnsiColors.reset}');
     print('  ${AnsiColors.dim}$_appName -q -n my_app${AnsiColors.reset}');
     print('  ${AnsiColors.dim}$_appName -n my_app --org com.mycompany${AnsiColors.reset}');
     print('  ${AnsiColors.dim}$_appName -n my_app -o ~/projects --no-git${AnsiColors.reset}');
+    print('  ${AnsiColors.dim}$_appName -q -n my_app --flavors dev,prod${AnsiColors.reset}');
     print('  ${AnsiColors.dim}$_appName --dry-run -n test_app${AnsiColors.reset}');
     print('');
     print('${AnsiColors.brightGreen}${AnsiColors.bold}Features:${AnsiColors.reset}');
     print('  ${AnsiColors.dim}- Clean Architecture with BLoC + Freezed${AnsiColors.reset}');
     print('  ${AnsiColors.dim}- Multi-platform support (iOS, Android, Web, Desktop)${AnsiColors.reset}');
-    print('  ${AnsiColors.dim}- Environment configs (dev, staging, production)${AnsiColors.reset}');
+    print('  ${AnsiColors.dim}- Native flavors (dev, staging, prod) with per-flavor bundle IDs${AnsiColors.reset}');
     print('  ${AnsiColors.dim}- Internationalization (en, es)${AnsiColors.reset}');
     print('  ${AnsiColors.dim}- GoRouter navigation${AnsiColors.reset}');
     print('  ${AnsiColors.dim}- VS Code debug configurations${AnsiColors.reset}');

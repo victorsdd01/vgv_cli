@@ -11,7 +11,8 @@ class CliController {
   CliController(this._projectRepository, {Logger? logger})
       : _logger = logger ?? Logger();
 
-  Future<void> runInteractiveMode({
+  /// Returns the process exit code: 0 on success or user cancel, 1 on error.
+  Future<int> runInteractiveMode({
     String? organization,
     String? outputDir,
     bool noGit = false,
@@ -67,12 +68,11 @@ class CliController {
         <String>['Create it', 'Change something', 'Cancel'],
       );
       if (action == 0) {
-        await _createProject(buildConfig());
-        return;
+        return await _createProject(buildConfig()) ? 0 : 1;
       }
       if (action == 2) {
         _printCancelledMessage();
-        return;
+        return 0;
       }
 
       const fields = <String>[
@@ -112,7 +112,11 @@ class CliController {
     }
   }
 
-  Future<void> runWithFlags({
+  /// Returns the process exit code: 0 on success or user cancel, 1 on error.
+  ///
+  /// Without a terminal there is nobody to answer the confirmation prompt, so
+  /// an explicit `-n <name>` proceeds as if `-q` had been passed.
+  Future<int> runWithFlags({
     String? projectName,
     String? organization,
     String? outputDir,
@@ -127,8 +131,8 @@ class CliController {
     if (projectName != null && projectName.isNotEmpty) {
       if (!ProjectConfig.isValidProjectName(projectName)) {
         _logger.err('Invalid project name: $projectName');
-        _logger.detail('Must be lowercase with underscores only.');
-        return;
+        _logger.info(styleDim.wrap('  Must start with a lowercase letter; only a-z, 0-9 and _.'));
+        return 1;
       }
       finalProjectName = projectName;
     } else if (quickMode) {
@@ -136,8 +140,8 @@ class CliController {
       finalProjectName = _getProjectName();
     } else {
       _logger.err('Project name is required.');
-      _logger.detail('Use: vgv -n <name>');
-      return;
+      _logger.info(styleDim.wrap('  Use: vgv -n <name>'));
+      return 1;
     }
 
     // Get or use default organization based on project name
@@ -145,8 +149,8 @@ class CliController {
     if (organization != null && organization.isNotEmpty) {
       if (!ProjectConfig.isValidOrganizationName(organization)) {
         _logger.err('Invalid organization: $organization');
-        _logger.detail('Must be lowercase with dots (e.g., com.example)');
-        return;
+        _logger.info(styleDim.wrap('  Must be lowercase with dots (e.g., com.example)'));
+        return 1;
       }
       finalOrganization = organization;
     } else {
@@ -177,15 +181,15 @@ class CliController {
 
     _printConfigurationSummary(config);
 
-    if (quickMode) {
-      // In quick mode, proceed without confirmation
-      await _createProject(config);
-    } else if (_confirmConfiguration()) {
-      await _createProject(config);
-    } else {
-      _printCancelledMessage();
+    if (quickMode || !hasTerminal || _confirmConfiguration()) {
+      return await _createProject(config) ? 0 : 1;
     }
+    _printCancelledMessage();
+    return 0;
   }
+
+  /// Whether prompts can be shown (mason_logger needs both ends on a TTY).
+  static bool get hasTerminal => stdin.hasTerminal && stdout.hasTerminal;
 
   void _printWelcomeMessage() {
     String banner(String line) => styleBold.wrap(lightMagenta.wrap(line)!)!;
@@ -213,7 +217,7 @@ class CliController {
 
       if (!ProjectConfig.isValidProjectName(name)) {
         _logger.err('Project name must be lowercase with underscores only.');
-        _logger.detail('Example: my_awesome_app, flutter_app, todo_list');
+        _logger.info(styleDim.wrap('  Example: my_awesome_app, flutter_app, todo_list'));
         continue;
       }
 
@@ -241,7 +245,7 @@ class CliController {
 
       if (!ProjectConfig.isValidOrganizationName(org)) {
         _logger.err('Organization must be lowercase with dots, min 2 chars.');
-        _logger.detail('Example: com.example, dev.mycompany');
+        _logger.info(styleDim.wrap('  Example: com.example, dev.mycompany'));
         continue;
       }
 
@@ -735,14 +739,15 @@ class CliController {
     );
   }
 
-  Future<void> _createProject(ProjectConfig config) async {
+  /// Returns whether the project was created.
+  Future<bool> _createProject(ProjectConfig config) async {
     _logger.info('');
 
     if (!await _projectRepository.isFlutterInstalled()) {
       _logger
         ..err('Flutter is not installed or not on your PATH.')
-        ..detail('Install Flutter, verify with `flutter doctor`, then retry.');
-      return;
+        ..info(styleDim.wrap('  Install Flutter, verify with `flutter doctor`, then retry.'));
+      return false;
     }
 
     final progress = _logger.progress('Creating Flutter project...');
@@ -792,6 +797,7 @@ class CliController {
         _logger.info(styleDim.wrap('  The project was created; finish these steps manually.'));
         _logger.info('');
       }
+      return true;
     } catch (e) {
       progress.fail('Failed to create project');
       _logger
@@ -803,6 +809,7 @@ class CliController {
         ..info('    - Ensure you have write permissions')
         ..info('    - Try running: flutter doctor')
         ..info('');
+      return false;
     }
   }
 

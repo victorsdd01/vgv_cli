@@ -232,7 +232,7 @@ class BrickRunner {
       if (attached) {
         final proc = await Process.start('mason', args,
             runInShell: true, mode: ProcessStartMode.inheritStdio);
-        return proc.exitCode;
+        return await proc.exitCode;
       }
       final r = await Process.run('mason', args, runInShell: true);
       if (r.exitCode != 0 && !quiet) {
