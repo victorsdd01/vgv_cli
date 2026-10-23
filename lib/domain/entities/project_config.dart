@@ -134,6 +134,30 @@ class ProjectConfig {
     return segments.join('.');
   }
 
+  /// The platform folders `flutter create` generates for this config, in its
+  /// `--platforms` vocabulary (`android`, `ios`, `web`, `windows`, `macos`,
+  /// `linux`), honoring Android/iOS-only and custom desktop choices.
+  Set<String> get flutterPlatforms {
+    final custom = desktopPlatform == DesktopPlatform.custom
+        ? customDesktopPlatforms
+        : null;
+    bool desktop(DesktopPlatform only, bool Function(CustomDesktopPlatforms) pick) =>
+        platforms.contains(PlatformType.desktop) &&
+        (custom != null
+            ? pick(custom)
+            : desktopPlatform == only || desktopPlatform == DesktopPlatform.all);
+    return <String>{
+      if (platforms.contains(PlatformType.mobile) &&
+          mobilePlatform != MobilePlatform.ios)
+        'android',
+      if (includesIos) 'ios',
+      if (platforms.contains(PlatformType.web)) 'web',
+      if (desktop(DesktopPlatform.windows, (c) => c.windows)) 'windows',
+      if (desktop(DesktopPlatform.macos, (c) => c.macos)) 'macos',
+      if (desktop(DesktopPlatform.linux, (c) => c.linux)) 'linux',
+    };
+  }
+
   /// Whether an iOS app is generated (and therefore [appleBaseBundleId] used).
   bool get includesIos =>
       platforms.contains(PlatformType.mobile) &&

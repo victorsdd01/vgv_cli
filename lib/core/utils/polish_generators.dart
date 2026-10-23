@@ -42,32 +42,20 @@ class IconSetGenerator {
       ..parent.createSync(recursive: true);
     src.copySync(dest.path);
 
-    final mobile = config.platforms.contains(PlatformType.mobile);
-    final web = config.platforms.contains(PlatformType.web);
-    final desktop = config.platforms.contains(PlatformType.desktop);
+    // Only the platforms the project actually has: flutter_launcher_icons
+    // warns about (and skips) any listed platform whose folder is missing.
+    final targets = config.flutterPlatforms;
+    String generate(String platform) => '  $platform:\n'
+        '    generate: true\n'
+        '    image_path: "assets/icon/app_icon.png"\n';
     final buf = StringBuffer()
       ..writeln('flutter_launcher_icons:')
-      ..writeln('  image_path: "assets/icon/app_icon.png"');
-    if (mobile) {
-      buf
-        ..writeln('  android: true')
-        ..writeln('  ios: true')
-        ..writeln('  remove_alpha_ios: true');
-    }
-    if (web) {
-      buf
-        ..writeln('  web:')
-        ..writeln('    generate: true')
-        ..writeln('    image_path: "assets/icon/app_icon.png"');
-    }
-    if (desktop) {
-      buf
-        ..writeln('  windows:')
-        ..writeln('    generate: true')
-        ..writeln('    image_path: "assets/icon/app_icon.png"')
-        ..writeln('  macos:')
-        ..writeln('    generate: true')
-        ..writeln('    image_path: "assets/icon/app_icon.png"');
+      ..writeln('  image_path: "assets/icon/app_icon.png"')
+      ..writeln('  android: ${targets.contains('android')}')
+      ..writeln('  ios: ${targets.contains('ios')}');
+    if (targets.contains('ios')) buf.writeln('  remove_alpha_ios: true');
+    for (final platform in const <String>['web', 'windows', 'macos']) {
+      if (targets.contains(platform)) buf.write(generate(platform));
     }
     File(p.join(root, 'flutter_launcher_icons.yaml'))
         .writeAsStringSync(buf.toString());

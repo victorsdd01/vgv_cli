@@ -162,4 +162,50 @@ void main() {
           isFalse);
     });
   });
+
+  group('ProjectConfig.flutterPlatforms', () {
+    ProjectConfig config(
+      List<PlatformType> platforms, {
+      MobilePlatform mobile = MobilePlatform.both,
+      DesktopPlatform desktop = DesktopPlatform.all,
+      CustomDesktopPlatforms? custom,
+    }) =>
+        ProjectConfig(
+          projectName: 'app',
+          organizationName: 'com.acme',
+          stateManagement: StateManagementType.bloc,
+          architecture: ArchitectureType.cleanArchitecture,
+          platforms: platforms,
+          mobilePlatform: mobile,
+          desktopPlatform: desktop,
+          customDesktopPlatforms: custom,
+        );
+
+    test('all platforms', () {
+      expect(
+        config([PlatformType.mobile, PlatformType.web, PlatformType.desktop])
+            .flutterPlatforms,
+        {'android', 'ios', 'web', 'windows', 'macos', 'linux'},
+      );
+    });
+
+    test('custom desktop keeps only the chosen ones', () {
+      expect(
+        config(
+          [PlatformType.mobile, PlatformType.web, PlatformType.desktop],
+          desktop: DesktopPlatform.custom,
+          custom: const CustomDesktopPlatforms(
+              windows: false, macos: true, linux: false),
+        ).flutterPlatforms,
+        {'android', 'ios', 'web', 'macos'},
+      );
+    });
+
+    test('Android-only and iOS-only mobile', () {
+      expect(config([PlatformType.mobile], mobile: MobilePlatform.android)
+          .flutterPlatforms, {'android'});
+      expect(config([PlatformType.mobile], mobile: MobilePlatform.ios)
+          .flutterPlatforms, {'ios'});
+    });
+  });
 }
