@@ -2898,8 +2898,10 @@ class _TalkerOverlayState extends State<_TalkerOverlay> {
   @override
   Widget build(BuildContext context) {
     final MediaQueryData mq = MediaQuery.of(context);
+    // Default: bottom-left, above the app shell's NavigationBar (80dp) so it
+    // never covers a tab; the right side stays free for page FABs.
     final Offset position = _position ??
-        Offset(16, mq.size.height - mq.padding.bottom - _buttonSize - 24);
+        Offset(16, mq.size.height - mq.padding.bottom - _buttonSize - 96);
 
     return Stack(
       children: <Widget>[
